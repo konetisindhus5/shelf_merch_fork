@@ -3,10 +3,11 @@ import { getNotificationQueue } from '../../jobs/queues.js';
 import { ensureRedisReady } from '../../config/redis.js';
 import { logger } from '../../config/logger.js';
 import { sendSms } from '../../services/msg91.service.js';
+import { sendNotificationEmail } from '../../services/email.service.js';
 
 /**
  * §7.12 — delivery handler used by the notification worker.
- * In-app: writes a Notification doc. Email: stub until a provider is configured.
+ * In-app: writes a Notification doc. Email: SMTP when credentials are set.
  * SMS: MSG91 when credentials are set; otherwise structured logs (tests/dev).
  */
 
@@ -24,7 +25,7 @@ export async function deliverNotification({
     await Notification.create({ tenantId, userId, type, title, body, link });
   }
   if (email) {
-    logger.info({ to: email, type, title, link }, 'EMAIL (stub — configure EMAIL_PROVIDER_API_KEY for production)');
+    await sendNotificationEmail({ to: email, title, body, link });
   }
   if (phone) {
     const message = [title, body, link].filter(Boolean).join(' — ');

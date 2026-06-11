@@ -4,6 +4,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import * as controller from './auth.controller.js';
 import {
   loginSchema,
+  registerSchema,
   refreshSchema,
   logoutSchema,
   forgotPasswordSchema,
@@ -12,6 +13,7 @@ import {
 
 const router = Router();
 
+router.post('/register', validate({ body: registerSchema }), asyncHandler(controller.register));
 router.post('/login', validate({ body: loginSchema }), asyncHandler(controller.login));
 router.post('/refresh', validate({ body: refreshSchema }), asyncHandler(controller.refresh));
 router.post('/logout', validate({ body: logoutSchema }), asyncHandler(controller.logout));

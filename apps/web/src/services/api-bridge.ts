@@ -25,18 +25,38 @@ export function useMocks(): boolean {
   return USE_MOCKS;
 }
 
+type AuthResult = {
+  accessToken: string;
+  refreshToken: string;
+  user: Parameters<typeof setSession>[0]["user"];
+};
+
+async function establishSession(result: AuthResult) {
+  setSession(result);
+  return result.user;
+}
+
 export async function login(email: string, password: string) {
-  const result = await apiFetch<{
-    accessToken: string;
-    refreshToken: string;
-    user: Parameters<typeof setSession>[0]["user"];
-  }>("/auth/login", {
+  const result = await apiFetch<AuthResult>("/auth/login", {
     method: "POST",
     auth: false,
     body: JSON.stringify({ email, password }),
   });
-  setSession(result);
-  return result.user;
+  return establishSession(result);
+}
+
+export async function register(payload: {
+  name: string;
+  email: string;
+  password: string;
+  companyName: string;
+}) {
+  const result = await apiFetch<AuthResult>("/auth/register", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify(payload),
+  });
+  return establishSession(result);
 }
 
 export async function logout() {
@@ -69,8 +89,18 @@ export async function hydrateWorkspace(): Promise<WorkspaceSnapshot> {
 }
 
 export function applyWorkspaceToState(S: Record<string, unknown>, data: WorkspaceSnapshot) {
+  const prevOrg = (S.org ?? {}) as {
+    step?: number;
+    seq?: number;
+    inWizard?: boolean;
+    _c?: number;
+  };
   S.account = data.account;
-  S.user = { ...data.userPatch, email: data.userPatch.email };
+  S.user = {
+    ...data.userPatch,
+    email: data.userPatch.email,
+    role: data.userPatch.role || "company_admin",
+  };
   S.shops = data.shops;
   S.contacts = data.contacts;
   S.kits = data.kits;
@@ -80,7 +110,14 @@ export function applyWorkspaceToState(S: Record<string, unknown>, data: Workspac
   S.orders = data.orders;
   S.wallets = data.wallets;
   S.primaryEntityId = data.primaryEntityId;
-  S.org = { ...(S.org as object), ...data.org };
+  // Replace org data from API; keep only in-progress wizard navigation state.
+  S.org = {
+    step: prevOrg.step ?? 1,
+    seq: prevOrg.seq ?? 6,
+    _c: prevOrg._c,
+    inWizard: prevOrg.inWizard ?? false,
+    ...data.org,
+  };
 }
 
 export async function createShopFlow(payload: {
@@ -159,6 +196,23 @@ export async function launchPointsCampaignFlow(payload: {
 
 export async function syncOrgWizard(org: Parameters<typeof syncOrgWizardApi>[0]) {
   return syncOrgWizardApi(org);
+}
+
+export async function acceptInvite(token: string, password: string) {
+  const result = await apiFetch<{ success: boolean; email: string }>("/users/accept-invite", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ token, password }),
+  });
+  try {
+    return await login(result.email, password);
+  } catch (err) {
+    // Account was activated even if auto-login fails (e.g. stale session).
+    if (err instanceof ApiError && err.code === "INVITE_PENDING") {
+      throw err;
+    }
+    return { email: result.email, activated: true as const };
+  }
 }
 
 // --- Public redemption API (no auth) ---

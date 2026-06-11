@@ -49,7 +49,11 @@ const envSchema = z.object({
   MSG91_OTP_TEMPLATE_ID: z.string().optional().default(''),
 
   EMAIL_PROVIDER_API_KEY: z.string().optional().default(''),
-  EMAIL_FROM: z.string().optional().default('noreply@shelfmerch.io'),
+  EMAIL_SERVICE: z.string().optional().default('gmail'),
+  EMAIL_USER: z.string().optional().default(''),
+  EMAIL_PASSWORD: z.string().optional().default(''),
+  EMAIL_FROM: z.string().optional().default(''),
+  APP_URL: z.string().optional().default('http://localhost:8080'),
 });
 
 const parsed = envSchema.safeParse(processEnv);
@@ -69,3 +73,5 @@ export const razorpayConfigured = () =>
 
 export const msg91Configured = () =>
   Boolean(env.MSG91_AUTH_KEY && env.MSG91_OTP_TEMPLATE_ID);
+
+export const emailConfigured = () => Boolean(env.EMAIL_USER && env.EMAIL_PASSWORD);

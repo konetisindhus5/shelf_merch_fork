@@ -269,10 +269,10 @@ function ViewSignup(){
     <div class="eyebrow">Get started</div>
     <h1 style="font-size:30px;margin-bottom:6px">Create your account</h1>
     <p class="muted" style="margin-bottom:22px">Set up your Shelf Merch workspace in minutes.</p>
-    <div class="field"><label class="lbl">Work email</label><input class="inp" autofocus placeholder="you@company.com" value="hr@rubix.net"></div>
-    <div class="field"><label class="lbl">Password</label><input class="inp" type="password" placeholder="••••••••" value="demo1234"></div>
-    <div class="row"><div class="field" style="flex:1"><label class="lbl">Name</label><input class="inp" value="Chandra Sekhar"></div>
-    <div class="field" style="flex:1"><label class="lbl">Company</label><input class="inp" value="Rubix"></div></div>
+    <div class="field"><label class="lbl">Work email</label><input class="inp" id="su-email" autofocus placeholder="you@company.com"></div>
+    <div class="field"><label class="lbl">Password</label><input class="inp" id="su-password" type="password" placeholder="At least 8 characters"></div>
+    <div class="row"><div class="field" style="flex:1"><label class="lbl">Name</label><input class="inp" id="su-name" placeholder="Your name"></div>
+    <div class="field" style="flex:1"><label class="lbl">Company</label><input class="inp" id="su-company" placeholder="Company name"></div></div>
     <p class="mut3" style="font-size:11.5px;line-height:1.5;margin:6px 0 16px">By creating an account, I agree to Shelf Merch’s <a>Terms of Use</a>, the use of my personal data per the <a>Privacy Notice</a>, and to receive product emails from Shelf Merch.</p>
     <button class="btn btn-brand btn-lg btn-block" data-act="auth">Create account</button>
     <p class="muted" style="text-align:center;margin-top:16px;font-size:13px">Already have an account? <span class="lnk" data-act="go" data-arg="login">Log in</span></p>
@@ -1216,6 +1216,7 @@ const orgTotalAlloc=()=>S.org.departments.reduce((s,d)=>s+(d.allocated||0),0);
 function orgNextColor(){ const o=S.org; o._c=(o._c||0); const c=ORG_FALLBACK[o._c%ORG_FALLBACK.length]; o._c++; return c; }
 
 function ViewWallets(){
+  if(!S.org.inWizard && S.user.role==='entity_manager') return entityManagerDashboard();
   if(!S.org.inWizard) return orgDashboard();
   if(S.org.done) return orgDone();
   const n=S.org.step;
@@ -1231,14 +1232,45 @@ function ViewWallets(){
     ${stepper}${body}${foot}`;
 }
 
+/* ---- Entity manager: department budget view ---- */
+function entityManagerDashboard(){
+  const dept=(S.primaryEntityId&&orgDeptById(S.primaryEntityId))||S.org.departments[0];
+  if(!dept){
+    return `<div class="page-h"><div><h1>My department budget</h1><div class="sub">${esc(S.account)}</div></div></div>
+      <div class="card empty" style="padding:50px"><div class="ic">${I.wallet.replace('currentColor','#cdd6cf')}</div>
+        <h3>Budget not available yet</h3>
+        <p>Your company admin must finish <b>organization setup</b> (step 5 — Review &amp; Finish) and allocate budget to your department. If you were invited by email, accept the invite link first.</p></div>`;
+  }
+  const alloc=dept.allocated||0, spent=dept.spent||0, rem=alloc-spent;
+  const pendingNote=!alloc?`<div class="banner" style="margin-bottom:18px;background:var(--warn-tint,#fff8e6);color:var(--ink-2);border:none"><b>Budget not allocated yet.</b> Your admin assigned you as manager, but the department budget has not been saved. Ask them to open <b>Wallets → Re-allocate budget</b> and finish setup.</div>`:'';
+  return `<div class="page-h"><div><h1>My department budget</h1><div class="sub">${esc(S.account)} · ${esc(dept.name)}</div></div></div>
+    ${pendingNote}
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="card" style="padding:22px">
+        <div class="mut3" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Allocated to you</div>
+        <div class="num" style="font-family:var(--disp);font-weight:800;font-size:34px;margin:12px 0 4px">${inr(alloc)}</div>
+        <div class="muted" style="font-size:13px">This is your department's merchandise budget for campaigns and orders.</div>
+      </div>
+      <div class="card row" style="padding:0">
+        <div class="stat" style="flex:1"><div class="k">Spent</div><div class="v num">${inr(spent)}</div></div>
+        <div style="width:1px;background:var(--line)"></div>
+        <div class="stat" style="flex:1"><div class="k">Remaining</div><div class="v num" style="color:var(--brand-d)">${inr(rem)}</div></div>
+      </div>
+    </div>
+    <div class="card" style="padding:18px 22px"><div class="mut3" style="font-size:12px">You can create campaigns and send gifts from this budget. Company-wide wallet settings are managed by your admin.</div></div>`;
+}
+
 /* ---- Organization dashboard (landing) ---- */
 function orgDashboard(){
-  if(!S.org.active){
+  if(!S.org.active && !(S.wallets&&S.wallets.length)){
     return `<div class="page-h"><div><h1>Wallets</h1><div class="sub">Set up a merchandise budget, split it into cost centers, and assign managers.</div></div></div>
       <div class="card empty" style="padding:50px"><div class="ic">${I.wallet.replace('currentColor','#cdd6cf')}</div><h3>No merchandise wallet yet</h3><p>Create your organization's merchandise budget wallet to start funding department campaigns.</p>
         <button class="btn btn-brand" style="margin-top:16px" data-act="orgStart">${I.plus}Create wallet</button></div>`;
   }
   const o=S.org.wallet, total=o.amount, alloc=orgTotalAlloc(), rem=total-alloc;
+  const walletLive=o.status==='active';
+  const statusTag=walletLive?'<span class="tag tag-live"><span class="dot"></span>Active</span>':'<span class="tag tag-draft">Setup in progress</span>';
+  const setupBanner=walletLive?'':`<div class="banner" style="margin-bottom:18px">${I.wallet.replace('width="24" height="24"','width="16" height="16"')}<div><b>Wallet setup is not finished.</b> Complete allocation and manager invites, then activate from the review step. <span class="lnk" data-act="orgStart">Continue setup</span></div></div>`;
   const depts=S.org.departments, invited=depts.filter(d=>d.mgr.invite&&d.mgr.email).length;
   const allocTot=alloc||1; let acc=0;
   const stops=depts.map(d=>{ const pct=(d.allocated/allocTot*100); const seg=`${d.color} ${acc}% ${acc+pct}%`; acc+=pct; return seg; }).join(',')||'var(--surface-2) 0% 100%';
@@ -1257,7 +1289,7 @@ function orgDashboard(){
     <div class="card" style="padding:22px">
       <div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="mut3" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Merchandise budget wallet</div>
         <h2 style="font-size:21px;font-family:var(--disp);margin-top:4px">${esc(o.name)}</h2></div>
-        <span class="tag tag-live"><span class="dot"></span>Active</span></div>
+        ${statusTag}</div>
       <div class="num" style="font-family:var(--disp);font-weight:800;font-size:34px;margin:14px 0 4px">${inr(total)}</div>
       <div class="muted" style="font-size:13px">Valid ${fmtDate(o.start)} → ${fmtDate(o.end)} · Funded via ${o.funding==='upload'?(esc(o.docType)+' '+esc(o.docNumber)):'online payment'}</div>
       <div class="row" style="gap:8px;margin-top:16px"><button class="btn btn-ghost btn-sm" data-act="orgGoEdit" data-arg="1">Edit wallet</button><button class="btn btn-ghost btn-sm" data-act="orgGoEdit" data-arg="3">Re-allocate budget</button><button class="btn btn-ghost btn-sm" data-act="orgGoEdit" data-arg="4">Manage managers</button></div>
@@ -1363,8 +1395,8 @@ function orgQuickAdd(name){ if(S.org.departments.some(d=>d.name.toLowerCase()===
   S.org.departments.push({id:S.org.seq++,name,desc:descs[name]||'Department merchandise and campaigns.',users:10,allocated:0,color:orgNextColor(),mgr:{name:'',email:'',mobile:'',role:ORG_ROLES.find(r=>r.startsWith(name))||'Operations Manager',invite:true}});
   toast(name+' added'); render();
 }
-function orgDeptDel(id){ if(S.org.departments.length<=1){ toast('Keep at least one department',false); return; } S.org.departments=S.org.departments.filter(d=>d.id!==+id); render(); }
-function orgDeptModal(arg){ const edit=arg!=='new'; const d=edit?S.org.departments.find(x=>x.id===+arg):null; S.org.editId=edit?+arg:null;
+function orgDeptDel(id){ if(S.org.departments.length<=1){ toast('Keep at least one department',false); return; } S.org.departments=S.org.departments.filter(d=>String(d.id)!==String(id)); render(); }
+function orgDeptModal(arg){ const edit=arg!=='new'; const d=edit?orgDeptById(arg):null; S.org.editId=edit?String(arg):null;
   openModal(`<div class="modal-pad"><div class="modal-h"><div><div class="eyebrow">Cost center</div><h2 style="font-size:22px;font-family:var(--disp)">${edit?'Edit department':'Add department'}</h2></div><button class="xbtn" data-act="closeLayer">✕</button></div>
     <p class="muted" style="font-size:13px;margin:4px 0 18px">Create a cost center that will consume merchandise budget.</p>
     <div class="field"><label class="lbl">Department name</label><input class="inp" id="org-mname" value="${edit?esc(d.name):''}" placeholder="e.g. Product" autofocus></div>
@@ -1374,7 +1406,7 @@ function orgDeptModal(arg){ const edit=arg!=='new'; const d=edit?S.org.departmen
 }
 function orgDeptSave(){ const name=(document.getElementById('org-mname').value||'').trim(); if(!name){ toast('Enter a department name',false); return; }
   const desc=(document.getElementById('org-mdesc').value||'').trim()||'Department merchandise and campaigns.'; const users=parseInt(document.getElementById('org-musers').value)||1;
-  if(S.org.editId){ const d=S.org.departments.find(x=>x.id===S.org.editId); d.name=name; d.desc=desc; d.users=users; }
+  if(S.org.editId){ const d=orgDeptById(S.org.editId); if(d){ d.name=name; d.desc=desc; d.users=users; } }
   else S.org.departments.push({id:S.org.seq++,name,desc,users,allocated:0,color:orgNextColor(),mgr:{name:'',email:'',mobile:'',role:'Operations Manager',invite:true}});
   closeLayer(); render();
 }
@@ -1399,7 +1431,7 @@ function orgStep3(){
       <tfoot><tr style="font-weight:700"><td style="padding:12px 10px">Total allocated</td><td class="r" style="padding:12px 10px" id="org-footAmt">${inr(alloc)}</td><td class="r" style="padding:12px 10px" id="org-footPct">${total?Math.round(alloc/total*100):0}%</td></tr></tfoot></table>
     <div class="banner ${alloc>total?'':''}" id="org-allocAlert" style="margin-top:16px;background:var(--danger-tint,#fdeceb);color:var(--danger);border:none;${alloc>total?'':'display:none'}">Allocated amount exceeds the wallet value. Reduce allocations to continue.</div>`;
 }
-function orgAllocLive(e){ const el=e.target; const id=+el.dataset.id; let n=parseAmt(el.value); el.value=n?n.toLocaleString('en-IN'):''; S.org.departments.find(d=>d.id===id).allocated=n; orgAllocRecalc(); }
+function orgAllocLive(e){ const el=e.target; const d=orgDeptById(el.dataset.id); if(!d) return; let n=parseAmt(el.value); el.value=n?n.toLocaleString('en-IN'):''; d.allocated=n; orgAllocRecalc(); }
 function orgAllocRecalc(){ const total=S.org.wallet.amount, alloc=orgTotalAlloc(), rem=total-alloc, over=alloc>total;
   const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=v;};
   set('org-stAlloc',inr(alloc)); set('org-footAmt',inr(alloc)); set('org-footPct',(total?Math.round(alloc/total*100):0)+'%');
@@ -1427,9 +1459,10 @@ function orgStep4(){
     <div class="row" style="justify-content:space-between;align-items:center;padding:14px 18px;border-top:1px solid var(--line);background:var(--surface-2)"><div><div style="font-weight:600;font-size:13px">Send invitation</div><div class="mut3" style="font-size:11.5px">Email the manager an invite to activate their account</div></div><div class="switch ${d.mgr.invite?'on':''}" data-act="orgInvite" data-arg="${d.id}"></div></div>
   </div>`).join('');
 }
-function orgMgrLive(e){ const el=e.target; S.org.departments.find(d=>d.id===+el.dataset.id).mgr[el.dataset.f]=el.value; }
-function orgMgrRole(el){ S.org.departments.find(d=>d.id===+el.dataset.id).mgr.role=el.value; }
-function orgInvite(id){ const d=S.org.departments.find(x=>x.id===+id); d.mgr.invite=!d.mgr.invite; render(); }
+function orgDeptById(id){ return S.org.departments.find((d)=>String(d.id)===String(id)); }
+function orgMgrLive(e){ const el=e.target; const d=orgDeptById(el.dataset.id); if(d) d.mgr[el.dataset.f]=el.value; }
+function orgMgrRole(el){ const d=orgDeptById(el.dataset.id); if(d) d.mgr.role=el.value; }
+function orgInvite(id){ const d=orgDeptById(id); if(!d) return; d.mgr.invite=!d.mgr.invite; render(); }
 
 /* ---- Step 5: review ---- */
 function orgStep5(){
@@ -1457,6 +1490,7 @@ function orgGo(arg){ S.org.step=+arg; render(); }
 function orgBack(){ if(S.org.step>1){ S.org.step--; render(); } }
 function orgNext(){ const st=S.org.step;
   if(st===3 && orgTotalAlloc()>S.org.wallet.amount){ toast('Reduce allocations to continue',false); return; }
+  if(st===5 && orgTotalAlloc()<=0){ toast('Allocate budget to at least one department before finishing',false); return; }
   if(st===5){ orgFinishConfirm(); return; }
   S.org.step++; render();
 }
@@ -1468,11 +1502,14 @@ async function orgFinish(){
   closeLayer();
   try{
     S.loading=true; render();
-    await api.syncOrgWizard(S.org);
+    const result=await api.syncOrgWizard(S.org);
+    S.org.wallet.id=result.walletId;
+    S.org.sentInvites=result.invites||[];
     await hydrateFromApi();
     S.org.done=true;
     S.org.active=true;
-    toast('Wallet setup saved to your workspace');
+    const withLinks=(S.org.sentInvites||[]).filter((i)=>i.inviteToken).length;
+    toast(withLinks?`Wallet saved — ${withLinks} invite link(s) shown below`:'Wallet setup saved to your workspace');
   }catch(err){
     toast(err.message||'Failed to save wallet setup');
   }finally{
@@ -1481,6 +1518,10 @@ async function orgFinish(){
 }
 
 function orgDone(){ const o=S.org.wallet; const invited=S.org.departments.filter(d=>d.mgr.invite&&d.mgr.email).length;
+  const inviteCards=(S.org.sentInvites||[]).filter(i=>i.inviteToken).map(i=>{
+    const link=`${location.origin}/accept-invite?token=${encodeURIComponent(i.inviteToken)}`;
+    return `<div class="succ-item" style="flex-direction:column;align-items:stretch;gap:8px"><div style="font-weight:600;font-size:13px">${esc(i.name||i.email)} · ${esc(i.entityName)}</div><div class="mut3" style="font-size:11.5px;word-break:break-all">${esc(link)}</div><button class="btn btn-ghost btn-sm" type="button" data-act="copyInvite" data-arg="${esc(link)}">Copy invite link</button></div>`;
+  }).join('');
   return `<div style="max-width:620px;margin:30px auto;text-align:center">
     <div class="success-burst">${I.check.replace('width="24" height="24"','width="36" height="36"')}</div>
     <h1 style="font-size:26px">Organization setup complete</h1>
@@ -1488,8 +1529,9 @@ function orgDone(){ const o=S.org.wallet; const invited=S.org.departments.filter
     <div class="card" style="padding:8px 20px;text-align:left">
       <div class="succ-item"><div class="si">${I.wallet.replace('width="24" height="24"','width="17" height="17"')}</div><div style="flex:1"><div style="font-weight:600">Wallet created</div><div class="mut3" style="font-size:12px">${inr(o.amount)} budget activated</div></div><span class="tag tag-live"><span class="dot"></span>Active</span></div>
       <div class="succ-item"><div class="si">${I.box.replace('width="24" height="24"','width="17" height="17"')}</div><div style="flex:1"><div style="font-weight:600">${S.org.departments.length} departments created</div><div class="mut3" style="font-size:12px">${S.org.departments.map(d=>esc(d.name)).join(', ')}</div></div><span class="tag tag-live"><span class="dot"></span>Done</span></div>
-      <div class="succ-item" style="border-bottom:none"><div class="si">${I.contacts.replace('width="24" height="24"','width="17" height="17"')}</div><div style="flex:1"><div style="font-weight:600">${invited} managers invited</div><div class="mut3" style="font-size:12px">Invitations sent via email</div></div><span class="tag tag-live"><span class="dot"></span>Sent</span></div>
+      <div class="succ-item" style="border-bottom:none"><div class="si">${I.contacts.replace('width="24" height="24"','width="17" height="17"')}</div><div style="flex:1"><div style="font-weight:600">${invited} managers invited</div><div class="mut3" style="font-size:12px">Invitations sent via email — check spam if not received</div></div><span class="tag tag-live"><span class="dot"></span>Sent</span></div>
     </div>
+    ${inviteCards?`<div class="card" style="padding:8px 20px;margin-top:16px;text-align:left"><div style="font-weight:600;font-size:13px;margin-bottom:8px">Invite links (dev)</div><p class="mut3" style="font-size:12px;margin:0 0 12px">Gmail often filters localhost invite links to spam. Share these links directly if needed.</p>${inviteCards}</div>`:''}
     <div class="card" style="padding:14px 18px;margin-top:16px;display:flex;gap:12px;align-items:center;text-align:left;background:var(--brand-50);border-color:#cfe7da"><div class="logo-chip" style="width:36px;height:36px">${I.shop.replace('currentColor','#15784C')}</div><div><div class="mut3" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">Recommended next step</div><div style="font-weight:600">Create your company store</div></div></div>
     <div class="row" style="justify-content:center;margin-top:22px"><button class="btn btn-ghost btn-lg" data-act="orgToDash">Go to dashboard</button><button class="btn btn-brand btn-lg" data-act="nav" data-arg="shops">Create store ${I.send.replace('width="24" height="24"','width="15" height="15"')}</button></div>
   </div>`;
@@ -1515,6 +1557,14 @@ function prevThumb(i,u,sel,act){ return `<div class="thumb ${sel?'on':''}" data-
 
 /* ===================== TOP-LEVEL HANDLERS ===================== */
 function readAuthForm(){
+  if(S.view==='signup'){
+    return {
+      email:(document.getElementById('su-email')?.value||'').trim(),
+      password:document.getElementById('su-password')?.value||'',
+      name:(document.getElementById('su-name')?.value||'').trim(),
+      companyName:(document.getElementById('su-company')?.value||'').trim(),
+    };
+  }
   const inputs=document.querySelectorAll('.auth-form .inp');
   return { email:(inputs[0]?.value||'').trim(), password:inputs[1]?.value||'' };
 }
@@ -1528,17 +1578,25 @@ async function auth(){
     toast('Welcome back, '+S.user.name.split(' ')[0]);
     return;
   }
-  const {email,password}=readAuthForm();
-  if(!email||!password){ toast('Enter email and password'); return; }
+  const form=readAuthForm();
+  const isSignup=S.view==='signup';
+  if(isSignup){
+    if(!form.email||!form.password||!form.name||!form.companyName){
+      toast('Fill in all fields'); return;
+    }
+    if(form.password.length<8){ toast('Password must be at least 8 characters'); return; }
+  } else if(!form.email||!form.password){ toast('Enter email and password'); return; }
   S.loading=true; render();
   try{
-    const user=await api.login(email,password);
-    S.user={name:user.name,initials:user.name.split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join(''),email:user.email};
+    const user=isSignup
+      ? await api.register({ name:form.name, email:form.email, password:form.password, companyName:form.companyName })
+      : await api.login(form.email,form.password);
+    S.user={name:user.name,initials:user.name.split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join(''),email:user.email,role:user.role||'company_admin'};
     await hydrateFromApi();
     S.authed=true; S.nav='orders'; S.view='orders'; S.flow={};
-    toast('Welcome back, '+S.user.name.split(' ')[0]);
+    toast(isSignup ? 'Welcome to Shelf Merch, '+user.name.split(' ')[0]+'!' : 'Welcome back, '+user.name.split(' ')[0]);
   }catch(err){
-    toast(err.message||'Login failed');
+    toast(err.message||(isSignup?'Sign up failed':'Login failed'));
   }finally{
     S.loading=false; render();
   }
@@ -1619,6 +1677,7 @@ const ACT = {
   orgGoEdit:(el,a)=>orgGoEdit(a),
   orgExit:()=>orgExit(),
   orgToDash:()=>orgToDash(),
+  copyInvite:(el,a)=>{ navigator.clipboard.writeText(a).then(()=>toast('Invite link copied')).catch(()=>toast('Copy failed — select the link manually',false)); },
   // shops
   shopOpen:(el,a)=>shopOpen(a),
   shopTab:(el,a)=>shopTab(a),

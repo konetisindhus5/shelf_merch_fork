@@ -2,11 +2,14 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env.js';
-import { logger } from '../../config/logger.js';
+import { sendPasswordResetEmail } from '../../services/email.service.js';
+import mongoose from 'mongoose';
 import { User } from '../users/user.model.js';
 import { RoleAssignment } from '../roles/roleAssignment.model.js';
 import { RefreshToken } from './refreshToken.model.js';
-import { ApiError, UnauthorizedError } from '../../utils/errors.js';
+import { Tenant } from '../tenants/tenant.model.js';
+import { Wallet } from '../wallets/wallet.model.js';
+import { ApiError, ConflictError, UnauthorizedError } from '../../utils/errors.js';
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -54,6 +57,92 @@ function publicUser(user, roleAssignment) {
     role: roleAssignment.role,
     scopeType: roleAssignment.scopeType,
     assignedEntityIds: (roleAssignment.assignedEntityIds ?? []).map(String),
+  };
+}
+
+function slugifyCompany(name) {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return base.length >= 2 ? base : 'workspace';
+}
+
+async function uniqueTenantSlug(companyName) {
+  let slug = slugifyCompany(companyName);
+  let attempt = 0;
+  while (await Tenant.findOne({ slug }).setOptions({ skipTenantGuard: true })) {
+    attempt += 1;
+    slug = `${slugifyCompany(companyName)}-${attempt}`;
+  }
+  return slug;
+}
+
+/** Self-service signup — creates tenant + active company_admin, returns tokens like login. */
+export async function register({ name, email, password, companyName, ip, userAgent }) {
+  const normalizedEmail = email.toLowerCase();
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    throw new ConflictError('An account with this email already exists — try logging in instead');
+  }
+
+  const passwordHash = await hashPassword(password);
+  const slug = await uniqueTenantSlug(companyName);
+
+  const session = await mongoose.startSession();
+  let user;
+  let roleAssignment;
+  try {
+    await session.withTransaction(async () => {
+      const [tenant] = await Tenant.create(
+        [{ name: companyName, slug, currency: 'INR', status: 'trial' }],
+        { session },
+      );
+      [user] = await User.create(
+        [
+          {
+            tenantId: tenant._id,
+            name,
+            email: normalizedEmail,
+            passwordHash,
+            status: 'active',
+          },
+        ],
+        { session },
+      );
+      [roleAssignment] = await RoleAssignment.create(
+        [
+          {
+            tenantId: tenant._id,
+            userId: user._id,
+            role: 'company_admin',
+            scopeType: 'tenant',
+          },
+        ],
+        { session },
+      );
+      await Wallet.create(
+        [
+          {
+            tenantId: tenant._id,
+            ownerUserId: user._id,
+            name: `${companyName} Merchandise Budget`,
+            currency: 'INR',
+            status: 'draft',
+          },
+        ],
+        { session },
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  return {
+    accessToken: signAccessToken(user, roleAssignment),
+    refreshToken: await issueRefreshToken(user._id, { ip, userAgent }),
+    user: publicUser(user, roleAssignment),
   };
 }
 
@@ -120,8 +209,7 @@ export async function forgotPassword({ email }) {
   user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
   await user.save();
 
-  // MVP: email provider lands in Phase 7 — log the link for now.
-  logger.info({ email: user.email, resetToken: token }, 'Password reset requested (email stub)');
+  await sendPasswordResetEmail(user.email, token);
 }
 
 export async function resetPassword({ token, newPassword }) {

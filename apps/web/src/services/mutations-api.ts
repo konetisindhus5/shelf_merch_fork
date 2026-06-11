@@ -1,5 +1,96 @@
-import { apiFetch } from "./api";
+import { ApiError, apiFetch } from "./api";
+import { getStoredUser } from "./auth-store";
 import { mapCampaign, mapCollection, mapKit, type UiProduct } from "./mappers";
+
+const MONGO_ID = /^[a-f0-9]{24}$/i;
+
+type OrgWizardState = {
+  wallet: {
+    id?: string;
+    name: string;
+    amount: number;
+    start: string;
+    end: string;
+    funding: string;
+    docType: string;
+    docNumber: string;
+  };
+  departments: Array<{
+    id: string | number;
+    name: string;
+    desc: string;
+    users: number;
+    allocated: number;
+    color: string;
+    mgr: { name: string; email: string; mobile: string; role: string; invite: boolean };
+  }>;
+};
+
+function walletIdFromResponse(wallet: Record<string, unknown>): string {
+  const id = wallet._id ?? wallet.id;
+  if (!id || !MONGO_ID.test(String(id))) {
+    throw new Error("Wallet create response missing a valid id");
+  }
+  return String(id);
+}
+
+async function resolveWalletId(org: OrgWizardState): Promise<string> {
+  let candidate = org.wallet.id?.trim();
+  const tenantId = getStoredUser()?.tenantId;
+
+  // Stale UI state sometimes stores tenantId where a wallet id belongs.
+  if (candidate && tenantId && candidate === tenantId) {
+    candidate = undefined;
+  }
+
+  if (candidate && MONGO_ID.test(candidate)) {
+    try {
+      const existing = await apiFetch<{ balance?: number }>(`/wallets/${candidate}`);
+      if (org.wallet.amount > 0 && Number(existing.balance ?? 0) === 0) {
+        await apiFetch(`/wallets/${candidate}/fund`, {
+          method: "POST",
+          idempotencyKey: `fund-${candidate}-setup`,
+          body: JSON.stringify({
+            amount: org.wallet.amount,
+            description: "Organization wallet setup funding",
+          }),
+        });
+      }
+      return candidate;
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.status !== 404) throw err;
+    }
+  }
+
+  const wallet = await apiFetch<Record<string, unknown>>("/wallets", {
+    method: "POST",
+    body: JSON.stringify({
+      name: org.wallet.name,
+      currency: "INR",
+      validFrom: org.wallet.start || null,
+      validTo: org.wallet.end || null,
+      fundingMethod: org.wallet.funding === "pay" ? "online" : "po_upload",
+      fundingDocument: {
+        docType: org.wallet.docType || "",
+        docNumber: org.wallet.docNumber || "",
+      },
+    }),
+  });
+  const walletId = walletIdFromResponse(wallet);
+
+  if (org.wallet.amount > 0) {
+    await apiFetch(`/wallets/${walletId}/fund`, {
+      method: "POST",
+      idempotencyKey: `fund-${walletId}-setup`,
+      body: JSON.stringify({
+        amount: org.wallet.amount,
+        description: "Organization wallet setup funding",
+      }),
+    });
+  }
+
+  return walletId;
+}
 
 function productRefFromUi(p: UiProduct) {
   if (!p.id) throw new Error(`Product "${p.nm}" has no catalog id — reload the catalog`);
@@ -102,83 +193,70 @@ export async function launchPointsCampaignApi(payload: {
   return mapCampaign(launched);
 }
 
-type OrgWizardState = {
-  wallet: {
-    id?: string;
-    name: string;
-    amount: number;
-    start: string;
-    end: string;
-    funding: string;
-    docType: string;
-    docNumber: string;
-  };
-  departments: Array<{
-    id: string | number;
-    name: string;
-    desc: string;
-    users: number;
-    allocated: number;
-    color: string;
-    mgr: { name: string; email: string; mobile: string; role: string; invite: boolean };
-  }>;
+export type OrgWizardInvite = {
+  email: string;
+  name: string;
+  entityName: string;
+  inviteToken?: string;
 };
 
-export async function syncOrgWizardApi(org: OrgWizardState): Promise<string> {
-  let walletId = org.wallet.id;
+type ApiEntityRow = {
+  _id?: string;
+  id?: string;
+  walletId?: string;
+  allocatedAmount?: number;
+};
 
-  if (!walletId) {
-    const wallet = await apiFetch<Record<string, unknown>>("/wallets", {
-      method: "POST",
-      body: JSON.stringify({
-        name: org.wallet.name,
-        currency: "INR",
-        validFrom: org.wallet.start || null,
-        validTo: org.wallet.end || null,
-        fundingMethod: org.wallet.funding === "pay" ? "online" : "po_upload",
-        fundingDocument: {
-          docType: org.wallet.docType || "",
-          docNumber: org.wallet.docNumber || "",
-        },
-      }),
-    });
-    walletId = String(wallet._id);
+export async function syncOrgWizardApi(
+  org: OrgWizardState,
+): Promise<{ walletId: string; invites: OrgWizardInvite[] }> {
+  const defaultWalletId = await resolveWalletId(org);
+  const allocationsByWallet = new Map<string, Array<{ entityId: string; amount: number }>>();
+  const walletsToActivate = new Set<string>();
+  const invites: OrgWizardInvite[] = [];
+  let primaryWalletId = defaultWalletId;
 
-    if (org.wallet.amount > 0) {
-      await apiFetch(`/wallets/${walletId}/fund`, {
-        method: "POST",
-        idempotencyKey: `fund-${walletId}-setup`,
-        body: JSON.stringify({
-          amount: org.wallet.amount,
-          description: "Organization wallet setup funding",
-        }),
-      });
-    }
-  }
-
-  const allocations: Array<{ entityId: string; amount: number }> = [];
+  const pushAllocation = (walletId: string, entityId: string, amount: number) => {
+    if (amount <= 0) return;
+    const list = allocationsByWallet.get(walletId) ?? [];
+    list.push({ entityId, amount });
+    allocationsByWallet.set(walletId, list);
+    walletsToActivate.add(walletId);
+  };
 
   for (const dept of org.departments) {
     const existingId = String(dept.id);
-    const isMongoId = /^[a-f0-9]{24}$/i.test(existingId);
+    const isMongoId = MONGO_ID.test(existingId);
     let entityId = isMongoId ? existingId : "";
+    let entityWalletId = defaultWalletId;
+    let currentAllocated = 0;
 
-    if (!entityId) {
-      const entity = await apiFetch<Record<string, unknown>>("/entities", {
+    if (entityId) {
+      const entity = await apiFetch<ApiEntityRow>(`/entities/${entityId}`);
+      entityWalletId = String(entity.walletId ?? defaultWalletId);
+      currentAllocated = Number(entity.allocatedAmount ?? 0);
+      primaryWalletId = entityWalletId;
+    } else {
+      const entity = await apiFetch<ApiEntityRow>("/entities", {
         method: "POST",
         body: JSON.stringify({
-          walletId,
+          walletId: defaultWalletId,
           name: dept.name,
           description: dept.desc || "",
           colorHex: dept.color || "#2563EB",
           expectedUsers: dept.users || 0,
         }),
       });
-      entityId = String(entity._id);
+      entityId = String(entity._id ?? entity.id);
+      entityWalletId = String(entity.walletId ?? defaultWalletId);
+      primaryWalletId = entityWalletId;
     }
 
     if (dept.mgr?.email && dept.mgr.invite) {
-      await apiFetch(`/entities/${entityId}/assign-manager`, {
+      const res = await apiFetch<{
+        manager?: { email?: string };
+        inviteToken?: string;
+      }>(`/entities/${entityId}/assign-manager`, {
         method: "POST",
         body: JSON.stringify({
           name: dept.mgr.name || dept.mgr.email.split("@")[0],
@@ -187,21 +265,31 @@ export async function syncOrgWizardApi(org: OrgWizardState): Promise<string> {
           mobile: dept.mgr.mobile || "",
         }),
       });
+      invites.push({
+        email: dept.mgr.email,
+        name: dept.mgr.name || dept.mgr.email.split("@")[0],
+        entityName: dept.name,
+        inviteToken: res.inviteToken,
+      });
     }
 
-    if (dept.allocated > 0) {
-      allocations.push({ entityId, amount: dept.allocated });
-    }
+    const target = Number(dept.allocated) || 0;
+    const delta = target - currentAllocated;
+    pushAllocation(entityWalletId, entityId, delta);
   }
 
-  if (allocations.length) {
+  for (const [walletId, allocations] of allocationsByWallet) {
+    if (!allocations.length) continue;
     await apiFetch(`/wallets/${walletId}/allocate`, {
       method: "POST",
-      idempotencyKey: `alloc-${walletId}-setup`,
+      idempotencyKey: `alloc-${walletId}-${allocations.map((a) => `${a.entityId}:${a.amount}`).join("|")}`,
       body: JSON.stringify({ allocations }),
     });
   }
 
-  await apiFetch(`/wallets/${walletId}/activate`, { method: "POST" });
-  return walletId;
+  for (const walletId of walletsToActivate) {
+    await apiFetch(`/wallets/${walletId}/activate`, { method: "POST" });
+  }
+
+  return { walletId: primaryWalletId, invites };
 }

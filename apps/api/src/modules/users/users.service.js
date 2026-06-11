@@ -3,7 +3,7 @@ import { User } from './user.model.js';
 import { RoleAssignment } from '../roles/roleAssignment.model.js';
 import { hashPassword } from '../auth/auth.service.js';
 import { ApiError, ConflictError, NotFoundError } from '../../utils/errors.js';
-import { logger } from '../../config/logger.js';
+import { sendInviteEmail, sendNotificationEmail } from '../../services/email.service.js';
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -23,9 +23,10 @@ export async function inviteUser(
     throw new ConflictError('This email is already registered to another workspace');
   }
 
-  const inviteToken = crypto.randomBytes(32).toString('hex');
+  let inviteToken = null;
 
   if (!user) {
+    inviteToken = crypto.randomBytes(32).toString('hex');
     [user] = await User.create(
       [
         {
@@ -41,38 +42,82 @@ export async function inviteUser(
       session ? { session } : {},
     );
   } else if (user.status === 'invited') {
+    inviteToken = crypto.randomBytes(32).toString('hex');
     user.inviteTokenHash = sha256(inviteToken);
     user.inviteTokenExpiresAt = new Date(Date.now() + INVITE_TTL_MS);
+    if (name && user.name !== name) user.name = name;
+    if (phone) user.phone = phone;
+    await user.save({ session });
+  } else if (user.status === 'active' && name && user.name !== name) {
+    user.name = name;
+    if (phone) user.phone = phone;
     await user.save({ session });
   }
 
-  const existingAssignment = await RoleAssignment.findOne({ userId: user._id, tenantId }).session(session);
-  if (!existingAssignment) {
+  const entityIds = assignedEntityIds.length
+    ? assignedEntityIds
+    : scopeId
+      ? [scopeId]
+      : [];
+
+  const assignment = await RoleAssignment.findOne({ userId: user._id, tenantId }).session(session);
+  if (!assignment) {
     await RoleAssignment.create(
-      [{ tenantId, userId: user._id, role, scopeType, scopeId, assignedEntityIds }],
+      [{ tenantId, userId: user._id, role, scopeType, scopeId, assignedEntityIds: entityIds }],
       session ? { session } : {},
     );
-  } else if (scopeType === 'entity' && scopeId) {
-    // Entity manager picking up another department.
-    if (!existingAssignment.assignedEntityIds.map(String).includes(String(scopeId))) {
-      existingAssignment.assignedEntityIds.push(scopeId);
-      await existingAssignment.save({ session });
+  } else {
+    assignment.role = role;
+    assignment.scopeType = scopeType;
+    assignment.scopeId = scopeId;
+    for (const id of entityIds) {
+      if (!assignment.assignedEntityIds.map(String).includes(String(id))) {
+        assignment.assignedEntityIds.push(id);
+      }
     }
+    await assignment.save({ session });
   }
 
-  // MVP email stub (Phase 7 wires a real provider).
-  logger.info({ email: normalizedEmail, inviteToken }, 'User invited (email stub)');
+  if (inviteToken) {
+    await sendInviteEmail(normalizedEmail, inviteToken, { name });
+  } else if (user.status === 'active') {
+    await sendNotificationEmail({
+      to: normalizedEmail,
+      title: 'You have been assigned as a department manager',
+      body: `Hi ${name || normalizedEmail}, you can now manage your department budget on Shelf Merch.`,
+      link: '/login',
+    });
+  }
 
   return { user, inviteToken };
 }
 
 export async function acceptInvite({ token, password }) {
+  const tokenHash = sha256(token);
   const user = await User.findOne({
-    inviteTokenHash: sha256(token),
+    inviteTokenHash: tokenHash,
     inviteTokenExpiresAt: { $gt: new Date() },
     status: 'invited',
   }).select('+inviteTokenHash');
-  if (!user) throw new ApiError(400, 'Invalid or expired invite token', 'INVALID_INVITE_TOKEN');
+
+  if (!user) {
+    const expiredInvite = await User.findOne({
+      inviteTokenHash: tokenHash,
+      status: 'invited',
+    }).select('+inviteTokenHash');
+    if (expiredInvite) {
+      throw new ApiError(
+        400,
+        'This invite link has expired. Ask your admin to resend the invitation.',
+        'INVITE_EXPIRED',
+      );
+    }
+    throw new ApiError(
+      400,
+      'This invite link is invalid or has already been used. Try logging in, or ask your admin for a new invite.',
+      'INVALID_INVITE_TOKEN',
+    );
+  }
 
   user.passwordHash = await hashPassword(password);
   user.status = 'active';

@@ -1,6 +1,21 @@
 import * as authService from './auth.service.js';
 import { writeAudit } from '../../services/audit.service.js';
 
+export async function register(req, res) {
+  const result = await authService.register({
+    ...req.body,
+    ip: req.ip,
+    userAgent: req.headers['user-agent'] ?? '',
+  });
+  writeAudit({
+    req: { ...req, user: { userId: result.user.id, role: result.user.role }, tenantId: result.user.tenantId },
+    action: 'auth.register',
+    entityType: 'User',
+    entityId: result.user.id,
+  });
+  res.status(201).json(result);
+}
+
 export async function login(req, res) {
   const result = await authService.login({
     ...req.body,

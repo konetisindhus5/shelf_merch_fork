@@ -208,6 +208,39 @@ describe('wallet setup wizard + state machine', () => {
 });
 
 describe('auth flow', () => {
+  it('register creates tenant + company_admin and returns tokens', async () => {
+    const email = `signup-${Date.now()}@test.io`;
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        name: 'New Admin',
+        email,
+        password: 'securepass1',
+        companyName: 'Fresh Corp',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.accessToken).toBeTruthy();
+    expect(res.body.user.role).toBe('company_admin');
+    expect(res.body.user.email).toBe(email);
+
+    const tenant = await Tenant.findOne({ slug: 'fresh-corp' });
+    const seededWallet = await Wallet.findOne({ tenantId: tenant._id });
+    expect(seededWallet).toBeTruthy();
+    expect(seededWallet.name).toContain('Fresh Corp');
+    expect(tenant).toBeTruthy();
+    expect(tenant.name).toBe('Fresh Corp');
+
+    const duplicate = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        name: 'Other',
+        email,
+        password: 'securepass1',
+        companyName: 'Other Corp',
+      });
+    expect(duplicate.status).toBe(409);
+  });
+
   it('login -> refresh -> logout round trip', async () => {
     const { hashPassword } = await import('../src/modules/auth/auth.service.js');
     adminA.passwordHash = await hashPassword('demo1234');
@@ -235,6 +268,47 @@ describe('auth flow', () => {
       .post('/api/v1/auth/login')
       .send({ email: adminA.email, password: 'wrong-password' });
     expect(badLogin.status).toBe(401);
+  });
+});
+
+describe('user invite', () => {
+  it('accept-invite activates invited user and allows login', async () => {
+    const email = `invite-${Date.now()}@test.io`;
+    const { inviteUser } = await import('../src/modules/users/users.service.js');
+    const entity = await Entity.create({
+      tenantId: tenantA._id,
+      walletId: walletA._id,
+      name: 'Marketing',
+    });
+
+    const { inviteToken } = await inviteUser({
+      tenantId: tenantA._id,
+      name: 'Invited Manager',
+      email,
+      role: 'entity_manager',
+      scopeType: 'entity',
+      scopeId: entity._id,
+      assignedEntityIds: [entity._id],
+    });
+    expect(inviteToken).toBeTruthy();
+
+    const accept = await request(app)
+      .post('/api/v1/users/accept-invite')
+      .send({ token: inviteToken, password: 'newpass123' });
+    expect(accept.status).toBe(200);
+    expect(accept.body.email).toBe(email);
+
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'newpass123' });
+    expect(login.status).toBe(200);
+    expect(login.body.user.role).toBe('entity_manager');
+
+    const reuse = await request(app)
+      .post('/api/v1/users/accept-invite')
+      .send({ token: inviteToken, password: 'newpass123' });
+    expect(reuse.status).toBe(400);
+    expect(reuse.body.error.code).toBe('INVALID_INVITE_TOKEN');
   });
 });
 

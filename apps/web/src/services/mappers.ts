@@ -87,6 +87,7 @@ export type UiOrgDept = {
   desc: string;
   users: number;
   allocated: number;
+  spent: number;
   color: string;
   mgr: {
     name: string;
@@ -253,6 +254,7 @@ export function mapEntityToDept(e: ApiEntity, usersById: Map<string, ApiUser>): 
     desc: e.description || "",
     users: e.expectedUsers ?? 0,
     allocated: e.allocatedAmount ?? 0,
+    spent: e.spentAmount ?? 0,
     color: e.colorHex || "#2563EB",
     mgr: {
       name: mgr?.name || "",

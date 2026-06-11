@@ -9,7 +9,7 @@ import { transitionRedemption } from '../campaigns/campaigns.service.js';
 import { computeAmountBreakdown } from '../../services/pricing.service.js';
 import { env } from '../../config/env.js';
 import { sendOtpSms } from '../../services/msg91.service.js';
-import { logger } from '../../config/logger.js';
+import { sendOtpEmail } from '../../services/email.service.js';
 import { ApiError, NotFoundError } from '../../utils/errors.js';
 
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -89,8 +89,7 @@ export async function sendOtp(token, { contact }) {
   await recipient.save();
 
   if (isEmail) {
-    // Email OTP: log in dev until a transactional email provider is configured.
-    logger.info({ email: recipient.email, otp: code }, 'Redemption OTP email (stub)');
+    await sendOtpEmail(recipient.email, code);
   } else {
     await sendOtpSms(trimmed, code);
   }

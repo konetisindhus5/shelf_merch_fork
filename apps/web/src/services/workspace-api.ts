@@ -23,7 +23,7 @@ import { getStoredUser } from "./auth-store";
 
 export type WorkspaceSnapshot = {
   account: string;
-  userPatch: { name: string; initials: string; email: string };
+  userPatch: { name: string; initials: string; email: string; role: string };
   shops: UiShop[];
   contacts: UiContact[];
   kits: UiKit[];
@@ -41,6 +41,7 @@ export type WorkspaceSnapshot = {
       id?: string;
       name: string;
       amount: number;
+      status?: string;
       start: string;
       end: string;
       funding: string;
@@ -102,30 +103,71 @@ export async function fetchWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
       .map((c) => c.id);
   }
 
-  const primaryWallet = (wallets as never[])[0] as {
-    _id: string;
+  type ApiWalletRow = {
+    _id?: string;
+    id?: string;
     name: string;
     balance: number;
     totalAmount: number;
+    allocatedAmount?: number;
     validFrom?: string;
     validTo?: string;
     fundingMethod?: string;
     fundingDocument?: { docType?: string; docNumber?: string; fileUrl?: string };
     status?: string;
-  } | undefined;
+    updatedAt?: string;
+  };
 
-  const walletEntities = primaryWallet
-    ? (entities as never[]).filter(
-        (e) => String((e as { walletId: string }).walletId) === String(primaryWallet._id),
-      )
-    : (entities as never[]);
+  const walletList = wallets as ApiWalletRow[];
+  // Surface an in-progress wallet that still needs allocation before the live one.
+  const stuckSetup = [...walletList]
+    .filter(
+      (w) =>
+        ["entities_added", "budget_allocated", "managers_assigned"].includes(w.status ?? "") &&
+        (w.balance ?? 0) > 0 &&
+        (w.allocatedAmount ?? 0) === 0,
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime(),
+    )[0];
+  const primaryWallet =
+    stuckSetup ??
+    walletList.find((w) => w.status === "active") ??
+    [...walletList].sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0))[0];
 
-  const orgActive = Boolean(primaryWallet && primaryWallet.status === "active");
+  const primaryWalletId = primaryWallet
+    ? String(primaryWallet._id ?? primaryWallet.id ?? "")
+    : "";
+
+  const isEntityManager = me.role === "entity_manager";
+  const assignedEntities = entities as never[];
+
+  const walletEntities = isEntityManager
+    ? assignedEntities
+    : primaryWalletId
+      ? (entities as never[]).filter(
+          (e) => String((e as { walletId: string }).walletId) === primaryWalletId,
+        )
+      : (entities as never[]);
+
+  const myEntity = isEntityManager
+    ? ((me.assignedEntityIds?.length
+        ? assignedEntities.find(
+            (e) =>
+              String((e as { _id: string })._id) === String(me.assignedEntityIds[0]),
+          )
+        : assignedEntities[0]) as
+        | { allocatedAmount?: number; spentAmount?: number; name?: string; walletId?: string }
+        | undefined)
+    : undefined;
+
+  const orgActive = isEntityManager ? Boolean(myEntity) : Boolean(primaryWallet);
 
   const auth = applyAuthUser(me, tenant.name);
   return {
     account: auth.account,
-    userPatch: auth.user,
+    userPatch: { ...auth.user, role: me.role },
     shops: mappedShops,
     contacts: (contacts as never[]).map(mapContact),
     kits: (kits as never[]).map(mapKit),
@@ -136,17 +178,22 @@ export async function fetchWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
       mapOrder(o, (o as { campaignName?: string }).campaignName || ""),
     ),
     wallets: (wallets as never[]).map((w) => mapWallet(w, owner)),
-    primaryEntityId: walletEntities[0]
-      ? String((walletEntities[0] as { _id: string })._id)
-      : undefined,
+    primaryEntityId: isEntityManager
+      ? (myEntity ? String((myEntity as { _id: string })._id) : undefined)
+      : walletEntities[0]
+        ? String((walletEntities[0] as { _id: string })._id)
+        : undefined,
     org: {
       active: orgActive,
       done: false,
       inWizard: false,
       wallet: {
-        id: primaryWallet ? String(primaryWallet._id) : undefined,
+        id: primaryWalletId || undefined,
         name: primaryWallet?.name || "Merchandise Budget",
-        amount: primaryWallet?.balance ?? primaryWallet?.totalAmount ?? 0,
+        status: primaryWallet?.status || "",
+        amount: isEntityManager
+          ? (myEntity?.allocatedAmount ?? 0)
+          : (primaryWallet?.balance ?? primaryWallet?.totalAmount ?? 0),
         start: primaryWallet?.validFrom
           ? new Date(primaryWallet.validFrom).toISOString().slice(0, 10)
           : "",
