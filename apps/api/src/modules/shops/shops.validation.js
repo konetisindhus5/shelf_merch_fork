@@ -1,0 +1,22 @@
+import { z } from 'zod';
+import { objectId } from '../users/users.validation.js';
+
+export const createShopSchema = z.object({
+  name: z.string().min(1),
+  currencyMode: z.enum(['points', 'inr', 'priceless']).optional().default('points'),
+  logoUrl: z.string().optional().default(''),
+  bannerConfig: z.record(z.any()).optional().default({}),
+  categories: z.array(z.string().min(1)).optional().default([]),
+});
+
+export const updateShopSchema = z
+  .object({
+    name: z.string().min(1),
+    currencyMode: z.enum(['points', 'inr', 'priceless']),
+    logoUrl: z.string(),
+    bannerConfig: z.record(z.any()),
+    categories: z.array(z.string().min(1)),
+  })
+  .partial();
+
+export const shopIdParams = z.object({ id: objectId });

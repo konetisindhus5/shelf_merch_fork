@@ -1,0 +1,117 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import multer from 'multer';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+import { authenticate } from '../../middleware/auth.middleware.js';
+import { resolveTenant, requireTenantContext } from '../../middleware/tenant.middleware.js';
+import { requireRole } from '../../middleware/rbac.middleware.js';
+import { validate } from '../../middleware/validate.middleware.js';
+import { objectId } from '../users/users.validation.js';
+import { Contact } from './contact.model.js';
+import { ImportJob } from '../imports/importJob.model.js';
+import { enqueueCsvImport } from '../../jobs/queues.js';
+import { writeAudit } from '../../services/audit.service.js';
+import { ApiError, NotFoundError } from '../../utils/errors.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const router = Router();
+
+router.use(authenticate, resolveTenant, requireTenantContext);
+const canWrite = requireRole('company_admin', 'entity_manager', 'platform_super_admin');
+
+const addressSchema = z
+  .object({
+    line1: z.string().optional(),
+    line2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    pincode: z.string().optional(),
+    country: z.string().optional(),
+  })
+  .partial();
+
+const createSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional().default(''),
+  role: z.enum(['Owner', 'Admin', 'Sender', 'Member', 'Non-Member']).optional().default('Member'),
+  department: z.string().optional().default(''),
+  employeeCode: z.string().optional().default(''),
+  address: addressSchema.optional(),
+});
+
+router.get(
+  '/',
+  canWrite,
+  asyncHandler(async (req, res) => {
+    res.json(await Contact.find({ tenantId: req.tenantId }).sort({ name: 1 }));
+  }),
+);
+
+router.post(
+  '/',
+  canWrite,
+  validate({ body: createSchema }),
+  asyncHandler(async (req, res) => {
+    const contact = await Contact.create({ tenantId: req.tenantId, ...req.body, source: 'manual' });
+    writeAudit({ req, action: 'contact.create', entityType: 'Contact', entityId: contact._id, after: contact.toObject() });
+    res.status(201).json(contact);
+  }),
+);
+
+router.patch(
+  '/:id',
+  canWrite,
+  validate({ params: z.object({ id: objectId }), body: createSchema.partial() }),
+  asyncHandler(async (req, res) => {
+    const contact = await Contact.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!contact) throw new NotFoundError('Contact not found');
+    const before = contact.toObject();
+    Object.assign(contact, req.body);
+    await contact.save();
+    writeAudit({ req, action: 'contact.update', entityType: 'Contact', entityId: contact._id, before, after: contact.toObject() });
+    res.json(contact);
+  }),
+);
+
+// §7.7 — multipart CSV upload, processed by the csv-import worker.
+router.post(
+  '/import',
+  canWrite,
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) throw new ApiError(400, 'CSV file is required (field name "file")', 'FILE_REQUIRED');
+    if (!/\.csv$/i.test(req.file.originalname) && req.file.mimetype !== 'text/csv') {
+      throw new ApiError(415, 'Only CSV files are accepted', 'UNSUPPORTED_FILE_TYPE');
+    }
+    const job = await ImportJob.create({
+      tenantId: req.tenantId,
+      kind: 'contacts',
+      fileName: req.file.originalname,
+      csv: req.file.buffer,
+      createdBy: req.user.userId,
+    });
+    await enqueueCsvImport({ tenantId: req.tenantId, jobId: job._id });
+    writeAudit({ req, action: 'contact.import', entityType: 'ImportJob', entityId: job._id, after: { fileName: job.fileName } });
+    res.status(202).json({ importJobId: String(job._id), status: job.status });
+  }),
+);
+
+router.get(
+  '/import/:jobId/status',
+  canWrite,
+  validate({ params: z.object({ jobId: objectId }) }),
+  asyncHandler(async (req, res) => {
+    const job = await ImportJob.findOne({ _id: req.params.jobId, tenantId: req.tenantId });
+    if (!job) throw new NotFoundError('Import job not found');
+    res.json({
+      status: job.status,
+      totalRows: job.totalRows,
+      validCount: job.validCount,
+      errorCount: job.errorCount,
+      errors: job.errors,
+    });
+  }),
+);
+
+export default router;

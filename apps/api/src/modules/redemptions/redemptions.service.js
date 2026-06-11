@@ -1,0 +1,238 @@
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
+import { Recipient } from '../campaigns/recipient.model.js';
+import { Campaign } from '../campaigns/campaign.model.js';
+import { Shop } from '../shops/shop.model.js';
+import { CatalogProduct } from '../catalog/catalogProduct.model.js';
+import { Order } from '../orders/order.model.js';
+import { transitionRedemption } from '../campaigns/campaigns.service.js';
+import { computeAmountBreakdown } from '../../services/pricing.service.js';
+import { env } from '../../config/env.js';
+import { sendOtpSms } from '../../services/msg91.service.js';
+import { logger } from '../../config/logger.js';
+import { ApiError, NotFoundError } from '../../utils/errors.js';
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const SESSION_TTL = '30m';
+const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
+
+async function findRecipientByToken(token) {
+  // Token is globally unique — the only public identifier on redemption routes.
+  const recipient = await Recipient.findOne({ redemptionToken: token }).setOptions({ skipTenantGuard: true });
+  if (!recipient) throw new NotFoundError('Invalid redemption link');
+  return recipient;
+}
+
+async function loadCampaignContext(recipient) {
+  const campaign = await Campaign.findOne({ _id: recipient.campaignId, tenantId: recipient.tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (!['launched', 'redemption_open'].includes(campaign.status)) {
+    throw new ApiError(410, 'This redemption campaign is no longer active', 'CAMPAIGN_INACTIVE');
+  }
+  let shop = null;
+  if (campaign.shopId) {
+    shop = await Shop.findOne({ _id: campaign.shopId, tenantId: recipient.tenantId });
+  }
+  return { campaign, shop };
+}
+
+export async function getRedemptionPortal(token) {
+  const recipient = await findRecipientByToken(token);
+
+  if (['redeemed', 'order_created'].includes(recipient.redemptionStatus)) {
+    const order = await Order.findOne({ recipientId: recipient._id, tenantId: recipient.tenantId });
+    throw new ApiError(409, 'Already redeemed', 'ALREADY_REDEEMED', {
+      orderNumber: order?.orderNumber,
+      trackUrl: order ? `/api/v1/redemptions/${token}/track` : null,
+    });
+  }
+
+  const { campaign, shop } = await loadCampaignContext(recipient);
+
+  if (recipient.redemptionStatus === 'invited') {
+    transitionRedemption(recipient, 'opened');
+    await recipient.save();
+  }
+
+  return {
+    campaign: {
+      name: campaign.name,
+      message: campaign.message,
+      shop: shop ? { name: shop.name, currencyMode: shop.currencyMode } : null,
+    },
+    recipient: { name: recipient.name, creditAmount: recipient.creditAmount },
+  };
+}
+
+export async function sendOtp(token, { contact }) {
+  const recipient = await findRecipientByToken(token);
+  await loadCampaignContext(recipient);
+
+  const trimmed = contact.trim();
+  const normalizedEmail = trimmed.toLowerCase();
+  const normalizedPhone = trimmed.replace(/\s/g, '');
+  const recipientPhone = recipient.phone?.replace(/\s/g, '') ?? '';
+
+  const isEmail = normalizedEmail.includes('@');
+  const matches =
+    normalizedEmail === recipient.email.toLowerCase() ||
+    (recipientPhone && normalizedPhone === recipientPhone);
+
+  if (!matches) {
+    throw new ApiError(400, 'Contact does not match the recipient on file', 'CONTACT_MISMATCH');
+  }
+
+  const code = String(crypto.randomInt(100_000, 999_999));
+  recipient.otpHash = sha256(code);
+  recipient.otpExpiresAt = new Date(Date.now() + OTP_TTL_MS);
+  recipient.otpAttempts = 0;
+  await recipient.save();
+
+  if (isEmail) {
+    // Email OTP: log in dev until a transactional email provider is configured.
+    logger.info({ email: recipient.email, otp: code }, 'Redemption OTP email (stub)');
+  } else {
+    await sendOtpSms(trimmed, code);
+  }
+
+  return { success: true, expiresInSec: OTP_TTL_MS / 1000, channel: isEmail ? 'email' : 'sms' };
+}
+
+export function signRedemptionSession(recipient) {
+  return jwt.sign(
+    { sub: String(recipient._id), type: 'redemption', tenantId: String(recipient.tenantId) },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: SESSION_TTL },
+  );
+}
+
+export function verifyRedemptionSession(token) {
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    if (payload.type !== 'redemption') throw new Error('wrong type');
+    return payload;
+  } catch {
+    throw new ApiError(401, 'Invalid or expired redemption session', 'INVALID_SESSION');
+  }
+}
+
+export async function verifyOtp(token, { code }) {
+  const recipient = await Recipient.findOne({ redemptionToken: token })
+    .setOptions({ skipTenantGuard: true })
+    .select('+otpHash');
+  if (!recipient) throw new NotFoundError('Invalid redemption link');
+  await loadCampaignContext(recipient);
+
+  if (!recipient.otpHash || !recipient.otpExpiresAt || recipient.otpExpiresAt < new Date()) {
+    throw new ApiError(400, 'OTP expired — request a new code', 'OTP_EXPIRED');
+  }
+  if (recipient.otpAttempts >= 5) {
+    throw new ApiError(429, 'Too many attempts — request a new code', 'OTP_LOCKED');
+  }
+
+  recipient.otpAttempts += 1;
+  if (sha256(code) !== recipient.otpHash) {
+    await recipient.save();
+    throw new ApiError(400, 'Invalid OTP', 'OTP_INVALID');
+  }
+
+  recipient.otpHash = null;
+  recipient.otpExpiresAt = null;
+  transitionRedemption(recipient, 'verified');
+  await recipient.save();
+
+  return { sessionToken: signRedemptionSession(recipient) };
+}
+
+export async function getCatalog(token) {
+  const recipient = await findRecipientByToken(token);
+  const { campaign } = await loadCampaignContext(recipient);
+
+  const filter = { status: 'active' };
+  if (campaign.catalogMode === 'selected_products' && campaign.selectedProductIds.length) {
+    filter._id = { $in: campaign.selectedProductIds };
+  }
+  const products = await CatalogProduct.find(filter).sort({ name: 1 }).lean();
+  return { products };
+}
+
+async function nextOrderNumber() {
+  const year = new Date().getFullYear();
+  const count = await Order.countDocuments({}).setOptions({ skipTenantGuard: true });
+  return `SM-${year}-${String(count + 1).padStart(6, '0')}`;
+}
+
+/** §7.9 /submit — idempotent order creation from redemption. */
+export async function submitRedemption(token, { items, shippingAddress }) {
+  const recipient = await Recipient.findOne({ redemptionToken: token }).setOptions({ skipTenantGuard: true });
+  if (!recipient) throw new NotFoundError('Invalid redemption link');
+  const { campaign } = await loadCampaignContext(recipient);
+
+  if (recipient.redemptionStatus === 'order_created') {
+    const existing = await Order.findOne({ recipientId: recipient._id, tenantId: recipient.tenantId });
+    return {
+      orderNumber: existing.orderNumber,
+      estimatedDelivery: '7-10 business days',
+      idempotentReplay: true,
+    };
+  }
+  if (recipient.redemptionStatus !== 'verified') {
+    throw new ApiError(403, 'Verify OTP before submitting your order', 'NOT_VERIFIED');
+  }
+
+  const lineItems = [];
+  for (const item of items) {
+    const product = await CatalogProduct.findById(item.productId);
+    if (!product) throw new NotFoundError(`Product ${item.productId} not found`);
+    lineItems.push({
+      catalogProductId: product._id,
+      name: product.name,
+      variant: item.variant ?? {},
+      qty: item.qty,
+      unitPriceInr: product.basePriceInr,
+    });
+  }
+
+  const breakdown = computeAmountBreakdown(lineItems);
+  if (breakdown.total > recipient.creditAmount) {
+    throw new ApiError(
+      422,
+      `Order total ₹${breakdown.total} exceeds your credit of ₹${recipient.creditAmount}`,
+      'CREDIT_EXCEEDED',
+    );
+  }
+
+  const orderNumber = await nextOrderNumber();
+  const order = await Order.create({
+    tenantId: recipient.tenantId,
+    campaignId: campaign._id,
+    recipientId: recipient._id,
+    orderNumber,
+    items: lineItems,
+    shippingAddress,
+    amountBreakdown: breakdown,
+    status: 'created',
+    statusHistory: [{ status: 'created', at: new Date(), actorUserId: null, note: 'Redemption submit' }],
+  });
+
+  transitionRedemption(recipient, 'redeemed');
+  transitionRedemption(recipient, 'order_created');
+  await recipient.save();
+
+  return { orderNumber: order.orderNumber, estimatedDelivery: '7-10 business days', orderId: String(order._id) };
+}
+
+export async function trackRedemption(token) {
+  const recipient = await findRecipientByToken(token);
+  const order = await Order.findOne({ recipientId: recipient._id, tenantId: recipient.tenantId });
+  if (!order) throw new NotFoundError('No order found for this redemption');
+
+  return {
+    orderNumber: order.orderNumber,
+    status: order.status,
+    amountBreakdown: order.amountBreakdown,
+    items: order.items,
+    shippingAddress: order.shippingAddress,
+    redemptionStatus: recipient.redemptionStatus,
+  };
+}

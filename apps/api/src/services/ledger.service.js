@@ -1,0 +1,218 @@
+import mongoose from 'mongoose';
+import { Wallet } from '../modules/wallets/wallet.model.js';
+import { WalletTransaction } from '../modules/wallets/walletTransaction.model.js';
+import { Entity } from '../modules/entities/entity.model.js';
+import { ApiError, InsufficientFundsError, NotFoundError } from '../utils/errors.js';
+
+/**
+ * §3.3 / §7.4 — THE CORE LEDGER.
+ *
+ * Semantics:
+ * - Cash-moving types (fund_in, transfer_between_wallets, campaign_spend,
+ *   order_payment, refund, adjustment) move `wallet.balance`.
+ * - `allocation_to_entity` is an earmark, not a cash movement: it moves
+ *   `wallet.allocatedAmount` (and the entity's allocatedAmount) while the cash
+ *   stays in the wallet. Invariant: allocatedAmount <= balance at all times.
+ * - Every movement is an append-only WalletTransaction with a balanceAfter
+ *   snapshot, so `balance` is always recomputable/auditable from the log.
+ *
+ * All multi-document writes run inside a MongoDB session (replica set required).
+ */
+
+const CASH_TYPES = new Set([
+  'fund_in',
+  'transfer_between_wallets',
+  'campaign_spend',
+  'order_payment',
+  'refund',
+  'adjustment',
+]);
+
+async function withSession(session, fn) {
+  if (session) return fn(session);
+  const own = await mongoose.startSession();
+  try {
+    let result;
+    await own.withTransaction(async () => {
+      result = await fn(own);
+    });
+    return result;
+  } finally {
+    await own.endSession();
+  }
+}
+
+export async function createTransaction(
+  { tenantId, walletId, type, amount, relatedEntityId = null, description = '', performedBy = null },
+  session = null,
+) {
+  if (!Number.isFinite(amount) || amount === 0) {
+    throw new ApiError(422, 'Transaction amount must be a non-zero number', 'INVALID_AMOUNT');
+  }
+
+  return withSession(session, async (s) => {
+    const wallet = await Wallet.findOne({ _id: walletId, tenantId }).session(s);
+    if (!wallet) throw new NotFoundError('Wallet not found');
+
+    const isCash = CASH_TYPES.has(type);
+    let newBalance = wallet.balance;
+    let newAllocated = wallet.allocatedAmount;
+
+    if (isCash) {
+      newBalance = wallet.balance + amount;
+      if (newBalance < 0) {
+        throw new InsufficientFundsError(
+          `Insufficient funds: balance ₹${wallet.balance}, attempted debit ₹${Math.abs(amount)}`,
+        );
+      }
+      if (type === 'fund_in') wallet.totalAmount += amount;
+      // Spending against an entity's earmark releases that earmark.
+      if ((type === 'campaign_spend' || type === 'order_payment') && relatedEntityId) {
+        newAllocated = Math.max(0, wallet.allocatedAmount + amount); // amount is negative
+      }
+    } else if (type === 'allocation_to_entity') {
+      newAllocated = wallet.allocatedAmount + amount;
+      if (newAllocated < 0) {
+        throw new ApiError(422, 'Cannot deallocate more than is allocated', 'INVALID_ALLOCATION');
+      }
+      if (newAllocated > wallet.balance) {
+        throw new InsufficientFundsError(
+          `Allocation exceeds wallet balance: balance ₹${wallet.balance}, total allocation would be ₹${newAllocated}`,
+        );
+      }
+    } else {
+      throw new ApiError(422, `Unknown transaction type "${type}"`, 'INVALID_TRANSACTION_TYPE');
+    }
+
+    const [txn] = await WalletTransaction.create(
+      [
+        {
+          tenantId,
+          walletId: wallet._id,
+          type,
+          amount,
+          balanceAfter: newBalance,
+          relatedEntityId,
+          description,
+          performedBy,
+        },
+      ],
+      { session: s },
+    );
+
+    wallet.balance = newBalance;
+    wallet.allocatedAmount = newAllocated;
+    await wallet.save({ session: s });
+
+    // Keep the entity's cached figures in sync.
+    if (relatedEntityId) {
+      if (type === 'allocation_to_entity') {
+        await Entity.updateOne(
+          { _id: relatedEntityId, tenantId },
+          { $inc: { allocatedAmount: amount } },
+          { session: s },
+        );
+      } else if (type === 'campaign_spend' || type === 'order_payment') {
+        await Entity.updateOne(
+          { _id: relatedEntityId, tenantId },
+          { $inc: { spentAmount: Math.abs(amount), allocatedAmount: amount } },
+          { session: s },
+        );
+      }
+    }
+
+    return txn;
+  });
+}
+
+/** Allocate budget to multiple entities atomically (§7.4 /allocate). */
+export async function allocateToEntities({ tenantId, walletId, allocations, performedBy }) {
+  const session = await mongoose.startSession();
+  try {
+    let txns;
+    await session.withTransaction(async () => {
+      txns = [];
+      for (const { entityId, amount } of allocations) {
+        const entity = await Entity.findOne({ _id: entityId, tenantId, walletId }).session(session);
+        if (!entity) throw new NotFoundError(`Entity ${entityId} not found in this wallet`);
+        const txn = await createTransaction(
+          {
+            tenantId,
+            walletId,
+            type: 'allocation_to_entity',
+            amount,
+            relatedEntityId: entity._id,
+            description: `Budget allocation to ${entity.name}`,
+            performedBy,
+          },
+          session,
+        );
+        txns.push(txn);
+      }
+    });
+    return txns;
+  } finally {
+    await session.endSession();
+  }
+}
+
+/** Transfer cash between two wallets of the same tenant atomically. */
+export async function transferBetweenWallets({ tenantId, fromWalletId, toWalletId, amount, performedBy }) {
+  if (amount <= 0) throw new ApiError(422, 'Transfer amount must be positive', 'INVALID_AMOUNT');
+  if (String(fromWalletId) === String(toWalletId)) {
+    throw new ApiError(422, 'Cannot transfer a wallet to itself', 'INVALID_TRANSFER');
+  }
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const debit = await createTransaction(
+        {
+          tenantId,
+          walletId: fromWalletId,
+          type: 'transfer_between_wallets',
+          amount: -amount,
+          description: `Transfer to wallet ${toWalletId}`,
+          performedBy,
+        },
+        session,
+      );
+      const fromWallet = await Wallet.findOne({ _id: fromWalletId, tenantId }).session(session);
+      if (fromWallet.allocatedAmount > fromWallet.balance) {
+        throw new InsufficientFundsError(
+          'Transfer would leave the wallet with less cash than its entity allocations',
+        );
+      }
+      const credit = await createTransaction(
+        {
+          tenantId,
+          walletId: toWalletId,
+          type: 'transfer_between_wallets',
+          amount,
+          description: `Transfer from wallet ${fromWalletId}`,
+          performedBy,
+        },
+        session,
+      );
+      result = { debit, credit };
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+/** Recompute a wallet's cash balance from the ledger (validation/repair tool). */
+export async function recomputeBalance({ tenantId, walletId }) {
+  const rows = await WalletTransaction.aggregate([
+    {
+      $match: {
+        tenantId: new mongoose.Types.ObjectId(String(tenantId)),
+        walletId: new mongoose.Types.ObjectId(String(walletId)),
+        type: { $in: [...CASH_TYPES] },
+      },
+    },
+    { $group: { _id: null, balance: { $sum: '$amount' } } },
+  ]);
+  return rows[0]?.balance ?? 0;
+}

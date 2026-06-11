@@ -1,0 +1,17 @@
+{
+  "name": "shelfmerch",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @shelfmerch/api",
+    "dev:web": "npm run dev -w @shelfmerch/web",
+    "build:web": "npm run build -w @shelfmerch/web",
+    "seed": "npm run seed -w @shelfmerch/api",
+    "worker": "npm run worker -w @shelfmerch/api",
+    "test": "npm test -w @shelfmerch/api"
+  }
+}

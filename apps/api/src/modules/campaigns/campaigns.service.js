@@ -1,0 +1,252 @@
+import crypto from 'node:crypto';
+import { nanoid } from 'nanoid';
+import { Campaign } from './campaign.model.js';
+import { Recipient } from './recipient.model.js';
+import { Entity } from '../entities/entity.model.js';
+import { Contact } from '../contacts/contact.model.js';
+import { Shop } from '../shops/shop.model.js';
+import { Kit } from '../kits/kit.model.js';
+import * as ledger from '../../services/ledger.service.js';
+import { transitionState, validNextStatuses, canTransition } from '../../services/stateMachine.service.js';
+import { notify } from '../notifications/notifications.service.js';
+import { ApiError, ForbiddenError, NotFoundError } from '../../utils/errors.js';
+
+function withCampaignMeta(campaign) {
+  const obj = campaign.toObject ? campaign.toObject() : campaign;
+  return { ...obj, validNextStatuses: validNextStatuses('campaign', obj.status) };
+}
+
+function transitionRedemption(recipient, toStatus) {
+  const from = recipient.redemptionStatus;
+  if (!canTransition('redemption', from, toStatus)) {
+    throw new ApiError(422, `Invalid redemption transition: ${from} -> ${toStatus}`, 'INVALID_STATE_TRANSITION');
+  }
+  recipient.redemptionStatus = toStatus;
+  const now = new Date();
+  if (toStatus === 'opened') recipient.openedAt = now;
+  if (toStatus === 'verified') recipient.verifiedAt = now;
+  if (toStatus === 'redeemed' || toStatus === 'order_created') recipient.redeemedAt = now;
+}
+
+export async function listCampaigns({ tenantId, user }) {
+  const filter = { tenantId };
+  if (user.scopeType === 'entity') {
+    filter.entityId = { $in: user.assignedEntityIds };
+  }
+  const campaigns = await Campaign.find(filter).sort({ createdAt: -1 });
+  return campaigns.map(withCampaignMeta);
+}
+
+export async function getCampaign({ tenantId, campaignId, user }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (user?.scopeType === 'entity') {
+    const allowed = (user.assignedEntityIds ?? []).map(String);
+    if (!allowed.includes(String(campaign.entityId))) throw new ForbiddenError();
+  }
+  return withCampaignMeta(campaign);
+}
+
+export async function createCampaign({ tenantId, userId, data }) {
+  const entity = await Entity.findOne({ _id: data.entityId, tenantId });
+  if (!entity) throw new NotFoundError('Entity not found');
+
+  if (data.shopId) {
+    const shop = await Shop.findOne({ _id: data.shopId, tenantId });
+    if (!shop) throw new NotFoundError('Shop not found');
+  }
+  if (data.kitId) {
+    const kit = await Kit.findOne({ _id: data.kitId, tenantId });
+    if (!kit) throw new NotFoundError('Kit not found');
+  }
+
+  const campaign = await Campaign.create({
+    tenantId,
+    entityId: data.entityId,
+    name: data.name,
+    type: data.type,
+    catalogMode: data.catalogMode,
+    selectedProductIds: data.selectedProductIds ?? [],
+    kitId: data.kitId ?? null,
+    shopId: data.shopId ?? null,
+    message: data.message ?? {},
+    schedule: data.schedule ?? { mode: 'now' },
+    createdBy: userId,
+  });
+  return withCampaignMeta(campaign);
+}
+
+export async function updateCampaign({ tenantId, campaignId, user, patch }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (user?.scopeType === 'entity') {
+    const allowed = (user.assignedEntityIds ?? []).map(String);
+    if (!allowed.includes(String(campaign.entityId))) throw new ForbiddenError();
+  }
+  const { status: _s, recipientCount: _rc, totalBudget: _tb, ...rest } = patch;
+  Object.assign(campaign, rest);
+  await campaign.save();
+  return withCampaignMeta(campaign);
+}
+
+async function upsertRecipientsFromList({ tenantId, campaign, rows }) {
+  const created = [];
+  for (const row of rows) {
+    let contactId = row.contactId ?? null;
+    if (!contactId && row.email) {
+      const contact = await Contact.findOne({ tenantId, email: row.email.toLowerCase() });
+      contactId = contact?._id ?? null;
+    }
+    const recipient = await Recipient.findOneAndUpdate(
+      { tenantId, campaignId: campaign._id, email: row.email.toLowerCase() },
+      {
+        $set: {
+          name: row.name,
+          phone: row.phone ?? '',
+          contactId,
+          creditAmount: row.creditAmount ?? campaign.creditsPerRecipient ?? 0,
+        },
+        $setOnInsert: {
+          tenantId,
+          campaignId: campaign._id,
+          redemptionToken: nanoid(32),
+          redemptionStatus: 'invited',
+          invitedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true },
+    );
+    created.push(recipient);
+  }
+  return created;
+}
+
+/** §7.8 — CSV or manual recipient list. */
+export async function importRecipients({ tenantId, campaignId, user, recipients }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (user?.scopeType === 'entity') {
+    const allowed = (user.assignedEntityIds ?? []).map(String);
+    if (!allowed.includes(String(campaign.entityId))) throw new ForbiddenError();
+  }
+  if (!['draft', 'recipients_uploaded'].includes(campaign.status)) {
+    throw new ApiError(422, 'Recipients cannot be changed after credits are allocated', 'CAMPAIGN_LOCKED');
+  }
+
+  const rows = await upsertRecipientsFromList({ tenantId, campaign, rows: recipients });
+  campaign.recipientCount = await Recipient.countDocuments({ tenantId, campaignId: campaign._id });
+  if (campaign.status === 'draft') {
+    transitionState('campaign', campaign, 'recipients_uploaded', { userId: user.userId });
+  }
+  await campaign.save();
+  return { count: rows.length, campaign: withCampaignMeta(campaign) };
+}
+
+export async function allocateCredits({ tenantId, campaignId, user, creditsPerRecipient }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (user?.scopeType === 'entity') {
+    const allowed = (user.assignedEntityIds ?? []).map(String);
+    if (!allowed.includes(String(campaign.entityId))) throw new ForbiddenError();
+  }
+
+  const count = await Recipient.countDocuments({ tenantId, campaignId: campaign._id });
+  if (count === 0) throw new ApiError(422, 'Upload recipients before allocating credits', 'NO_RECIPIENTS');
+
+  const totalBudget = creditsPerRecipient * count;
+  const entity = await Entity.findOne({ _id: campaign.entityId, tenantId });
+  const available = entity.allocatedAmount - entity.spentAmount;
+  if (totalBudget > available) {
+    throw new ApiError(
+      422,
+      `Total budget ₹${totalBudget} exceeds entity available budget ₹${available}`,
+      'INSUFFICIENT_ENTITY_BUDGET',
+    );
+  }
+
+  campaign.creditsPerRecipient = creditsPerRecipient;
+  campaign.recipientCount = count;
+  campaign.totalBudget = totalBudget;
+  await Recipient.updateMany({ tenantId, campaignId: campaign._id }, { creditAmount: creditsPerRecipient });
+
+  if (campaign.status === 'recipients_uploaded') {
+    transitionState('campaign', campaign, 'credits_allocated', { userId: user.userId });
+    transitionState('campaign', campaign, 'approved', { userId: user.userId });
+  }
+  await campaign.save();
+  return withCampaignMeta(campaign);
+}
+
+/** §7.8 /launch — idempotent wallet debit + invite notifications. */
+export async function launchCampaign({ tenantId, campaignId, user }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  if (user?.scopeType === 'entity') {
+    const allowed = (user.assignedEntityIds ?? []).map(String);
+    if (!allowed.includes(String(campaign.entityId))) throw new ForbiddenError();
+  }
+  if (campaign.status === 'launched' || campaign.status === 'redemption_open') {
+    return withCampaignMeta(campaign);
+  }
+  if (campaign.status !== 'approved') {
+    throw new ApiError(422, 'Campaign must be approved before launch', 'CAMPAIGN_NOT_APPROVED');
+  }
+
+  const entity = await Entity.findOne({ _id: campaign.entityId, tenantId });
+  await ledger.createTransaction({
+    tenantId,
+    walletId: entity.walletId,
+    type: 'campaign_spend',
+    amount: -campaign.totalBudget,
+    relatedEntityId: entity._id,
+    description: `Campaign launch: ${campaign.name}`,
+    performedBy: user.userId,
+  });
+
+  transitionState('campaign', campaign, 'launched', { userId: user.userId });
+  transitionState('campaign', campaign, 'redemption_open', { userId: user.userId });
+  await campaign.save();
+
+  const recipients = await Recipient.find({ tenantId, campaignId: campaign._id });
+  for (const r of recipients) {
+    await notify({
+      type: 'redemption_invite',
+      tenantId,
+      email: r.email,
+      phone: r.phone || null,
+      title: `You're invited: ${campaign.name}`,
+      body: campaign.message?.body ?? 'Redeem your gift using the link we sent.',
+      link: `/redeem/${r.redemptionToken}`,
+    });
+  }
+  if (entity.managerUserId) {
+    await notify({
+      type: 'campaign_launched',
+      tenantId,
+      userId: entity.managerUserId,
+      title: `Campaign launched: ${campaign.name}`,
+      body: `${recipients.length} recipients invited.`,
+      link: `/campaigns/${campaign._id}`,
+    });
+  }
+
+  return withCampaignMeta(campaign);
+}
+
+export async function closeCampaign({ tenantId, campaignId, user }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, tenantId });
+  if (!campaign) throw new NotFoundError('Campaign not found');
+  transitionState('campaign', campaign, 'redemption_closed', { userId: user.userId });
+  await campaign.save();
+  return withCampaignMeta(campaign);
+}
+
+export async function campaignReport({ tenantId, campaignId, user }) {
+  await getCampaign({ tenantId, campaignId, user });
+  const recipients = await Recipient.find({ tenantId, campaignId }).select(
+    'name email creditAmount redemptionStatus openedAt verifiedAt redeemedAt',
+  );
+  return { recipients };
+}
+
+export { transitionRedemption };

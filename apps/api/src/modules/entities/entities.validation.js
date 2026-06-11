@@ -1,0 +1,36 @@
+import { z } from 'zod';
+import { objectId } from '../users/users.validation.js';
+
+export const createEntitySchema = z.object({
+  walletId: objectId,
+  name: z.string().min(1),
+  description: z.string().optional().default(''),
+  colorHex: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i, 'Must be a hex color like #2563EB')
+    .optional()
+    .default('#2563EB'),
+  expectedUsers: z.number().int().nonnegative().optional().default(0),
+});
+
+export const updateEntitySchema = z
+  .object({
+    name: z.string().min(1),
+    description: z.string(),
+    colorHex: z.string().regex(/^#[0-9a-f]{6}$/i),
+    expectedUsers: z.number().int().nonnegative(),
+  })
+  .partial();
+
+export const assignManagerSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  role: z.string().optional().default(''), // display role e.g. "Marketing Manager"
+  mobile: z.string().optional().default(''),
+});
+
+export const entityIdParams = z.object({ id: objectId });
+
+export const listEntitiesQuery = z.object({
+  walletId: objectId.optional(),
+});

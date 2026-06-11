@@ -1,0 +1,71 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+import { z } from 'zod';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
+const processEnv = { ...process.env };
+if (processEnv.MONGO_URL && !processEnv.MONGODB_URI) {
+  processEnv.MONGODB_URI = processEnv.MONGO_URL;
+}
+
+const isProd = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
+
+const requiredSecret = (devDefault) =>
+  isProd ? z.string().min(16) : z.string().min(1).default(devDefault);
+
+const mongoUriSchema = isTest
+  ? z.string().optional().default('')
+  : z.string().min(1, 'Set MONGO_URL or MONGODB_URI to your MongoDB Atlas connection string');
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().positive().default(4000),
+
+  MONGODB_URI: mongoUriSchema,
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+
+  JWT_ACCESS_SECRET: requiredSecret('dev-access-secret-change-me'),
+  JWT_REFRESH_SECRET: requiredSecret('dev-refresh-secret-change-me'),
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_TTL: z.string().default('30d'),
+
+  R2_ENDPOINT: z.string().optional().default(''),
+  R2_ACCESS_KEY: z.string().optional().default(''),
+  R2_SECRET_KEY: z.string().optional().default(''),
+  R2_BUCKET: z.string().optional().default('shelfmerch-assets'),
+
+  RAZORPAY_KEY_ID: z.string().optional().default(''),
+  RAZORPAY_KEY_SECRET: z.string().optional().default(''),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+
+  MSG91_AUTH_KEY: z.string().optional().default(''),
+  MSG91_SENDER_ID: z.string().optional().default('SLFMRH'),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional().default(''),
+
+  EMAIL_PROVIDER_API_KEY: z.string().optional().default(''),
+  EMAIL_FROM: z.string().optional().default('noreply@shelfmerch.io'),
+});
+
+const parsed = envSchema.safeParse(processEnv);
+if (!parsed.success) {
+  const issues = parsed.error.issues
+    .map((i) => `  - ${i.path.join('.')}: ${i.message}`)
+    .join('\n');
+  // eslint-disable-next-line no-console
+  console.error(`Invalid environment configuration:\n${issues}`);
+  process.exit(1);
+}
+
+export const env = parsed.data;
+
+export const razorpayConfigured = () =>
+  Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && env.RAZORPAY_WEBHOOK_SECRET);
+
+export const msg91Configured = () =>
+  Boolean(env.MSG91_AUTH_KEY && env.MSG91_OTP_TEMPLATE_ID);

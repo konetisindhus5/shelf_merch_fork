@@ -1,0 +1,315 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import request from 'supertest';
+import { connectTestDb, clearTestDb, disconnectTestDb } from './setup.js';
+import { createApp } from '../src/app.js';
+import { Tenant } from '../src/modules/tenants/tenant.model.js';
+import { User } from '../src/modules/users/user.model.js';
+import { RoleAssignment } from '../src/modules/roles/roleAssignment.model.js';
+import { Wallet } from '../src/modules/wallets/wallet.model.js';
+import { Entity } from '../src/modules/entities/entity.model.js';
+import { Shop } from '../src/modules/shops/shop.model.js';
+import { CatalogProduct } from '../src/modules/catalog/catalogProduct.model.js';
+import { Campaign } from '../src/modules/campaigns/campaign.model.js';
+import { Recipient } from '../src/modules/campaigns/recipient.model.js';
+import { Order } from '../src/modules/orders/order.model.js';
+import { signAccessToken } from '../src/modules/auth/auth.service.js';
+import * as ledger from '../src/services/ledger.service.js';
+
+let app;
+let tenant;
+let entity;
+let shop;
+let product;
+let adminToken;
+let managerToken;
+let managerUser;
+
+beforeAll(async () => {
+  await connectTestDb();
+  app = createApp();
+});
+afterAll(disconnectTestDb);
+
+beforeEach(async () => {
+  await clearTestDb();
+  tenant = await Tenant.create({ name: 'Rubix', slug: 'rubix' });
+  const admin = await User.create({
+    tenantId: tenant._id,
+    name: 'Admin',
+    email: 'admin@test.io',
+    status: 'active',
+  });
+  const assignment = await RoleAssignment.create({
+    tenantId: tenant._id,
+    userId: admin._id,
+    role: 'company_admin',
+    scopeType: 'tenant',
+  });
+  adminToken = signAccessToken(admin, assignment);
+
+  managerUser = await User.create({
+    tenantId: tenant._id,
+    name: 'Priya',
+    email: 'priya@test.io',
+    status: 'active',
+  });
+  const mgrAssignment = await RoleAssignment.create({
+    tenantId: tenant._id,
+    userId: managerUser._id,
+    role: 'entity_manager',
+    scopeType: 'entity',
+    assignedEntityIds: [],
+  });
+
+  const wallet = await Wallet.create({ tenantId: tenant._id, name: 'Budget' });
+  await ledger.createTransaction({ tenantId: tenant._id, walletId: wallet._id, type: 'fund_in', amount: 500_000 });
+  entity = await Entity.create({ tenantId: tenant._id, walletId: wallet._id, name: 'Marketing' });
+  await ledger.createTransaction({
+    tenantId: tenant._id,
+    walletId: wallet._id,
+    type: 'allocation_to_entity',
+    amount: 100_000,
+    relatedEntityId: entity._id,
+  });
+
+  mgrAssignment.scopeId = entity._id;
+  mgrAssignment.assignedEntityIds = [entity._id];
+  await mgrAssignment.save();
+  managerToken = signAccessToken(managerUser, mgrAssignment);
+
+  shop = await Shop.create({ tenantId: tenant._id, name: 'Rubix Dubai', status: 'live', categories: ['Merch'] });
+  product = await CatalogProduct.create({
+    sku: 'SM-TEE-TEST',
+    name: 'Test Tee',
+    category: 'Apparel',
+    group: 'tee',
+    basePriceInr: 500,
+  });
+});
+
+describe('campaign lifecycle (§11.1)', () => {
+  it('create → recipients → allocate → launch debits entity budget', async () => {
+    const created = await request(app)
+      .post('/api/v1/campaigns')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ entityId: String(entity._id), name: 'Diwali 2026', type: 'points', shopId: String(shop._id) });
+    expect(created.status).toBe(201);
+    const id = created.body._id;
+
+    await request(app)
+      .post(`/api/v1/campaigns/${id}/recipients/import`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({
+        recipients: [
+          { name: 'Alice', email: 'alice@test.io' },
+          { name: 'Bob', email: 'bob@test.io' },
+        ],
+      });
+
+    const alloc = await request(app)
+      .post(`/api/v1/campaigns/${id}/allocate-credits`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({ creditsPerRecipient: 2000 });
+    expect(alloc.status).toBe(200);
+    expect(alloc.body.totalBudget).toBe(4000);
+
+    const entityBefore = await Entity.findOne({ _id: entity._id, tenantId: tenant._id });
+    const key = 'launch-campaign-once';
+    const launch1 = await request(app)
+      .post(`/api/v1/campaigns/${id}/launch`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', key);
+    expect(launch1.status).toBe(200);
+    expect(launch1.body.status).toBe('redemption_open');
+
+    const launch2 = await request(app)
+      .post(`/api/v1/campaigns/${id}/launch`)
+      .set('Authorization', `Bearer ${managerToken}`)
+      .set('Idempotency-Key', key);
+    expect(launch2.headers['idempotent-replay']).toBe('true');
+
+    const entityAfter = await Entity.findOne({ _id: entity._id, tenantId: tenant._id });
+    expect(entityAfter.spentAmount - entityBefore.spentAmount).toBe(4000);
+  });
+});
+
+describe('redemption portal (§11.1)', () => {
+  it('full flow: portal → OTP → submit → order within credit limit', async () => {
+    const campaign = await Campaign.create({
+      tenantId: tenant._id,
+      entityId: entity._id,
+      name: 'Test Campaign',
+      type: 'points',
+      shopId: shop._id,
+      status: 'redemption_open',
+      creditsPerRecipient: 5000,
+      totalBudget: 5000,
+      recipientCount: 1,
+    });
+    const token = 'testRedemptionTokenRubixTest26!';
+    const recipient = await Recipient.create({
+      tenantId: tenant._id,
+      campaignId: campaign._id,
+      name: 'Alice',
+      email: 'alice@test.io',
+      phone: '+91 99999 99999',
+      creditAmount: 5000,
+      redemptionToken: token,
+      redemptionStatus: 'invited',
+    });
+
+    const portal = await request(app).get(`/api/v1/redemptions/${token}`);
+    expect(portal.status).toBe(200);
+    expect(portal.body.recipient.creditAmount).toBe(5000);
+
+    const otpSend = await request(app)
+      .post(`/api/v1/redemptions/${token}/send-otp`)
+      .send({ contact: 'alice@test.io' });
+    expect(otpSend.status).toBe(200);
+
+    // OTP is logged in dev — read from recipient after send (test-only shortcut).
+    const withOtp = await Recipient.findOne({ redemptionToken: token })
+      .setOptions({ skipTenantGuard: true })
+      .select('+otpHash');
+    expect(withOtp.otpHash).toBeTruthy();
+
+    // Brute-force verify by mocking: set verified directly for OTP step isolation in separate test
+    // Here we use verify with wrong code first, then fix by re-sending isn't practical.
+    // Instead transition to verified in DB and use session path — test verify via known hash:
+    const crypto = await import('node:crypto');
+    const code = '123456';
+    withOtp.otpHash = crypto.createHash('sha256').update(code).digest('hex');
+    withOtp.otpExpiresAt = new Date(Date.now() + 600_000);
+    withOtp.otpAttempts = 0;
+    await withOtp.save();
+
+    const verified = await request(app)
+      .post(`/api/v1/redemptions/${token}/verify-otp`)
+      .send({ code });
+    expect(verified.status).toBe(200);
+    expect(verified.body.sessionToken).toBeTruthy();
+    const sessionToken = verified.body.sessionToken;
+
+    const over = await request(app)
+      .post(`/api/v1/redemptions/${token}/submit`)
+      .set('Authorization', `Bearer ${sessionToken}`)
+      .set('Idempotency-Key', 'submit-1')
+      .send({
+        items: [{ productId: String(product._id), qty: 20 }],
+        shippingAddress: {
+          name: 'Alice',
+          phone: '+91 99999 99999',
+          line1: '123 Street',
+          city: 'Hyderabad',
+          state: 'Telangana',
+          pincode: '500001',
+        },
+      });
+    expect(over.status).toBe(422);
+
+    const submit = await request(app)
+      .post(`/api/v1/redemptions/${token}/submit`)
+      .set('Authorization', `Bearer ${sessionToken}`)
+      .set('Idempotency-Key', 'submit-2')
+      .send({
+        items: [{ productId: String(product._id), qty: 2 }],
+        shippingAddress: {
+          name: 'Alice',
+          phone: '+91 99999 99999',
+          line1: '123 Street',
+          city: 'Hyderabad',
+          state: 'Telangana',
+          pincode: '500001',
+        },
+      });
+    expect(submit.status).toBe(201);
+    expect(submit.body.orderNumber).toMatch(/^SM-/);
+
+    const track = await request(app).get(`/api/v1/redemptions/${token}/track`);
+    expect(track.status).toBe(200);
+    expect(track.body.status).toBe('created');
+
+    expect(await Order.countDocuments({ tenantId: tenant._id })).toBe(1);
+    const updated = await Recipient.findOne({ _id: recipient._id, tenantId: tenant._id });
+    expect(updated.redemptionStatus).toBe('order_created');
+  });
+
+  it('send-otp uses SMS channel for phone contacts (MSG91 stub in tests)', async () => {
+    const campaign = await Campaign.create({
+      tenantId: tenant._id,
+      entityId: entity._id,
+      name: 'SMS OTP Campaign',
+      type: 'points',
+      shopId: shop._id,
+      status: 'redemption_open',
+      creditsPerRecipient: 1000,
+      totalBudget: 1000,
+      recipientCount: 1,
+    });
+    const token = 'phoneOtpTokenRubixTest26!!';
+    await Recipient.create({
+      tenantId: tenant._id,
+      campaignId: campaign._id,
+      name: 'Ravi',
+      email: 'ravi@test.io',
+      phone: '+91 98765 43210',
+      creditAmount: 1000,
+      redemptionToken: token,
+      redemptionStatus: 'invited',
+    });
+
+    const otpSend = await request(app)
+      .post(`/api/v1/redemptions/${token}/send-otp`)
+      .send({ contact: '+91 98765 43210' });
+    expect(otpSend.status).toBe(200);
+    expect(otpSend.body.channel).toBe('sms');
+  });
+
+  it('catalog and submit require redemption session JWT', async () => {
+    const token = 'noSessionTokenRubixTest26!';
+    await Recipient.create({
+      tenantId: tenant._id,
+      campaignId: (await Campaign.create({
+        tenantId: tenant._id,
+        entityId: entity._id,
+        name: 'Session Guard',
+        type: 'points',
+        shopId: shop._id,
+        status: 'redemption_open',
+        creditsPerRecipient: 1000,
+        totalBudget: 1000,
+        recipientCount: 1,
+      }))._id,
+      name: 'Guard',
+      email: 'guard@test.io',
+      creditAmount: 1000,
+      redemptionToken: token,
+      redemptionStatus: 'verified',
+    });
+
+    const catalog = await request(app).get(`/api/v1/redemptions/${token}/catalog`);
+    expect(catalog.status).toBe(401);
+
+    const submit = await request(app)
+      .post(`/api/v1/redemptions/${token}/submit`)
+      .set('Idempotency-Key', 'no-session')
+      .send({ items: [{ productId: String(product._id), qty: 1 }], shippingAddress: {} });
+    expect(submit.status).toBe(401);
+  });
+});
+
+describe('catalog & shops (Phase 3)', () => {
+  it('lists catalog products and tenant shops', async () => {
+    const catalog = await request(app)
+      .get('/api/v1/catalog/products')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(catalog.status).toBe(200);
+    expect(catalog.body.items.length).toBeGreaterThan(0);
+
+    const shops = await request(app)
+      .get('/api/v1/shops')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(shops.status).toBe(200);
+    expect(shops.body[0].name).toBe('Rubix Dubai');
+  });
+});
