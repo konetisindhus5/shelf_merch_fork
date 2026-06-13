@@ -7,7 +7,12 @@ import { requireRole } from '../../middleware/rbac.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { objectId } from '../users/users.validation.js';
 import * as controller from './tenants.controller.js';
-import { createTenantSchema, updateTenantSchema, tenantStatusSchema } from './tenants.validation.js';
+import {
+  createTenantSchema,
+  updateTenantSchema,
+  tenantStatusSchema,
+  impersonateSchema,
+} from './tenants.validation.js';
 
 // Tenant-facing routes: /api/v1/tenants
 export const tenantsRouter = Router();
@@ -40,3 +45,14 @@ platformTenantsRouter.patch(
   validate({ params: z.object({ id: objectId }), body: tenantStatusSchema }),
   asyncHandler(controller.setStatus),
 );
+platformTenantsRouter.post(
+  '/:tenantId/impersonate',
+  requireRole('platform_super_admin'),
+  validate({ params: z.object({ tenantId: objectId }), body: impersonateSchema }),
+  asyncHandler(controller.impersonate),
+);
+
+// Platform impersonation control: /api/v1/platform/impersonate
+export const platformImpersonateRouter = Router();
+platformImpersonateRouter.use(authenticate, resolveTenant, requireRole('platform_super_admin'));
+platformImpersonateRouter.post('/end', asyncHandler(controller.endImpersonation));
