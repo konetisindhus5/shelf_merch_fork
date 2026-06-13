@@ -1,15 +1,19 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
 import { resolveTenant } from '../../middleware/tenant.middleware.js';
 import { platformArea } from '../../middleware/platformAccess.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { objectId } from '../users/users.validation.js';
+import { uploadFile } from '../../services/storage.service.js';
 import { writeAudit } from '../../services/audit.service.js';
 import { ApiError, NotFoundError } from '../../utils/errors.js';
 import { PlatformKit } from './platformKit.model.js';
 import { CatalogProduct } from '../catalog/catalogProduct.model.js';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 const idParam = z.object({ id: objectId });
 
@@ -19,6 +23,15 @@ const kitItemSchema = z.object({
   qty: z.number().int().positive().optional().default(1),
 });
 
+const rulesSchema = z
+  .object({
+    fixedComposition: z.boolean(),
+    customizationAllowed: z.boolean(),
+    minQtyPerRecipient: z.number().int().positive(),
+    maxQtyPerRecipient: z.number().int().positive(),
+  })
+  .partial();
+
 const createKitSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional().default(''),
@@ -26,6 +39,7 @@ const createKitSchema = z.object({
   eligibleCampaignTypes: z.array(z.string()).optional().default([]),
   approxValueInr: z.number().nonnegative().optional().default(0),
   imageUrls: z.array(z.string()).optional().default([]),
+  rules: rulesSchema.optional(),
 });
 
 async function getKit(id) {
@@ -93,6 +107,26 @@ platformKitsRouter.post(
     await kit.save();
     writeAudit({ req, action: 'kit.item_add', entityType: 'PlatformKit', entityId: kit._id, after: req.body });
     res.status(201).json(kit.items);
+  }),
+);
+
+platformKitsRouter.post(
+  '/:id/images',
+  kitsWrite,
+  validate({ params: idParam }),
+  upload.array('images', 6),
+  asyncHandler(async (req, res) => {
+    const kit = await getKit(req.params.id);
+    const urls = [];
+    for (const file of req.files ?? []) {
+      const { url } = await uploadFile({ tenantId: 'platform', kind: 'product', file });
+      urls.push(url);
+    }
+    if (Array.isArray(req.body?.urls)) urls.push(...req.body.urls);
+    kit.imageUrls.push(...urls);
+    await kit.save();
+    writeAudit({ req, action: 'kit.images_add', entityType: 'PlatformKit', entityId: kit._id, after: { urls } });
+    res.status(201).json({ imageUrls: kit.imageUrls });
   }),
 );
 

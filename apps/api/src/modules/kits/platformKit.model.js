@@ -20,6 +20,13 @@ const platformKitSchema = new mongoose.Schema(
         qty: { type: Number, default: 1 },
       },
     ],
+    // Rules/config a Super Admin attaches to a predefined kit.
+    rules: {
+      fixedComposition: { type: Boolean, default: true }, // tenants use as-is vs may edit
+      customizationAllowed: { type: Boolean, default: true }, // logo branding permitted
+      minQtyPerRecipient: { type: Number, default: 1 },
+      maxQtyPerRecipient: { type: Number, default: 1 },
+    },
     status: { type: String, enum: ['draft', 'active', 'archived'], default: 'draft' },
   },
   { timestamps: true },
