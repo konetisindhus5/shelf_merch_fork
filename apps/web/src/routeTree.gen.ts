@@ -27,7 +27,10 @@ import { Route as PlatformFinanceRouteImport } from './routes/platform.finance'
 import { Route as PlatformDashboardRouteImport } from './routes/platform.dashboard'
 import { Route as PlatformCatalogRouteImport } from './routes/platform.catalog'
 import { Route as PlatformAuditRouteImport } from './routes/platform.audit'
+import { Route as PlatformKitsIndexRouteImport } from './routes/platform.kits.index'
 import { Route as PlatformCatalogIndexRouteImport } from './routes/platform.catalog.index'
+import { Route as PlatformKitsNewRouteImport } from './routes/platform.kits.new'
+import { Route as PlatformKitsIdRouteImport } from './routes/platform.kits.$id'
 import { Route as PlatformCatalogNewRouteImport } from './routes/platform.catalog.new'
 import { Route as PlatformCatalogIdRouteImport } from './routes/platform.catalog.$id'
 
@@ -121,10 +124,25 @@ const PlatformAuditRoute = PlatformAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => PlatformRoute,
 } as any)
+const PlatformKitsIndexRoute = PlatformKitsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformKitsRoute,
+} as any)
 const PlatformCatalogIndexRoute = PlatformCatalogIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PlatformCatalogRoute,
+} as any)
+const PlatformKitsNewRoute = PlatformKitsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => PlatformKitsRoute,
+} as any)
+const PlatformKitsIdRoute = PlatformKitsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PlatformKitsRoute,
 } as any)
 const PlatformCatalogNewRoute = PlatformCatalogNewRouteImport.update({
   id: '/new',
@@ -146,7 +164,7 @@ export interface FileRoutesByFullPath {
   '/platform/dashboard': typeof PlatformDashboardRoute
   '/platform/finance': typeof PlatformFinanceRoute
   '/platform/inventory': typeof PlatformInventoryRoute
-  '/platform/kits': typeof PlatformKitsRoute
+  '/platform/kits': typeof PlatformKitsRouteWithChildren
   '/platform/orders': typeof PlatformOrdersRoute
   '/platform/production': typeof PlatformProductionRoute
   '/platform/settings': typeof PlatformSettingsRoute
@@ -158,7 +176,10 @@ export interface FileRoutesByFullPath {
   '/platform/': typeof PlatformIndexRoute
   '/platform/catalog/$id': typeof PlatformCatalogIdRoute
   '/platform/catalog/new': typeof PlatformCatalogNewRoute
+  '/platform/kits/$id': typeof PlatformKitsIdRoute
+  '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/catalog/': typeof PlatformCatalogIndexRoute
+  '/platform/kits/': typeof PlatformKitsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -167,7 +188,6 @@ export interface FileRoutesByTo {
   '/platform/dashboard': typeof PlatformDashboardRoute
   '/platform/finance': typeof PlatformFinanceRoute
   '/platform/inventory': typeof PlatformInventoryRoute
-  '/platform/kits': typeof PlatformKitsRoute
   '/platform/orders': typeof PlatformOrdersRoute
   '/platform/production': typeof PlatformProductionRoute
   '/platform/settings': typeof PlatformSettingsRoute
@@ -179,7 +199,10 @@ export interface FileRoutesByTo {
   '/platform': typeof PlatformIndexRoute
   '/platform/catalog/$id': typeof PlatformCatalogIdRoute
   '/platform/catalog/new': typeof PlatformCatalogNewRoute
+  '/platform/kits/$id': typeof PlatformKitsIdRoute
+  '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/catalog': typeof PlatformCatalogIndexRoute
+  '/platform/kits': typeof PlatformKitsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -191,7 +214,7 @@ export interface FileRoutesById {
   '/platform/dashboard': typeof PlatformDashboardRoute
   '/platform/finance': typeof PlatformFinanceRoute
   '/platform/inventory': typeof PlatformInventoryRoute
-  '/platform/kits': typeof PlatformKitsRoute
+  '/platform/kits': typeof PlatformKitsRouteWithChildren
   '/platform/orders': typeof PlatformOrdersRoute
   '/platform/production': typeof PlatformProductionRoute
   '/platform/settings': typeof PlatformSettingsRoute
@@ -203,7 +226,10 @@ export interface FileRoutesById {
   '/platform/': typeof PlatformIndexRoute
   '/platform/catalog/$id': typeof PlatformCatalogIdRoute
   '/platform/catalog/new': typeof PlatformCatalogNewRoute
+  '/platform/kits/$id': typeof PlatformKitsIdRoute
+  '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/catalog/': typeof PlatformCatalogIndexRoute
+  '/platform/kits/': typeof PlatformKitsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -228,7 +254,10 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/platform/catalog/$id'
     | '/platform/catalog/new'
+    | '/platform/kits/$id'
+    | '/platform/kits/new'
     | '/platform/catalog/'
+    | '/platform/kits/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -237,7 +266,6 @@ export interface FileRouteTypes {
     | '/platform/dashboard'
     | '/platform/finance'
     | '/platform/inventory'
-    | '/platform/kits'
     | '/platform/orders'
     | '/platform/production'
     | '/platform/settings'
@@ -249,7 +277,10 @@ export interface FileRouteTypes {
     | '/platform'
     | '/platform/catalog/$id'
     | '/platform/catalog/new'
+    | '/platform/kits/$id'
+    | '/platform/kits/new'
     | '/platform/catalog'
+    | '/platform/kits'
   id:
     | '__root__'
     | '/'
@@ -272,7 +303,10 @@ export interface FileRouteTypes {
     | '/platform/'
     | '/platform/catalog/$id'
     | '/platform/catalog/new'
+    | '/platform/kits/$id'
+    | '/platform/kits/new'
     | '/platform/catalog/'
+    | '/platform/kits/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -410,12 +444,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformAuditRouteImport
       parentRoute: typeof PlatformRoute
     }
+    '/platform/kits/': {
+      id: '/platform/kits/'
+      path: '/'
+      fullPath: '/platform/kits/'
+      preLoaderRoute: typeof PlatformKitsIndexRouteImport
+      parentRoute: typeof PlatformKitsRoute
+    }
     '/platform/catalog/': {
       id: '/platform/catalog/'
       path: '/'
       fullPath: '/platform/catalog/'
       preLoaderRoute: typeof PlatformCatalogIndexRouteImport
       parentRoute: typeof PlatformCatalogRoute
+    }
+    '/platform/kits/new': {
+      id: '/platform/kits/new'
+      path: '/new'
+      fullPath: '/platform/kits/new'
+      preLoaderRoute: typeof PlatformKitsNewRouteImport
+      parentRoute: typeof PlatformKitsRoute
+    }
+    '/platform/kits/$id': {
+      id: '/platform/kits/$id'
+      path: '/$id'
+      fullPath: '/platform/kits/$id'
+      preLoaderRoute: typeof PlatformKitsIdRouteImport
+      parentRoute: typeof PlatformKitsRoute
     }
     '/platform/catalog/new': {
       id: '/platform/catalog/new'
@@ -450,13 +505,29 @@ const PlatformCatalogRouteWithChildren = PlatformCatalogRoute._addFileChildren(
   PlatformCatalogRouteChildren,
 )
 
+interface PlatformKitsRouteChildren {
+  PlatformKitsIdRoute: typeof PlatformKitsIdRoute
+  PlatformKitsNewRoute: typeof PlatformKitsNewRoute
+  PlatformKitsIndexRoute: typeof PlatformKitsIndexRoute
+}
+
+const PlatformKitsRouteChildren: PlatformKitsRouteChildren = {
+  PlatformKitsIdRoute: PlatformKitsIdRoute,
+  PlatformKitsNewRoute: PlatformKitsNewRoute,
+  PlatformKitsIndexRoute: PlatformKitsIndexRoute,
+}
+
+const PlatformKitsRouteWithChildren = PlatformKitsRoute._addFileChildren(
+  PlatformKitsRouteChildren,
+)
+
 interface PlatformRouteChildren {
   PlatformAuditRoute: typeof PlatformAuditRoute
   PlatformCatalogRoute: typeof PlatformCatalogRouteWithChildren
   PlatformDashboardRoute: typeof PlatformDashboardRoute
   PlatformFinanceRoute: typeof PlatformFinanceRoute
   PlatformInventoryRoute: typeof PlatformInventoryRoute
-  PlatformKitsRoute: typeof PlatformKitsRoute
+  PlatformKitsRoute: typeof PlatformKitsRouteWithChildren
   PlatformOrdersRoute: typeof PlatformOrdersRoute
   PlatformProductionRoute: typeof PlatformProductionRoute
   PlatformSettingsRoute: typeof PlatformSettingsRoute
@@ -473,7 +544,7 @@ const PlatformRouteChildren: PlatformRouteChildren = {
   PlatformDashboardRoute: PlatformDashboardRoute,
   PlatformFinanceRoute: PlatformFinanceRoute,
   PlatformInventoryRoute: PlatformInventoryRoute,
-  PlatformKitsRoute: PlatformKitsRoute,
+  PlatformKitsRoute: PlatformKitsRouteWithChildren,
   PlatformOrdersRoute: PlatformOrdersRoute,
   PlatformProductionRoute: PlatformProductionRoute,
   PlatformSettingsRoute: PlatformSettingsRoute,

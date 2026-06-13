@@ -283,9 +283,21 @@ export function InventoryPage() {
 export function KitsPage() {
   const { data, error, loading } = useLoad(() => fetchPlatformKits());
 
+  const canWrite = canAccessArea(getStoredUser()?.role, "kits", "write");
+
   return (
     <>
-      <PlatformPageHeader title="Kits" subtitle="Platform-curated gift bundles." />
+      <PlatformPageHeader
+        title="Kits"
+        subtitle="Platform-curated gift bundles."
+        actions={
+          canWrite ? (
+            <Link to="/platform/kits/new" className="btn btn-brand btn-sm">
+              + Create a kit
+            </Link>
+          ) : null
+        }
+      />
       {loading && <PlatformLoading />}
       {error && <PlatformError message={error} />}
       {data && (
@@ -293,7 +305,15 @@ export function KitsPage() {
           empty="No kits yet."
           rows={data as unknown as Record<string, unknown>[]}
           columns={[
-            { key: "name", label: "Kit" },
+            {
+              key: "name",
+              label: "Kit",
+              render: (r) => (
+                <Link to="/platform/kits/$id" params={{ id: String(r._id) }} className="lnk">
+                  {String(r.name)}
+                </Link>
+              ),
+            },
             {
               key: "status",
               label: "Status",

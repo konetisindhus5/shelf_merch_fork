@@ -91,6 +91,72 @@ export async function fetchPlatformKits() {
   >("/platform/kits");
 }
 
+export type KitRules = {
+  fixedComposition: boolean;
+  customizationAllowed: boolean;
+  minQtyPerRecipient: number;
+  maxQtyPerRecipient: number;
+};
+
+export type KitItem = {
+  _id?: string;
+  catalogProductId: string;
+  variantSku?: string;
+  qty?: number;
+};
+
+export type PlatformKit = {
+  _id: string;
+  name: string;
+  description?: string;
+  packaging: string;
+  eligibleCampaignTypes: string[];
+  approxValueInr: number;
+  imageUrls: string[];
+  items: KitItem[];
+  rules?: KitRules;
+  status: string;
+};
+
+export type KitInput = {
+  name: string;
+  description?: string;
+  packaging?: string;
+  eligibleCampaignTypes?: string[];
+  approxValueInr?: number;
+  rules?: Partial<KitRules>;
+};
+
+export function getPlatformKit(id: string) {
+  return apiFetch<PlatformKit>(`/platform/kits/${id}`);
+}
+
+export function createKit(body: KitInput) {
+  return apiFetch<PlatformKit>("/platform/kits", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function updateKit(id: string, body: Partial<KitInput>) {
+  return apiFetch<PlatformKit>(`/platform/kits/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export function addKitItem(id: string, item: KitItem) {
+  return apiFetch<KitItem[]>(`/platform/kits/${id}/items`, { method: "POST", body: JSON.stringify(item) });
+}
+
+export function removeKitItem(id: string, itemId: string) {
+  return apiFetch<KitItem[]>(`/platform/kits/${id}/items/${itemId}`, { method: "DELETE" });
+}
+
+export function uploadKitImages(id: string, files: File[]) {
+  const form = new FormData();
+  for (const file of files) form.append("images", file);
+  return apiFetch<{ imageUrls: string[] }>(`/platform/kits/${id}/images`, { method: "POST", body: form });
+}
+
+export function publishKit(id: string) {
+  return apiFetch<PlatformKit>(`/platform/kits/${id}/publish`, { method: "POST" });
+}
+
 export async function fetchPlatformShipments(limit = 50) {
   return apiFetch<Paginated<Record<string, unknown>>>(`/platform/shipments?limit=${limit}`);
 }
