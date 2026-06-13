@@ -48,6 +48,26 @@ const catalogProductSchema = new mongoose.Schema(
         extraCostInr: { type: Number, default: 0 },
       },
     ],
+    // POD design-placeholder geometry: where artwork can be placed on a mockup.
+    // box values are percentages (0–100) of the mockup image, so they are
+    // resolution-independent. `printableAreas` (names) is derived from these.
+    printAreas: [
+      {
+        key: { type: String, default: '' },
+        label: { type: String, default: '' },
+        mockupImageUrl: { type: String, default: '' },
+        box: {
+          xPct: { type: Number, default: 0 },
+          yPct: { type: Number, default: 0 },
+          widthPct: { type: Number, default: 0 },
+          heightPct: { type: Number, default: 0 },
+        },
+        maxWidthCm: { type: Number, default: 0 },
+        maxHeightCm: { type: Number, default: 0 },
+        dpi: { type: Number, default: 300 },
+        methods: [{ type: String, enum: CUSTOMIZATION_METHODS }],
+      },
+    ],
     variants: [
       {
         color: String,

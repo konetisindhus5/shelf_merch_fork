@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { getStoredUser } from "@/services/auth-store";
+import { canAccessArea } from "@/services/platform-access";
 import {
   fetchAuditLogs,
   fetchFinanceOutstanding,
@@ -184,10 +186,21 @@ export function OrdersPage() {
 
 export function CatalogPage() {
   const { data, error, loading } = useLoad(() => fetchPlatformProducts({ limit: 100 }));
+  const canWrite = canAccessArea(getStoredUser()?.role, "catalog", "write");
 
   return (
     <>
-      <PlatformPageHeader title="Catalog" subtitle="Platform product master with internal cost and margin." />
+      <PlatformPageHeader
+        title="Catalog"
+        subtitle="Platform product master with internal cost and margin."
+        actions={
+          canWrite ? (
+            <Link to="/platform/catalog/new" className="btn btn-brand btn-sm">
+              + New product
+            </Link>
+          ) : null
+        }
+      />
       {loading && <PlatformLoading />}
       {error && <PlatformError message={error} />}
       {data && (
@@ -195,7 +208,15 @@ export function CatalogPage() {
           empty="No products yet."
           rows={data.items as unknown as Record<string, unknown>[]}
           columns={[
-            { key: "name", label: "Product" },
+            {
+              key: "name",
+              label: "Product",
+              render: (r) => (
+                <Link to="/platform/catalog/$id" params={{ id: String(r._id) }} className="lnk">
+                  {String(r.name)}
+                </Link>
+              ),
+            },
             { key: "sku", label: "SKU" },
             {
               key: "status",

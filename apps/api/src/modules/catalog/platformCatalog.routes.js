@@ -62,6 +62,27 @@ const customizationSchema = z.object({
   ),
 });
 
+const pct = z.number().min(0).max(100);
+const printAreasSchema = z.object({
+  printAreas: z.array(
+    z.object({
+      key: z.string().optional().default(''),
+      label: z.string().min(1),
+      mockupImageUrl: z.string().optional().default(''),
+      box: z.object({
+        xPct: pct,
+        yPct: pct,
+        widthPct: pct.refine((n) => n > 0, 'widthPct must be > 0'),
+        heightPct: pct.refine((n) => n > 0, 'heightPct must be > 0'),
+      }),
+      maxWidthCm: z.number().nonnegative().optional().default(0),
+      maxHeightCm: z.number().nonnegative().optional().default(0),
+      dpi: z.number().int().positive().optional().default(300),
+      methods: z.array(z.enum(CUSTOMIZATION_METHODS)).optional().default([]),
+    }),
+  ),
+});
+
 const listProductsQuery = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().optional(),
@@ -244,6 +265,27 @@ platformProductsRouter.post(
     const product = await catalogService.setCustomization(req.params.id, req.body.customization);
     writeAudit({ req, action: 'product.customization_set', entityType: 'CatalogProduct', entityId: product._id, after: { customization: req.body.customization } });
     res.json(product.customization);
+  }),
+);
+
+platformProductsRouter.get(
+  '/:id/print-areas',
+  catalogRead,
+  validate({ params: idParam }),
+  asyncHandler(async (req, res) => {
+    const product = await catalogService.getProduct(req.params.id);
+    res.json(product.printAreas);
+  }),
+);
+
+platformProductsRouter.put(
+  '/:id/print-areas',
+  catalogWrite,
+  validate({ params: idParam, body: printAreasSchema }),
+  asyncHandler(async (req, res) => {
+    const product = await catalogService.setPrintAreas(req.params.id, req.body.printAreas);
+    writeAudit({ req, action: 'product.print_areas_set', entityType: 'CatalogProduct', entityId: product._id, after: { count: product.printAreas.length } });
+    res.json(product.printAreas);
   }),
 );
 
