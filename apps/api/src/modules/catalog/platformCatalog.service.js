@@ -184,6 +184,15 @@ export async function setCustomization(productId, customization) {
   return product;
 }
 
+/** POD print-area placeholders. `printableAreas` (names) is derived from labels. */
+export async function setPrintAreas(productId, printAreas) {
+  const product = await getProduct(productId);
+  product.printAreas = printAreas;
+  product.printableAreas = printAreas.map((a) => a.label).filter(Boolean);
+  await product.save();
+  return product;
+}
+
 // ---- Categories ----
 
 export async function listCategories() {

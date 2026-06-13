@@ -138,3 +138,133 @@ export async function fetchPlatformSettings() {
 export async function fetchAuditLogs(limit = 50) {
   return apiFetch<Paginated<Record<string, unknown>>>(`/platform/audit-logs?limit=${limit}`);
 }
+
+// ---- Catalog product management (platform_catalog_admin / super admin) ----
+
+export type ProductVariant = {
+  _id?: string;
+  size?: string;
+  color?: string;
+  material?: string;
+  sku: string;
+  priceOverrideInr?: number | null;
+  stock?: number;
+};
+
+export type PrintAreaBox = { xPct: number; yPct: number; widthPct: number; heightPct: number };
+
+export type PrintArea = {
+  key?: string;
+  label: string;
+  mockupImageUrl?: string;
+  box: PrintAreaBox;
+  maxWidthCm?: number;
+  maxHeightCm?: number;
+  dpi?: number;
+  methods?: string[];
+};
+
+export type PlatformProduct = {
+  _id: string;
+  name: string;
+  sku: string;
+  slug?: string;
+  category: string;
+  brand?: string;
+  description?: string;
+  status: string;
+  sellingPriceInr: number;
+  costPriceInr: number;
+  marginPct?: number;
+  gstRate?: number;
+  hsnCode?: string;
+  moq?: number;
+  material?: string;
+  productionDays?: number;
+  variants: ProductVariant[];
+  imageUrls: string[];
+  primaryImageUrl?: string;
+  printAreas: PrintArea[];
+  inventory?: { available?: number; mode?: string };
+};
+
+export type ProductInput = {
+  name: string;
+  category: string;
+  sellingPriceInr: number;
+  costPriceInr?: number;
+  brand?: string;
+  description?: string;
+  skuPrefix?: string;
+  gstRate?: number;
+  hsnCode?: string;
+  moq?: number;
+  material?: string;
+  productionDays?: number;
+  reason?: string;
+};
+
+export function getPlatformProduct(id: string) {
+  return apiFetch<PlatformProduct>(`/platform/products/${id}`);
+}
+
+export function createProduct(body: ProductInput) {
+  return apiFetch<PlatformProduct>("/platform/products", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateProduct(id: string, body: Partial<ProductInput>) {
+  return apiFetch<PlatformProduct>(`/platform/products/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function addVariant(id: string, variant: ProductVariant) {
+  return apiFetch<ProductVariant[]>(`/platform/products/${id}/variants`, {
+    method: "POST",
+    body: JSON.stringify(variant),
+  });
+}
+
+export function updateVariant(id: string, variantId: string, patch: Partial<ProductVariant>) {
+  return apiFetch<ProductVariant[]>(`/platform/products/${id}/variants/${variantId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function uploadProductImages(id: string, files: File[], primary = false) {
+  const form = new FormData();
+  for (const file of files) form.append("images", file);
+  if (primary) form.append("primary", "true");
+  return apiFetch<{ imageUrls: string[]; primaryImageUrl: string }>(
+    `/platform/products/${id}/images`,
+    { method: "POST", body: form },
+  );
+}
+
+export function setPrintAreas(id: string, printAreas: PrintArea[]) {
+  return apiFetch<PrintArea[]>(`/platform/products/${id}/print-areas`, {
+    method: "PUT",
+    body: JSON.stringify({ printAreas }),
+  });
+}
+
+export function publishProduct(id: string) {
+  return apiFetch<PlatformProduct>(`/platform/products/${id}/publish`, { method: "POST" });
+}
+
+export function unpublishProduct(id: string) {
+  return apiFetch<PlatformProduct>(`/platform/products/${id}/unpublish`, { method: "POST" });
+}
+
+export function archiveProduct(id: string) {
+  return apiFetch<PlatformProduct>(`/platform/products/${id}/archive`, { method: "POST" });
+}
+
+export function listCategories() {
+  return apiFetch<{ _id: string; name: string }[]>("/platform/categories");
+}
