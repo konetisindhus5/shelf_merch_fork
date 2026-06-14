@@ -8,6 +8,7 @@ import { RoleAssignment } from '../src/modules/roles/roleAssignment.model.js';
 import { Wallet } from '../src/modules/wallets/wallet.model.js';
 import { Entity } from '../src/modules/entities/entity.model.js';
 import { Shop } from '../src/modules/shops/shop.model.js';
+import { Collection } from '../src/modules/collections/collection.model.js';
 import { CatalogProduct } from '../src/modules/catalog/catalogProduct.model.js';
 import { Campaign } from '../src/modules/campaigns/campaign.model.js';
 import { Recipient } from '../src/modules/campaigns/recipient.model.js';
@@ -263,6 +264,74 @@ describe('redemption portal (§11.1)', () => {
       .send({ contact: '+91 98765 43210' });
     expect(otpSend.status).toBe(200);
     expect(otpSend.body.channel).toBe('sms');
+  });
+
+  it('portal returns the shop branding and catalog is limited to the shop collection', async () => {
+    const { signRedemptionSession } = await import('../src/modules/redemptions/redemptions.service.js');
+
+    const brandedShop = await Shop.create({
+      tenantId: tenant._id,
+      name: 'Uber Store',
+      status: 'live',
+      logoUrl: 'https://cdn.test/uber.png',
+      bannerConfig: { theme: 'brand' },
+    });
+    // `product` (Test Tee) is curated into the shop; this second product is not.
+    const offShelf = await CatalogProduct.create({
+      sku: 'SM-MUG-OFF',
+      name: 'Uncurated Mug',
+      category: 'Drinkware',
+      group: 'mug',
+      basePriceInr: 300,
+    });
+    await Collection.create({
+      tenantId: tenant._id,
+      shopId: brandedShop._id,
+      code: 'C100',
+      name: 'Welcome Picks',
+      status: 'ready',
+      productRefs: [{ catalogProductId: product._id, brand: 'Test', name: 'Test Tee', group: 'tee' }],
+    });
+
+    const campaign = await Campaign.create({
+      tenantId: tenant._id,
+      entityId: entity._id,
+      name: 'Branded Store Campaign',
+      type: 'points',
+      shopId: brandedShop._id,
+      status: 'redemption_open',
+      creditsPerRecipient: 5000,
+      totalBudget: 5000,
+      recipientCount: 1,
+    });
+    const token = 'brandedStoreTokenRubixTest26!';
+    const recipient = await Recipient.create({
+      tenantId: tenant._id,
+      campaignId: campaign._id,
+      name: 'Hari',
+      email: 'hari@test.io',
+      creditAmount: 5000,
+      redemptionToken: token,
+      redemptionStatus: 'verified',
+    });
+
+    const portal = await request(app).get(`/api/v1/redemptions/${token}`);
+    expect(portal.status).toBe(200);
+    expect(portal.body.campaign.shop).toMatchObject({
+      name: 'Uber Store',
+      logoUrl: 'https://cdn.test/uber.png',
+      bannerTheme: 'brand',
+    });
+
+    const sessionToken = signRedemptionSession(recipient);
+    const catalog = await request(app)
+      .get(`/api/v1/redemptions/${token}/catalog`)
+      .set('Authorization', `Bearer ${sessionToken}`);
+    expect(catalog.status).toBe(200);
+    const ids = catalog.body.products.map((p) => p._id);
+    expect(ids).toContain(String(product._id));
+    expect(ids).not.toContain(String(offShelf._id));
+    expect(catalog.body.products).toHaveLength(1);
   });
 
   it('catalog and submit require redemption session JWT', async () => {

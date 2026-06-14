@@ -12,10 +12,74 @@ import "@/styles/shelf-merch.css";
 
 type Step = "loading" | "portal" | "otp" | "catalog" | "submit" | "track" | "error";
 
+type Shop = { name: string; logoUrl?: string; bannerTheme?: string };
+
 type PortalData = {
-  campaign: { name: string; message?: { body?: string }; shop?: { name: string } | null };
+  campaign: { name: string; message?: { body?: string }; shop?: Shop | null };
   recipient: { name: string; creditAmount: number };
 };
+
+// Mirrors BANNER_THEMES in lib/shelf-merch.js so the redemption store matches
+// the branding the admin picked in the shop builder.
+const BANNER_THEMES: Record<string, { bg: string; text: string }> = {
+  light: { bg: "#FBFCFB", text: "#0E1E16" },
+  brand: { bg: "linear-gradient(135deg,#15784C,#0E5536)", text: "#fff" },
+  dark: { bg: "#0E1E16", text: "#fff" },
+  blue: { bg: "linear-gradient(135deg,#2563C9,#1e40af)", text: "#fff" },
+  purple: { bg: "linear-gradient(135deg,#7a3fb0,#5b21b6)", text: "#fff" },
+};
+
+function StoreBanner({ shop }: { shop: Shop }) {
+  const theme = BANNER_THEMES[shop.bannerTheme || "light"] || BANNER_THEMES.light;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "20px 24px",
+        borderRadius: 14,
+        marginBottom: 20,
+        background: theme.bg,
+        color: theme.text,
+        border: shop.bannerTheme === "light" || !shop.bannerTheme ? "1px solid var(--line)" : "none",
+      }}
+    >
+      <div
+        style={{
+          width: 52,
+          height: 52,
+          flex: "none",
+          background: "#fff",
+          borderRadius: 12,
+          display: "grid",
+          placeItems: "center",
+          overflow: "hidden",
+          padding: 6,
+          boxShadow: "0 2px 8px rgba(0,0,0,.12)",
+        }}
+      >
+        {shop.logoUrl ? (
+          <img
+            src={shop.logoUrl}
+            alt={shop.name}
+            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+          />
+        ) : (
+          <span style={{ fontWeight: 800, color: "#15784C", fontSize: 20 }}>
+            {shop.name.charAt(0).toUpperCase()}
+          </span>
+        )}
+      </div>
+      <div>
+        <div style={{ fontSize: 12, opacity: 0.8, textTransform: "uppercase", letterSpacing: ".06em" }}>
+          Welcome to
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{shop.name}</div>
+      </div>
+    </div>
+  );
+}
 
 type CatalogProduct = {
   _id: string;
@@ -104,6 +168,13 @@ export default function RedemptionPortal({ token }: { token: string }) {
       setError("Pick at least one product");
       return;
     }
+    const missing = (["name", "phone", "line1", "city", "state", "pincode"] as const).filter(
+      (k) => !address[k].trim(),
+    );
+    if (missing.length) {
+      setError("Please complete your shipping details (name, phone and full address).");
+      return;
+    }
     try {
       const result = (await submitRedemption(
         token,
@@ -158,7 +229,11 @@ export default function RedemptionPortal({ token }: { token: string }) {
   return (
     <div className="auth" style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
-        <div className="eyebrow">Shelf Merch · Redeem your gift</div>
+        {portal?.campaign.shop ? (
+          <StoreBanner shop={portal.campaign.shop} />
+        ) : (
+          <div className="eyebrow">Shelf Merch · Redeem your gift</div>
+        )}
         <h1 style={{ fontSize: 28, marginBottom: 8 }}>{portal?.campaign.name}</h1>
         <p className="muted" style={{ marginBottom: 24 }}>
           Hi {portal?.recipient.name} — you have{" "}
@@ -239,13 +314,28 @@ export default function RedemptionPortal({ token }: { token: string }) {
               </div>
               <div className="field">
                 <label className="lbl">Shipping address</label>
-                <input
-                  className="inp"
-                  placeholder="Address line"
-                  value={address.line1}
-                  onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-                />
+                <div className="row" style={{ gap: 12 }}>
+                  <input
+                    className="inp"
+                    placeholder="Full name"
+                    value={address.name}
+                    onChange={(e) => setAddress({ ...address, name: e.target.value })}
+                  />
+                  <input
+                    className="inp"
+                    placeholder="Phone number"
+                    value={address.phone}
+                    onChange={(e) => setAddress({ ...address, phone: e.target.value })}
+                  />
+                </div>
               </div>
+              <input
+                className="inp"
+                placeholder="Address line"
+                style={{ marginTop: 8 }}
+                value={address.line1}
+                onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+              />
               <div className="row" style={{ gap: 12, marginTop: 8 }}>
                 <input
                   className="inp"
