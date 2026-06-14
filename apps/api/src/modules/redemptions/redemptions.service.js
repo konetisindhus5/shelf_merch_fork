@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Recipient } from '../campaigns/recipient.model.js';
 import { Campaign } from '../campaigns/campaign.model.js';
 import { Shop } from '../shops/shop.model.js';
+import { Collection } from '../collections/collection.model.js';
 import { CatalogProduct } from '../catalog/catalogProduct.model.js';
 import { Order, sanitizeOrderItems } from '../orders/order.model.js';
 import { transitionRedemption } from '../campaigns/campaigns.service.js';
@@ -58,7 +59,14 @@ export async function getRedemptionPortal(token) {
     campaign: {
       name: campaign.name,
       message: campaign.message,
-      shop: shop ? { name: shop.name, currencyMode: shop.currencyMode } : null,
+      shop: shop
+        ? {
+            name: shop.name,
+            currencyMode: shop.currencyMode,
+            logoUrl: shop.logoUrl || '',
+            bannerTheme: shop.bannerConfig?.theme || 'light',
+          }
+        : null,
     },
     recipient: { name: recipient.name, creditAmount: recipient.creditAmount },
   };
@@ -149,7 +157,24 @@ export async function getCatalog(token) {
 
   const filter = { status: 'active' };
   if (campaign.catalogMode === 'selected_products' && campaign.selectedProductIds.length) {
+    // Campaign explicitly hand-picked products — those win over the shop.
     filter._id = { $in: campaign.selectedProductIds };
+  } else if (campaign.shopId) {
+    // Curated store: limit the catalog to products in the shop's collections so
+    // recipients see the branded store's selection, not the whole platform catalog.
+    const collections = await Collection.find({
+      shopId: campaign.shopId,
+      tenantId: recipient.tenantId,
+      status: { $ne: 'archived' },
+    })
+      .select('productRefs')
+      .lean();
+    const ids = collections
+      .flatMap((c) => (c.productRefs || []).map((r) => r.catalogProductId))
+      .filter(Boolean);
+    // Fall back to the full active catalog when the shop has no curated products yet,
+    // so recipients are never stranded with an empty store.
+    if (ids.length) filter._id = { $in: ids };
   }
   const products = await CatalogProduct.find(filter).sort({ name: 1 }).lean();
   return { products };
