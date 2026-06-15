@@ -299,6 +299,7 @@ export type ProductVariant = {
   _id?: string;
   size?: string;
   color?: string;
+  colorHex?: string;
   material?: string;
   sku: string;
   priceOverrideInr?: number | null;
@@ -338,6 +339,8 @@ export type PlatformProduct = {
   variants: ProductVariant[];
   imageUrls: string[];
   primaryImageUrl?: string;
+  baseImageUrl?: string;
+  maskImageUrl?: string;
   printAreas: PrintArea[];
   inventory?: { available?: number; mode?: string };
 };
@@ -395,6 +398,17 @@ export function uploadProductImages(id: string, files: File[], primary = false) 
   for (const file of files) form.append("images", file);
   if (primary) form.append("primary", "true");
   return apiFetch<{ imageUrls: string[]; primaryImageUrl: string }>(
+    `/platform/products/${id}/images`,
+    { method: "POST", body: form },
+  );
+}
+
+/** Upload the recolourable master pair: role 'base' (internal) or 'mask' (customer). */
+export function uploadProductImage(id: string, file: File, role: "base" | "mask") {
+  const form = new FormData();
+  form.append("images", file);
+  form.append("role", role);
+  return apiFetch<{ baseImageUrl: string; maskImageUrl: string }>(
     `/platform/products/${id}/images`,
     { method: "POST", body: form },
   );

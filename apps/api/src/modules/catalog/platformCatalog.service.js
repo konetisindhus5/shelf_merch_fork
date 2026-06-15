@@ -177,6 +177,15 @@ export async function addImages(productId, urls, { primary = false } = {}) {
   return product;
 }
 
+/** Set the recolourable master pair: role 'base' (internal) or 'mask' (customer). */
+export async function setRoleImage(productId, role, url) {
+  const product = await getProduct(productId);
+  if (role === 'base') product.baseImageUrl = url;
+  else if (role === 'mask') product.maskImageUrl = url;
+  await product.save();
+  return product;
+}
+
 export async function setCustomization(productId, customization) {
   const product = await getProduct(productId);
   product.customization = customization;

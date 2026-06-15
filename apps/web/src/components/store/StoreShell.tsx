@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { StoreBanner, type StoreShop, BANNER_THEMES } from "../StoreBanner";
+import { TintedGarment } from "./TintedGarment";
 
 export type StoreProduct = {
   _id: string;
@@ -11,8 +12,16 @@ export type StoreProduct = {
   basePriceInr: number;
   primaryImageUrl?: string;
   imageUrls?: string[];
-  variants?: Array<{ size?: string; color?: string; material?: string; sku?: string }>;
+  maskImageUrl?: string;
+  baseImageUrl?: string;
+  variants?: Array<{ size?: string; color?: string; colorHex?: string; material?: string; sku?: string }>;
 };
+
+/** Hex for a colour name from the product's variants (for mask tinting). */
+function hexForColor(p: StoreProduct, color?: string) {
+  if (!color) return p.variants?.find((v) => v.colorHex)?.colorHex || "";
+  return p.variants?.find((v) => v.color === color && v.colorHex)?.colorHex || "";
+}
 
 export type CheckoutItem = { productId: string; qty: number; variant?: { size?: string; color?: string } };
 export type ShippingAddress = {
@@ -391,10 +400,17 @@ function ProductGrid({ products, onOpen, fmt }: { products: StoreProduct[]; onOp
     <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 16 }}>
       {products.map((p) => {
         const img = productImage(p);
+        const hex = hexForColor(p);
         return (
           <button key={p._id} type="button" onClick={() => onOpen(p._id)} className="card" style={{ padding: 0, overflow: "hidden", textAlign: "left", cursor: "pointer", border: "1px solid var(--line)", background: "var(--surface)" }}>
-            <div style={{ aspectRatio: "1 / 1", background: "var(--surface-2)", display: "grid", placeItems: "center" }}>
-              {img ? <img src={img} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="mut3" style={{ fontSize: 12 }}>No image</span>}
+            <div style={{ aspectRatio: "1 / 1", background: "var(--surface-2)", padding: 8 }}>
+              {p.maskImageUrl ? (
+                <TintedGarment src={p.maskImageUrl} hex={hex} alt={p.name} />
+              ) : img ? (
+                <img src={img} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ display: "grid", placeItems: "center", height: "100%" }}><span className="mut3" style={{ fontSize: 12 }}>No image</span></div>
+              )}
             </div>
             <div style={{ padding: 14 }}>
               {p.brand && <div className="mut3" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".04em" }}>{p.brand}</div>}
@@ -445,8 +461,14 @@ function ProductDetail({ product, mode, fmt, onBack, onAdd }: {
     <>
       <button type="button" className="lnk" onClick={onBack} style={{ marginBottom: 16 }}>← Back to products</button>
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 28, alignItems: "start" }}>
-        <div className="card" style={{ padding: 0, overflow: "hidden", aspectRatio: "1 / 1", background: "var(--surface-2)", display: "grid", placeItems: "center" }}>
-          {img ? <img src={img} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="mut3">No image</span>}
+        <div className="card" style={{ overflow: "hidden", aspectRatio: "1 / 1", background: "var(--surface-2)", padding: product.maskImageUrl ? 16 : 0, display: "grid", placeItems: "center" }}>
+          {product.maskImageUrl ? (
+            <TintedGarment src={product.maskImageUrl} hex={hexForColor(product, color)} alt={product.name} />
+          ) : img ? (
+            <img src={img} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span className="mut3">No image</span>
+          )}
         </div>
         <div>
           {product.brand && <div className="mut3" style={{ textTransform: "uppercase", letterSpacing: ".04em", fontSize: 12 }}>{product.brand}</div>}
@@ -458,9 +480,15 @@ function ProductDetail({ product, mode, fmt, onBack, onAdd }: {
             <div className="field">
               <label className="lbl">Colour</label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {colors.map((c) => (
-                  <button key={c} type="button" onClick={() => setColor(c)} className={color === c ? "btn btn-dark btn-sm" : "btn btn-ghost btn-sm"}>{c}</button>
-                ))}
+                {colors.map((c) => {
+                  const swatch = hexForColor(product, c);
+                  return (
+                    <button key={c} type="button" onClick={() => setColor(c)} className={color === c ? "btn btn-dark btn-sm" : "btn btn-ghost btn-sm"} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {swatch && <span style={{ width: 12, height: 12, borderRadius: 3, background: swatch, border: "1px solid rgba(0,0,0,.2)" }} />}
+                      {c}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

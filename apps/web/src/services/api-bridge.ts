@@ -293,9 +293,13 @@ export type StorefrontData = {
     brand?: string;
     group?: string;
     category?: string;
+    description?: string;
     basePriceInr: number;
     primaryImageUrl?: string;
     imageUrls?: string[];
+    maskImageUrl?: string;
+    baseImageUrl?: string;
+    variants?: Array<{ size?: string; color?: string; colorHex?: string; material?: string; sku?: string }>;
   }>;
 };
 

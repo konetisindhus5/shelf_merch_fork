@@ -59,6 +59,21 @@ describe('public storefront (no auth)', () => {
     expect(res.body.products.length).toBe(2);
   });
 
+  it('returns the base/mask master images and variant colorHex for recolouring', async () => {
+    curated.baseImageUrl = '/uploads/platform/product/base.png';
+    curated.maskImageUrl = '/uploads/platform/product/mask.png';
+    curated.variants = [{ color: 'Navy', colorHex: '#1e3a8a', size: 'M', sku: 'TEE-NVY-M' }];
+    await curated.save();
+
+    const shop = await Shop.create({ tenantId: tenant._id, name: 'Img Store', status: 'live' });
+    const res = await request(app).get(`/api/v1/storefront/${shop._id}`);
+    expect(res.status).toBe(200);
+    const tee = res.body.products.find((p) => p._id === String(curated._id));
+    expect(tee.baseImageUrl).toBe('/uploads/platform/product/base.png');
+    expect(tee.maskImageUrl).toBe('/uploads/platform/product/mask.png');
+    expect(tee.variants[0]).toMatchObject({ color: 'Navy', colorHex: '#1e3a8a' });
+  });
+
   it('404s a draft shop so it stays private', async () => {
     const shop = await Shop.create({ tenantId: tenant._id, name: 'Draft Store', status: 'draft' });
     const res = await request(app).get(`/api/v1/storefront/${shop._id}`);

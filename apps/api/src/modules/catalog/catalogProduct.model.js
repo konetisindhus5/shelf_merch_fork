@@ -71,6 +71,7 @@ const catalogProductSchema = new mongoose.Schema(
     variants: [
       {
         color: String,
+        colorHex: { type: String, default: '' },
         size: String,
         material: String,
         sku: String,
@@ -80,6 +81,11 @@ const catalogProductSchema = new mongoose.Schema(
     ],
     imageUrls: { type: [String], default: [] },
     primaryImageUrl: { type: String, default: '' },
+    // Neutral master pair recoloured per colour at display time (POD tint).
+    // baseImageUrl: internal — print-area definition + production.
+    // maskImageUrl: customer-facing transparent PNG garment cutout.
+    baseImageUrl: { type: String, default: '' },
+    maskImageUrl: { type: String, default: '' },
     // §3.2 — available/reserved are derived from InventoryTransactions only.
     inventory: {
       mode: { type: String, enum: INVENTORY_MODES, default: 'physical' },

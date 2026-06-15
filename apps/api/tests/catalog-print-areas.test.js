@@ -92,3 +92,24 @@ describe('platform product print areas (POD placeholders)', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('product variant colorHex + master image roles', () => {
+  it('persists colorHex when adding a variant', async () => {
+    const res = await request(app)
+      .post(`/api/v1/platform/products/${product._id}/variants`)
+      .set('Authorization', `Bearer ${catalogToken}`)
+      .send({ sku: 'TEE-NVY-M', color: 'Navy', colorHex: '#1e3a8a', size: 'M' });
+    expect(res.status).toBe(201);
+    const reloaded = await CatalogProduct.findById(product._id);
+    expect(reloaded.variants[0]).toMatchObject({ color: 'Navy', colorHex: '#1e3a8a' });
+  });
+
+  it('setRoleImage stores base and mask master images separately', async () => {
+    const { setRoleImage } = await import('../src/modules/catalog/platformCatalog.service.js');
+    await setRoleImage(product._id, 'base', '/uploads/platform/product/base.png');
+    await setRoleImage(product._id, 'mask', '/uploads/platform/product/mask.png');
+    const reloaded = await CatalogProduct.findById(product._id);
+    expect(reloaded.baseImageUrl).toBe('/uploads/platform/product/base.png');
+    expect(reloaded.maskImageUrl).toBe('/uploads/platform/product/mask.png');
+  });
+});

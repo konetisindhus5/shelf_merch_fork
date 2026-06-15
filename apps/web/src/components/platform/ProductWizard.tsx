@@ -12,10 +12,12 @@ import {
   publishProduct,
   setPrintAreas,
   updateProduct,
+  uploadProductImage,
   uploadProductImages,
 } from "@/services/platform-api";
 import { PlatformError, PlatformPageHeader } from "./platform-ui";
 import { PrintAreaEditor } from "./PrintAreaEditor";
+import { TintedGarment } from "../store/TintedGarment";
 
 const STEPS = ["Details", "Variants", "Images", "Print areas", "Review"] as const;
 
@@ -33,7 +35,7 @@ const emptyDetails: ProductInput = {
   productionDays: 7,
 };
 
-const emptyVariant: ProductVariant = { size: "", color: "", sku: "", stock: 0 };
+const emptyVariant: ProductVariant = { size: "", color: "", colorHex: "#ffffff", sku: "", stock: 0 };
 
 export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; productId?: string }) {
   const navigate = useNavigate();
@@ -78,6 +80,9 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
 
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) =>
     setDetails((d) => ({ ...d, [k]: v }));
+
+  // First defined colour swatch — used to preview the mask tint in the wizard.
+  const firstHex = product?.variants?.find((v) => v.colorHex)?.colorHex;
 
   async function refresh() {
     if (!id) return;
@@ -127,6 +132,20 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
     setError("");
     try {
       await uploadProductImages(id, Array.from(files), !product?.primaryImageUrl);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadMaster(file: File | undefined, role: "base" | "mask") {
+    if (!id || !file) return;
+    setBusy(true);
+    setError("");
+    try {
+      await uploadProductImage(id, file, role);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -294,7 +313,17 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                 <thead><tr><th>SKU</th><th>Size</th><th>Color</th><th>Stock</th></tr></thead>
                 <tbody>
                   {product.variants.map((v) => (
-                    <tr key={v.sku}><td>{v.sku}</td><td>{v.size || "—"}</td><td>{v.color || "—"}</td><td>{v.stock ?? 0}</td></tr>
+                    <tr key={v.sku}>
+                      <td>{v.sku}</td>
+                      <td>{v.size || "—"}</td>
+                      <td>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {v.colorHex && <span style={{ width: 14, height: 14, borderRadius: 4, border: "1px solid var(--line)", background: v.colorHex }} />}
+                          {v.color || "—"}
+                        </span>
+                      </td>
+                      <td>{v.stock ?? 0}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -305,6 +334,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
               <div className="field" style={{ flex: 1, marginBottom: 0 }}><label className="lbl">SKU</label><input className="inp" value={variant.sku} onChange={(e) => setVariant({ ...variant, sku: e.target.value })} /></div>
               <div className="field" style={{ flex: 1, marginBottom: 0 }}><label className="lbl">Size</label><input className="inp" value={variant.size} onChange={(e) => setVariant({ ...variant, size: e.target.value })} /></div>
               <div className="field" style={{ flex: 1, marginBottom: 0 }}><label className="lbl">Color</label><input className="inp" value={variant.color} onChange={(e) => setVariant({ ...variant, color: e.target.value })} /></div>
+              <div className="field" style={{ marginBottom: 0 }}><label className="lbl">Hex</label><input type="color" value={variant.colorHex || "#ffffff"} onChange={(e) => setVariant({ ...variant, colorHex: e.target.value })} style={{ width: 44, height: 38, padding: 2, border: "1px solid var(--line)", borderRadius: 8, background: "#fff" }} /></div>
               <div className="field" style={{ flex: 1, marginBottom: 0 }}><label className="lbl">Stock</label><input className="inp" type="number" value={variant.stock} onChange={(e) => setVariant({ ...variant, stock: Number(e.target.value) })} /></div>
               <button type="button" className="btn btn-soft" disabled={busy || !variant.sku} onClick={addOneVariant}>Add</button>
             </div>
@@ -317,12 +347,33 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
 
         {step === 2 && (
           <>
-            <h3 style={{ marginBottom: 12 }}>Images</h3>
+            <h3 style={{ marginBottom: 4 }}>Master images</h3>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>
+              Upload a neutral (white) pair. They recolour to each variant's colour automatically.
+            </p>
+            <div className="row" style={{ gap: 18, flexWrap: "wrap", marginBottom: 22 }}>
+              <div>
+                <label className="lbl">Base image — print areas &amp; production</label>
+                <div style={{ width: 140, height: 140, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface-2)", overflow: "hidden", marginBottom: 8 }}>
+                  <TintedGarment src={product?.baseImageUrl} />
+                </div>
+                <input type="file" accept="image/png,image/webp,image/jpeg" disabled={busy} onChange={(e) => uploadMaster(e.target.files?.[0], "base")} />
+              </div>
+              <div>
+                <label className="lbl">Mask image — customer gallery (transparent PNG)</label>
+                <div style={{ width: 140, height: 140, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface-2)", overflow: "hidden", marginBottom: 8 }}>
+                  <TintedGarment src={product?.maskImageUrl} hex={firstHex} />
+                </div>
+                <input type="file" accept="image/png" disabled={busy} onChange={(e) => uploadMaster(e.target.files?.[0], "mask")} />
+              </div>
+            </div>
+
+            <h3 style={{ marginBottom: 12 }}>Gallery images</h3>
             <div className="row" style={{ flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
               {(product?.imageUrls ?? []).map((url) => (
                 <img key={url} src={url} alt="" style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 8, border: url === product?.primaryImageUrl ? "2px solid var(--brand)" : "1px solid var(--line)" }} />
               ))}
-              {!product?.imageUrls?.length && <p className="muted">No images uploaded yet.</p>}
+              {!product?.imageUrls?.length && <p className="muted">No gallery images uploaded yet.</p>}
             </div>
             <input type="file" accept="image/*" multiple disabled={busy} onChange={(e) => uploadImages(e.target.files)} />
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
@@ -335,7 +386,12 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
         {step === 3 && (
           <>
             <h3 style={{ marginBottom: 12 }}>Design placeholders</h3>
-            <PrintAreaEditor images={product?.imageUrls ?? []} value={printAreas} onChange={setAreas} />
+            <PrintAreaEditor
+              images={[product?.baseImageUrl, ...(product?.imageUrls ?? [])].filter(Boolean) as string[]}
+              colors={(product?.variants ?? []).filter((v) => v.colorHex).map((v) => ({ name: v.color || "", hex: v.colorHex || "" }))}
+              value={printAreas}
+              onChange={setAreas}
+            />
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
               <button type="button" className="btn btn-ghost" onClick={() => setStep(2)}>Back</button>
               <button type="button" className="btn btn-brand" disabled={busy} onClick={saveAreas}>Save & continue</button>
