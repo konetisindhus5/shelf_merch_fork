@@ -145,7 +145,7 @@ export default function RedemptionPortal({ token }: { token: string }) {
 
   // Gate: branded landing + OTP verification before entering the store.
   return (
-    <div className="auth" style={{ minHeight: "100vh", background: "var(--bg)" }}>
+    <div className="store" style={{ background: "var(--bg)" }}>
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "40px 24px" }}>
         {portal?.campaign.shop ? (
           <StoreBanner shop={portal.campaign.shop} eyebrow="Your reward store" />

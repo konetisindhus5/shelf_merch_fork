@@ -172,7 +172,7 @@ export default function StoreShell({
   );
 
   return (
-    <div className="auth" style={{ minHeight: "100vh", background: "var(--bg)" }}>
+    <div className="store" style={{ background: "var(--bg)" }}>
       {/* Top nav — branded */}
       <div style={{ background: theme.bg, color: theme.text, borderBottom: shop.bannerTheme === "light" || !shop.bannerTheme ? "1px solid var(--line)" : "none" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: 20 }}>
