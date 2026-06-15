@@ -4,6 +4,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { authenticate } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { objectId } from '../users/users.validation.js';
+import { tenantCatalogFilter } from './catalogFilters.js';
 import { CatalogProduct } from './catalogProduct.model.js';
 import { NotFoundError } from '../../utils/errors.js';
 import { getPagination, paginatedResponse } from '../../utils/pagination.js';
@@ -27,6 +28,7 @@ router.get(
     const { page, limit, skip } = getPagination(req.query, { defaultLimit: 50 });
     const filter = {
       status: 'active',
+      ...tenantCatalogFilter(),
       ...(req.query.category ? { category: req.query.category } : {}),
       ...(req.query.search ? { name: { $regex: req.query.search, $options: 'i' } } : {}),
     };

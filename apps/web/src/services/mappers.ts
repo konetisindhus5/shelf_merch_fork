@@ -8,6 +8,8 @@ export type UiProduct = {
   price: string;
   sw: number;
   colors?: string[];
+  /** Resolved product photo URL (primaryImageUrl or first imageUrls entry). */
+  imgUrl?: string;
 };
 
 export type UiShop = {
@@ -126,22 +128,40 @@ function formatDate(d: string | Date | undefined): string {
   });
 }
 
+function resolveMediaUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) return url;
+  return `/${url.replace(/^\//, "")}`;
+}
+
+const GROUP_BY_CATEGORY: Record<string, string> = {
+  Apparel: "tee",
+  Drinkware: "bottle",
+  Bags: "bag",
+  Technology: "power",
+  Office: "note",
+  "Health & Wellness": "pillow",
+};
+
 export function mapCatalogProduct(p: ApiProduct): UiProduct {
   const variantColors = Array.isArray(p.variants)
     ? [...new Set(p.variants.map((v: { color?: string }) => v.color).filter(Boolean) as string[])]
     : [];
+  const imgUrl = resolveMediaUrl(p.primaryImageUrl || p.imageUrls?.[0]);
   return {
     id: String(p._id),
-    g: p.group || "tee",
+    g: p.group || GROUP_BY_CATEGORY[p.category] || "tee",
     brand: p.brand || "",
     nm: p.name,
     price: formatInr(p.basePriceInr ?? 0),
     sw: Array.isArray(p.variants) ? Math.max(p.variants.length, 2) : 4,
     colors: variantColors,
+    imgUrl,
   };
 }
 
 export function mapProductRef(ref: ApiProduct): UiProduct {
+  const imgUrl = resolveMediaUrl(ref.imgUrl || ref.primaryImageUrl || ref.imageUrls?.[0]);
   return {
     id: ref.catalogProductId ? String(ref.catalogProductId) : undefined,
     g: ref.group || "tee",
@@ -149,6 +169,7 @@ export function mapProductRef(ref: ApiProduct): UiProduct {
     nm: ref.name,
     price: "",
     sw: 4,
+    imgUrl,
   };
 }
 

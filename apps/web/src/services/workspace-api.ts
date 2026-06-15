@@ -81,7 +81,7 @@ export async function fetchWorkspaceSnapshot(sessionUser?: AuthUser | null): Pro
     apiFetch<unknown[]>("/contacts"),
     apiFetch<unknown[]>("/kits"),
     apiFetch<unknown[]>("/collections"),
-    apiFetch<{ items: unknown[] }>("/catalog/products?limit=100"),
+    apiFetch<{ items: unknown[] }>("/catalog/products?limit=200"),
     apiFetch<unknown[]>("/campaigns").catch(() => []),
     apiFetch<{ items: unknown[] }>("/orders?limit=100"),
     apiFetch<unknown[]>("/wallets"),
