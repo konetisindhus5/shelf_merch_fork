@@ -31,7 +31,7 @@ export async function getStorefront(shopId) {
   if (ids.length) filter._id = { $in: ids };
   const products = await CatalogProduct.find(filter)
     .setOptions({ skipTenantGuard: true })
-    .select('name brand group category description basePriceInr primaryImageUrl imageUrls variants')
+    .select('name brand group category description basePriceInr primaryImageUrl imageUrls maskImageUrl baseImageUrl variants')
     .sort({ name: 1 })
     .lean();
 
