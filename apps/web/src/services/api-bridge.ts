@@ -20,6 +20,7 @@ import {
   syncOrgWizardApi,
 } from "./mutations-api";
 import type { UiCollection } from "./mappers";
+import { mapCatalogProduct } from "./mappers";
 import {
   createContactsApi,
   createShopApi,
@@ -85,21 +86,25 @@ export async function logout() {
   }
 }
 
-export async function tryRestoreSession(): Promise<boolean> {
-  if (!isAuthenticated()) return false;
+export async function tryRestoreSession(): Promise<WorkspaceSnapshot | "platform" | null> {
+  if (!isAuthenticated()) return null;
   const me = getStoredUser();
-  if (isPlatformUser(me)) return true;
+  if (isPlatformUser(me)) return "platform";
   try {
-    await fetchWorkspaceSnapshot(me);
-    return true;
+    return await fetchWorkspaceSnapshot(me);
   } catch {
-    clearSession();
-    return false;
+    return null;
   }
 }
 
 export async function hydrateWorkspace(sessionUser?: AuthUser | null): Promise<WorkspaceSnapshot> {
   return fetchWorkspaceSnapshot(sessionUser);
+}
+
+/** Fresh catalog from DB — call when opening the Catalog page. */
+export async function refreshCatalogProducts(): Promise<UiProduct[]> {
+  const catalog = await apiFetch<{ items: unknown[] }>("/catalog/products?limit=200");
+  return (catalog.items || []).map((p) => mapCatalogProduct(p));
 }
 
 export { fetchPlatformDashboard } from "./platform-api";

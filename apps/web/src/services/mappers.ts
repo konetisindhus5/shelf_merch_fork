@@ -1,5 +1,16 @@
 import type { AuthUser } from "./auth-store";
 
+export type UiPrintArea = {
+  key?: string;
+  label?: string;
+  mockupImageUrl?: string;
+  box: { xPct: number; yPct: number; widthPct: number; heightPct: number };
+  maxWidthCm?: number;
+  maxHeightCm?: number;
+  dpi?: number;
+  methods?: string[];
+};
+
 export type UiProduct = {
   id?: string;
   g: string;
@@ -8,6 +19,10 @@ export type UiProduct = {
   price: string;
   sw: number;
   colors?: string[];
+  /** Resolved product photo URL (primaryImageUrl or first imageUrls entry). */
+  imgUrl?: string;
+  /** Super-admin design zones — artwork is clipped to the first matching area. */
+  printAreas?: UiPrintArea[];
 };
 
 export type UiShop = {
@@ -126,29 +141,55 @@ function formatDate(d: string | Date | undefined): string {
   });
 }
 
+function resolveMediaUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) return url;
+  return `/${url.replace(/^\//, "")}`;
+}
+
+const GROUP_BY_CATEGORY: Record<string, string> = {
+  Apparel: "tee",
+  Drinkware: "bottle",
+  Bags: "bag",
+  Technology: "power",
+  Office: "note",
+  "Health & Wellness": "pillow",
+};
+
 export function mapCatalogProduct(p: ApiProduct): UiProduct {
   const variantColors = Array.isArray(p.variants)
     ? [...new Set(p.variants.map((v: { color?: string }) => v.color).filter(Boolean) as string[])]
     : [];
+  const imgUrl = resolveMediaUrl(p.primaryImageUrl || p.imageUrls?.[0]);
+  const printAreas = Array.isArray(p.printAreas)
+    ? (p.printAreas as UiPrintArea[]).filter((a) => a?.box?.widthPct > 0 && a?.box?.heightPct > 0)
+    : undefined;
   return {
     id: String(p._id),
-    g: p.group || "tee",
+    g: p.group || GROUP_BY_CATEGORY[p.category] || "tee",
     brand: p.brand || "",
     nm: p.name,
     price: formatInr(p.basePriceInr ?? 0),
     sw: Array.isArray(p.variants) ? Math.max(p.variants.length, 2) : 4,
     colors: variantColors,
+    imgUrl,
+    printAreas: printAreas?.length ? printAreas : undefined,
   };
 }
 
-export function mapProductRef(ref: ApiProduct): UiProduct {
+export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProduct>): UiProduct {
+  const id = ref.catalogProductId ? String(ref.catalogProductId) : undefined;
+  const fromCatalog = id && catalogById?.get(id);
+  const imgUrl = resolveMediaUrl(ref.imgUrl || ref.primaryImageUrl || ref.imageUrls?.[0] || fromCatalog?.imgUrl);
   return {
-    id: ref.catalogProductId ? String(ref.catalogProductId) : undefined,
-    g: ref.group || "tee",
-    brand: ref.brand || "",
+    id,
+    g: ref.group || fromCatalog?.g || "tee",
+    brand: ref.brand || fromCatalog?.brand || "",
     nm: ref.name,
-    price: "",
-    sw: 4,
+    price: fromCatalog?.price || "",
+    sw: fromCatalog?.sw ?? 4,
+    imgUrl,
+    printAreas: fromCatalog?.printAreas,
   };
 }
 
@@ -197,7 +238,7 @@ export function mapKit(k: ApiProduct): UiKit {
   };
 }
 
-export function mapCollection(c: ApiProduct, createdByName = ""): UiCollection {
+export function mapCollection(c: ApiProduct, createdByName = "", catalogById?: Map<string, UiProduct>): UiCollection {
   return {
     id: String(c._id),
     code: c.code || "",
@@ -208,7 +249,7 @@ export function mapCollection(c: ApiProduct, createdByName = ""): UiCollection {
     shopId: String(c.shopId),
     artworkUrl: (c as { artworkUrl?: string }).artworkUrl || "",
     preferredColors: Array.isArray(c.preferredColors) ? c.preferredColors : [],
-    products: (c.productRefs || []).map(mapProductRef),
+    products: (c.productRefs || []).map((ref: ApiProduct) => mapProductRef(ref, catalogById)),
   };
 }
 

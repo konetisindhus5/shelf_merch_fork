@@ -154,10 +154,25 @@ const NAV = [
 
 /* ---------- router ---------- */
 const APP = ()=>document.getElementById('app');
+let bootGen = 0;
+function syncAuthState(){
+  if(api.useMocks()) return;
+  if(S.authed && !api.isAuthenticated()){ S.authed=false; S.view='login'; }
+}
 function go(view, opts={}){ S.view=view; if(opts.nav)S.nav=opts.nav; Object.assign(S.flow, opts.flow||{}); window.scrollTo(0,0); render(); }
-function setNav(n){ S.nav=n; S.view=n; closeLayer(); render(); }
+async function setNav(n){
+  S.nav=n; S.view=n; closeLayer();
+  render();
+  if(n==='catalog'&&!api.useMocks()&&api.isAuthenticated()){
+    try{
+      S.catalogProducts=await api.refreshCatalogProducts();
+      render();
+    }catch(_e){/* keep cached list */}
+  }
+}
 
 function render(){
+  syncAuthState();
   if(S.loading){ APP().innerHTML = `<div class="auth"><div style="display:grid;place-items:center;min-height:60vh;color:var(--ink-2);font-size:15px">Loading…</div></div>`; return; }
   if(!S.authed){ APP().innerHTML = S.view==='signup'?ViewSignup():ViewLogin(); return; }
   // full-screen wizard flows render without shell
@@ -369,7 +384,7 @@ Wizards.createKit=function(){
       <div class="field"><label class="lbl">Internal description (optional)</label><textarea class="inp" rows="3" placeholder="e.g. Standard onboarding kit for new joiners">${''}</textarea></div></div>`;
   } else if(step===1){
     body=`<h1 style="font-size:24px;margin-bottom:4px">Choose products for "${esc(f.kitName)}"</h1><p class="muted" style="margin-bottom:18px">Select the items to include. You can brand them in the next step.</p>
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${getCatalogList().map((p,i)=>{const on=f.picked.includes(i);return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="ktPick" data-arg="${i}"><div class="img">${PG[p.g]}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div></div></div>`;}).join('')}</div>`;
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${getCatalogList().map((p,i)=>{const on=f.picked.includes(i);return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="ktPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div></div></div>`;}).join('')}</div>`;
   } else if(step===2){
     const prods=f.picked.map(i=>getCatalogList()[i]);
     body=`<div style="display:grid;grid-template-columns:380px 1fr;gap:26px">
@@ -525,7 +540,7 @@ Wizards.swagCatalog=function(){
   const body=`<h1 style="font-size:24px;margin-bottom:4px">Add products to your collection</h1><p class="muted" style="margin-bottom:16px">${colorNote}</p>
     <div class="tabs" style="margin-bottom:18px">${cats.map((c,i)=>`<button class="${i===0?'on':''}" data-act="noop">${c}</button>`).join('')}</div>
     ${!entries.length?`<div class="card empty" style="padding:40px"><h3>No products match your colours</h3><p>Try adding more preferred colours on the previous step, or go back to adjust your selection.</p></div>`
-    :`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding-bottom:90px">${entries.map(({p,i})=>{const on=f.picked.includes(i);const sw=productColorNames(p).filter(c=>!prefs.length||prefs.includes(c)).slice(0,4).map(c=>`<span class="sw" style="background:${swagColorHex(c)}" title="${esc(c)}"></span>`).join('');return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="swPick" data-arg="${i}"><div class="img">${PG[p.g]}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div>${sw?`<div class="swatches">${sw}</div>`:''}</div></div>`;}).join('')}</div>`}`;
+    :`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding-bottom:90px">${entries.map(({p,i})=>{const on=f.picked.includes(i);const sw=productColorNames(p).filter(c=>!prefs.length||prefs.includes(c)).slice(0,4).map(c=>`<span class="sw" style="background:${swagColorHex(c)}" title="${esc(c)}"></span>`).join('');return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="swPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div>${sw?`<div class="swatches">${sw}</div>`:''}</div></div>`;}).join('')}</div>`}`;
   const foot='';
   const bar=`<div style="position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:14px 34px;display:flex;align-items:center;justify-content:space-between;z-index:30">
     <div class="row" style="gap:10px;align-items:center"><b>${esc(f.colName)}</b><span class="tag tag-soft" style="background:var(--brand-50);color:var(--brand-d)">${f.picked.length} item${f.picked.length===1?'':'s'}</span></div>
@@ -578,7 +593,7 @@ Wizards.swagArtwork=function(){
         <div style="background:#fff;padding:24px;display:grid;place-items:center;min-height:150px">${swArtImg(f,{maxH:'160px'})}</div></div>`
     : `<div class="banner" style="margin-bottom:16px;background:#eaf1fb;color:#1c2a52;border:none">Please add artwork before selecting your products. We've included all colour variants.</div>`;
   const right=`<div>${banner}
-    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">${prods.map(p=>`<div class="pcard" style="position:relative">${f.artwork?'':'<div class="dots-btn">'+I.dots+'</div>'}<div class="img">${PG[p.g]}${f.artwork?`<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;display:grid;place-items:center">${swArtImg(f)}</div>`:''}</div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div></div></div>`).join('')}</div></div>`;
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">${prods.map(p=>{const ep=enrichProduct(p);const mock=productHasPrintArea(ep);return `<div class="pcard" style="position:relative">${f.artwork?'':'<div class="dots-btn">'+I.dots+'</div>'}<div class="img${mock?' img-mockup':''}">${productImg(ep,mock?{width:'100%',height:'100%'}:{})}${f.artwork?`${printAreaGuide(ep)}${productArtOverlay(ep,f.artFile?.preview)}`:''}</div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div></div></div>`;}).join('')}</div></div>`;
   const body=`<div style="display:grid;grid-template-columns:400px 1fr;gap:26px">${left}${right}</div>`;
   return wzChrome('Design swag',['Collection','Products','Artwork'],2,body,'');
 };
@@ -612,7 +627,7 @@ async function swGenerate(){
   const f=S.flow; const s=S.shops.find(x=>x.id===f.shopId)||S.shops[0];
   const catalog=getCatalogList();
   if(api.useMocks()){
-    const col={id:nid('c'),code:'C'+(100000000+Math.floor(Math.random()*899999999)),name:f.colName,created:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),by:S.user.name,status:'ready',shopId:s?s.id:'s1',preferredColors:[...(f.colColors||[])],artworkUrl:f.artFile?.preview||'',products:f.picked.map(i=>({g:catalog[i]?.g||'tee',brand:catalog[i]?.brand||'',nm:catalog[i]?.nm||'Product'}))};
+    const col={id:nid('c'),code:'C'+(100000000+Math.floor(Math.random()*899999999)),name:f.colName,created:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),by:S.user.name,status:'ready',shopId:s?s.id:'s1',preferredColors:[...(f.colColors||[])],artworkUrl:f.artFile?.preview||'',products:f.picked.map(i=>{const cp=catalog[i];return{id:cp?.id,g:cp?.g||'tee',brand:cp?.brand||'',nm:cp?.nm||'Product',printAreas:cp?.printAreas,imgUrl:cp?.imgUrl};})};
     S.collections.push(col); if(s)s.collections.push(col.id);
     if(f.shopId&&S.shops.find(x=>x.id===f.shopId)){ go('shopDetail',{flow:{shopId:f.shopId,shopTab:'Branded Swag'},nav:'shops'}); }
     else go('swag');
@@ -864,8 +879,8 @@ function reMsg(e){ S.flow.msg=e.target?e.target.value:''; const l=document.getEl
 function reNote(e){ S.flow.note=e.target?e.target.value:''; const p=document.getElementById('si-prev'); if(p)p.textContent=S.flow.note; }
 
 
-/* demo catalog */
-function getCatalogList(){ return (!api.useMocks() && S.catalogProducts.length) ? S.catalogProducts : DEMO_PRODUCTS; }
+/* catalog list — live API data only (no demo fallback when connected to API) */
+function getCatalogList(){ return api.useMocks() ? DEMO_PRODUCTS : (S.catalogProducts || []); }
 
 const SWAG_COLORS=[['Black','#1c1c1c'],['Blue','#2b54d6'],['Brown','#7a4a25'],['Green','#15784c'],['Gray','#9a9a9a'],['Navy','#1c2a52'],['Orange','#f59e0b'],['Pink','#f4aacb'],['Purple','#7a3fb0'],['Red','#d33b30'],['White','#ffffff'],['Yellow','#f5d000']];
 const SWAG_COLOR_HEX=Object.fromEntries(SWAG_COLORS);
@@ -1260,15 +1275,71 @@ async function shopPublish(){
 
 
 /* shared renderers */
+function catalogProductById(id){
+  if(!id) return null;
+  return getCatalogList().find(x=>x.id===id)||null;
+}
+function enrichProduct(p){
+  if(!p) return p;
+  if(p.printAreas?.length) return p;
+  const full=catalogProductById(p.id);
+  if(!full) return p;
+  return {...p, printAreas:full.printAreas, imgUrl:p.imgUrl||full.imgUrl};
+}
+function pickPrintArea(p){
+  const prod=enrichProduct(p);
+  const areas=prod.printAreas;
+  if(!areas?.length) return null;
+  const img=catalogImgUrl(prod);
+  if(img){
+    const match=areas.find(a=>a.mockupImageUrl===img);
+    if(match) return match;
+  }
+  return areas[0];
+}
+function printAreaWrapStyle(box){
+  if(!box||!box.widthPct||!box.heightPct){
+    return 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34%;height:34%;overflow:hidden;display:grid;place-items:center;pointer-events:none';
+  }
+  return `position:absolute;left:${box.xPct}%;top:${box.yPct}%;width:${box.widthPct}%;height:${box.heightPct}%;overflow:hidden;display:grid;place-items:center;pointer-events:none`;
+}
+function printAreaGuide(p){
+  const area=pickPrintArea(enrichProduct(p));
+  if(!area?.box?.widthPct) return '';
+  const b=area.box;
+  return `<div style="position:absolute;left:${b.xPct}%;top:${b.yPct}%;width:${b.widthPct}%;height:${b.heightPct}%;border:1.5px dashed rgba(21,120,76,.55);border-radius:2px;pointer-events:none;box-sizing:border-box;z-index:1"></div>`;
+}
+function productArtOverlay(p,artworkUrl){
+  const area=pickPrintArea(enrichProduct(p));
+  const inner=collectionArtOverlay(artworkUrl);
+  return `<div style="${printAreaWrapStyle(area?.box)}">${inner}</div>`;
+}
 function collectionArtOverlay(url){
   if(!url) return LOGO_DECO;
   return `<img src="${url}" alt="Artwork" style="max-width:100%;max-height:100%;object-fit:contain;display:block">`;
 }
+function catalogImgUrl(p){
+  if(p?.imgUrl) return p.imgUrl;
+  if(p?.id) return getCatalogList().find(x=>x.id===p.id)?.imgUrl;
+  return '';
+}
+function productImg(p,opts={}){
+  const url=catalogImgUrl(p);
+  const ph=PG[p?.g]||PG.tee;
+  const size=opts.width?`width:${opts.width};height:${opts.height||opts.width};`:`width:${opts.width||'64%'};height:${opts.height||'64%'};`;
+  if(url) return `<img src="${esc(url)}" alt="" style="${size}object-fit:contain" onerror="this.onerror=null;this.style.display='none'">`;
+  return ph;
+}
+function productHasPrintArea(p){
+  return Boolean(pickPrintArea(enrichProduct(p))?.box?.widthPct);
+}
 function pcard(p,opts={}){
   const sw = opts.swatches?`<div class="swatches">${['#1c1c1c','#2b4a8b','#9a9a9a','#7a4a25'].map(c=>`<span class="sw" style="background:${c}"></span>`).join('')}<span class="mut3" style="font-size:11px;align-self:center;margin-left:2px">+${opts.swatches}</span></div>`:'';
-  const logo = opts.branded?`<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34%;height:34%;display:grid;place-items:center;pointer-events:none">${collectionArtOverlay(opts.artworkUrl)}</div>`:'';
+  const prod=enrichProduct(opts.product||p);
+  const mockup=opts.branded||productHasPrintArea(prod);
+  const logo = opts.branded?productArtOverlay(prod,opts.artworkUrl):'';
   return `<div class="pcard" data-act="${opts.act||'noop'}" ${opts.arg?`data-arg="${opts.arg}"`:''}>
-    <div class="img">${PG[p.g]||PG.tee}${logo}</div>
+    <div class="img${mockup?' img-mockup':''}">${productImg(prod,mockup?{width:'100%',height:'100%'}:{})}${logo}</div>
     <div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div>${opts.price?`<div class="pr">${opts.price}</div>`:''}${sw}</div></div>`;
 }
 
@@ -1523,9 +1594,11 @@ function swagDesignCard(col,p,pIdx){
   const sw=names.slice(0,4).map(c=>`<span class="sw" style="background:${swagColorHex(c)}" title="${esc(c)}"></span>`).join('');
   const more=names.length>4?`<span class="mut3" style="font-size:10px;align-self:center">+${names.length-4}</span>`:'';
   const arg=`${col.id}:${pIdx}`;
+  const ep=enrichProduct(p);
+  const mock=productHasPrintArea(ep);
   return `<div class="pcard swag-design-card" data-act="productOpen" data-arg="${arg}">
-    <div class="img">${PG[p.g]||PG.tee}
-      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34%;height:34%;display:grid;place-items:center;pointer-events:none">${collectionArtOverlay(col.artworkUrl)}</div>
+    <div class="img${mock?' img-mockup':''}">${productImg(ep,mock?{width:'100%',height:'100%'}:{})}
+      ${productArtOverlay(ep,col.artworkUrl)}
       <div class="swag-card-actions">
         <button type="button" class="swag-card-menu" data-act="swagCardMenu" data-arg="${arg}">${I.dots}</button>
       </div>
@@ -1601,7 +1674,8 @@ function ViewProductDetail(){
   const desc=productDescription(p);
   const short=desc.length>180&&!S.flow.descExpanded?desc.slice(0,180).trim()+'…':desc;
   const title=p.brand?`${esc(p.brand)} ${esc(p.nm)}`:esc(p.nm);
-  const logo=collectionArtOverlay(col.artworkUrl);
+  const ep=enrichProduct(p);
+  const logo=productArtOverlay(ep,col.artworkUrl);
   const imgBg=colors[sel]||'#f4f6f4';
   const backLabel=S.flow.productBackView==='shopDetail'?'Back to shop':'Back to saved designs';
   return `<div class="pd-page fade-in">
@@ -1624,8 +1698,8 @@ function ViewProductDetail(){
     <div class="pd-body">
       <div class="pd-gallery">
         <div class="pd-img" style="background:${imgBg}">
-          <div class="pd-img-inner">${PG[p.g]||PG.tee}
-            <div class="pd-art">${logo}</div>
+          <div class="pd-img-inner pd-img-mockup">${productImg(ep,{width:'100%',height:'100%'})}
+            ${logo}
           </div>
           <button class="pd-zoom" data-act="toast" data-arg="Image zoom coming soon">${I.zoom}</button>
         </div>
@@ -2282,6 +2356,7 @@ async function auth(){
     }
     if(form.password.length<8){ toast('Password must be at least 8 characters'); return; }
   } else if(!form.email||!form.password){ toast('Enter email and password'); return; }
+  const gen=++bootGen;
   S.loading=true; render();
   try{
     const user=isSignup
@@ -2293,15 +2368,17 @@ async function auth(){
     }
     S.user={name:user.name,initials:user.name.split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join(''),email:user.email,role:user.role||'company_admin'};
     await hydrateFromApi(user);
+    if(gen!==bootGen) return;
     S.authed=true; S.nav='orders'; S.view='orders'; S.flow={};
     toast(isSignup ? 'Welcome to Shelf Merch, '+user.name.split(' ')[0]+'!' : 'Welcome back, '+user.name.split(' ')[0]);
   }catch(err){
-    toast(err.message||(isSignup?'Sign up failed':'Login failed'));
+    if(gen===bootGen) toast(err.message||(isSignup?'Sign up failed':'Login failed'));
   }finally{
-    S.loading=false; render();
+    if(gen===bootGen){ S.loading=false; render(); }
   }
 }
 async function logout(){
+  ++bootGen;
   if(!api.useMocks()) await api.logout().catch(()=>{});
   S.authed=false; S.view='login'; S.flow={}; closeLayer(); render();
 }
@@ -2556,23 +2633,30 @@ async function init(){
     S.authed=false; S.view='login'; render();
     return;
   }
+  const gen=++bootGen;
   S.loading=true; render();
-  const ok=await api.tryRestoreSession();
-  if(ok){
-    const me=api.getStoredUser();
-    if(api.isPlatformUser(me)){
-      window.location.href='/platform/dashboard';
+  const snapshot=await api.tryRestoreSession();
+  if(gen!==bootGen||S.authed){
+    S.loading=false; render();
+    return;
+  }
+  if(snapshot==='platform'){
+    window.location.href='/platform/dashboard';
+    return;
+  }
+  if(snapshot){
+    api.applyWorkspaceToState(S,snapshot);
+    S.authed=true; S.nav='orders'; S.view='orders';
+  }else{
+    if(gen!==bootGen||S.authed){
+      S.loading=false; render();
       return;
     }
-    try{
-      const data=await api.hydrateWorkspace(me);
-      api.applyWorkspaceToState(S,data);
-      S.authed=true; S.nav='orders'; S.view='orders';
-    }catch{
-      await api.logout().catch(()=>{});
-      S.authed=false; S.view='login';
+    if(api.isAuthenticated()) await api.logout().catch(()=>{});
+    if(gen!==bootGen||S.authed){
+      S.loading=false; render();
+      return;
     }
-  }else{
     S.authed=false; S.view='login';
   }
   S.loading=false; render();
