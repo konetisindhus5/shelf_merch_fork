@@ -1,8 +1,4 @@
-
-import { useEffect, useRef, useState } from "react";
-
-import { useEffect, useMemo, useState } from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   addVariant,
@@ -21,7 +17,7 @@ import {
 import { PlatformError, PlatformPageHeader } from "./platform-ui";
 import { PrintAreaEditor } from "./PrintAreaEditor";
 import { TintedGarment } from "../store/TintedGarment";
-import { resolveColorHex } from "@/lib/colorMap";
+import { isPlaceholderColorHex, resolveColorHex } from "@/lib/colorMap";
 
 const STEPS = ["Details", "Variants", "Images", "Print areas", "Review"] as const;
 
@@ -218,19 +214,26 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) =>
     setDetails((d) => ({ ...d, [k]: v }));
 
-  // Distinct variant colours that drive the mask recolour preview. Each entry
-  // resolves a hex from the variant's own swatch, falling back to its name.
+  // Distinct variant colours that drive the mask recolour preview. Accepts a
+  // colour name, a stored hex, or both — hex-only variants still preview.
   const colorSwatches = useMemo(() => {
     const seen = new Map<string, { name: string; hex: string }>();
     for (const v of product?.variants ?? []) {
       const name = (v.color || "").trim();
-      if (!name) continue;
-      const key = name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.set(key, { name, hex: resolveColorHex(name, v.colorHex) });
+      const hex = resolveColorHex(name, v.colorHex);
+      if (!name && isPlaceholderColorHex(v.colorHex)) continue;
+      const key = (name || hex).toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.set(key, { name: name || hex, hex });
     }
     return [...seen.values()];
   }, [product?.variants]);
+
+  useEffect(() => {
+    if (step !== 2 || !id) return;
+    refresh().catch((e) => setError(e instanceof Error ? e.message : "Failed to load variants"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, id]);
 
   useEffect(() => {
     if (!colorSwatches.length) {
@@ -276,10 +279,12 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
 
   async function addOneVariant() {
     if (!id || !variant.sku) return;
+    const color = variant.color.trim() || variant.colorHex || "";
+    const colorHex = variant.colorHex || resolveColorHex(color);
     setBusy(true);
     setError("");
     try {
-      await addVariant(id, variant);
+      await addVariant(id, { ...variant, color, colorHex });
       setVariant(emptyVariant);
       await refresh();
     } catch (e) {
@@ -330,6 +335,18 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
         if (p?.printAreas) setAreas(p.printAreas);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save print areas");
+        setBusy(false);
+        return;
+      }
+      setBusy(false);
+    }
+    if (i === 2) {
+      setBusy(true);
+      setError("");
+      try {
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load variants");
         setBusy(false);
         return;
       }
@@ -489,7 +506,25 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
             </div>
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
               <button type="button" className="btn btn-ghost" onClick={() => setStep(0)}>Back</button>
-              <button type="button" className="btn btn-brand" onClick={() => setStep(2)}>Continue</button>
+              <button
+                type="button"
+                className="btn btn-brand"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError("");
+                  try {
+                    await refresh();
+                    setStep(2);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Failed to load variants");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Continue
+              </button>
             </div>
           </>
         )}
@@ -584,7 +619,8 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                   </div>
                 )}
               </div>
-            
+            )}
+
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
               <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>Back</button>
               <button type="button" className="btn btn-brand" onClick={() => setStep(3)}>Continue</button>
@@ -597,6 +633,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
             <h3 style={{ marginBottom: 12 }}>Design placeholders</h3>
             <PrintAreaEditor
               images={[product?.baseImageUrl, product?.maskImageUrl].filter(Boolean) as string[]}
+              colors={colorSwatches}
               value={printAreas}
               onChange={setAreas}
             />

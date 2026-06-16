@@ -21,6 +21,7 @@ import {
   fetchPlatformInventory,
   fetchPlatformKits,
   fetchPlatformOrders,
+  fetchPlatformOrder,
   fetchPlatformProducts,
   fetchPlatformSettings,
   fetchPlatformShipments,
@@ -54,7 +55,12 @@ import {
   updateSetting,
   uploadOrderMockup,
   type InventoryTxnType,
+  type OrderItemProduct,
+  type PrintArea,
+  type ProductVariant,
 } from "@/services/platform-api";
+import { resolveColorHex } from "@/lib/colorMap";
+import { TintedGarment } from "@/components/store/TintedGarment";
 import {
   DataTable,
   inr,
@@ -242,13 +248,22 @@ function TenantManageModal({ row, onClose, onChanged }: { row: TenantRow; onClos
 }
 
 export function OrdersPage() {
-  const [reloadKey, setReloadKey] = useState(0);
-  const [managing, setManaging] = useState<Record<string, unknown> | null>(null);
-  const { data, error, loading } = useLoad(() => fetchPlatformOrders({ limit: 100 }), [reloadKey]);
-  const canWrite = canAccessArea(getStoredUser()?.role, "orders", "write");
+  const { data, error, loading } = useLoad(() => fetchPlatformOrders({ limit: 100 }), []);
 
   const columns: { key: string; label: string; render?: (row: Record<string, unknown>) => ReactNode }[] = [
-    { key: "orderNumber", label: "Order #" },
+    {
+      key: "orderNumber",
+      label: "Order #",
+      render: (r) => (
+        <Link
+          to="/platform/orders/$id"
+          params={{ id: String(r._id) }}
+          style={{ color: "var(--brand)", fontWeight: 600, textDecoration: "none" }}
+        >
+          {String(r.orderNumber ?? "—")}
+        </Link>
+      ),
+    },
     { key: "tenantName", label: "Tenant" },
     { key: "status", label: "Status", render: (r) => <StatusTag status={String(r.status)} /> },
     {
@@ -260,16 +275,16 @@ export function OrdersPage() {
       },
     },
     { key: "createdAt", label: "Created", render: (r) => new Date(String(r.createdAt)).toLocaleDateString("en-IN") },
-  ];
-  if (canWrite) {
-    columns.push({
-      key: "manage",
+    {
+      key: "open",
       label: "",
       render: (r) => (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setManaging(r)}>Manage</button>
+        <Link to="/platform/orders/$id" params={{ id: String(r._id) }} className="btn btn-ghost btn-sm">
+          Open
+        </Link>
       ),
-    });
-  }
+    },
+  ];
 
   return (
     <>
@@ -277,17 +292,128 @@ export function OrdersPage() {
       {loading && <PlatformLoading />}
       {error && <PlatformError message={error} />}
       {data && <DataTable empty="No orders yet." rows={data.items} columns={columns} />}
-      {managing && (
-        <OrderManageModal row={managing} onClose={() => setManaging(null)} onChanged={() => setReloadKey((k) => k + 1)} />
-      )}
     </>
   );
 }
 
-function OrderManageModal({ row, onClose, onChanged }: { row: Record<string, unknown>; onClose: () => void; onChanged: () => void }) {
-  const id = String(row._id);
-  const [status, setStatus] = useState(String(row.status ?? "created"));
-  const [note, setNote] = useState("");
+type OrderItem = {
+  name?: string;
+  sku?: string;
+  qty?: number;
+  unitPriceInr?: number;
+  imageUrl?: string;
+  variant?: { size?: string; color?: string };
+  product?: OrderItemProduct | null;
+};
+
+function matchVariantHex(product: OrderItemProduct | null | undefined, variant?: { size?: string; color?: string }) {
+  if (!product?.variants?.length || !variant) return undefined;
+  const match = product.variants.find(
+    (v: ProductVariant) =>
+      (!variant.size || v.size === variant.size) &&
+      (!variant.color || v.color?.toLowerCase() === variant.color.toLowerCase()),
+  );
+  return match?.colorHex;
+}
+
+function PrintAreaPreview({
+  mockup,
+  areas,
+  tintHex,
+}: {
+  mockup: string;
+  areas: PrintArea[];
+  tintHex?: string;
+}) {
+  const visible = areas.filter((a) => !a.mockupImageUrl || a.mockupImageUrl === mockup);
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "1 / 1",
+        background: "var(--surface-2)",
+        border: "1px solid var(--line)",
+        borderRadius: 10,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ position: "absolute", inset: 0 }}>
+        <TintedGarment src={mockup} hex={tintHex} alt="Design mockup" />
+      </div>
+      {visible.map((a, i) => (
+        <div
+          key={a.key ?? i}
+          style={{
+            position: "absolute",
+            left: `${a.box.xPct}%`,
+            top: `${a.box.yPct}%`,
+            width: `${a.box.widthPct}%`,
+            height: `${a.box.heightPct}%`,
+            border: "2px dashed rgba(46,160,103,.7)",
+            background: "rgba(46,160,103,.1)",
+            boxSizing: "border-box",
+            pointerEvents: "none",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: -20,
+              left: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--ink)",
+              background: "#fff",
+              padding: "1px 5px",
+              borderRadius: 4,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {a.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FulfillmentImage({ src, label }: { src?: string; label: string }) {
+  return (
+    <div>
+      <div className="lbl" style={{ marginBottom: 8 }}>{label}</div>
+      <div
+        style={{
+          aspectRatio: "1 / 1",
+          background: "var(--surface-2)",
+          border: "1px solid var(--line)",
+          borderRadius: 10,
+          overflow: "hidden",
+        }}
+      >
+        {src ? (
+          <img src={src} alt={label} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        ) : (
+          <div className="muted" style={{ display: "grid", placeItems: "center", height: "100%", fontSize: 13 }}>
+            Not available
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrderFulfillmentActions({
+  order,
+  onChanged,
+}: {
+  order: Record<string, unknown>;
+  onChanged: () => void;
+}) {
+  const id = String(order._id);
+  const [status, setStatus] = useState(String(order.status ?? "created"));
+  const [statusNote, setStatusNote] = useState("");
+  const [internalNote, setInternalNote] = useState("");
   const [vendors, setVendors] = useState<{ _id: string; name: string }[]>([]);
   const [vendorId, setVendorId] = useState("");
   const [mockupUrl, setMockupUrl] = useState("");
@@ -299,6 +425,10 @@ function OrderManageModal({ row, onClose, onChanged }: { row: Record<string, unk
   useEffect(() => {
     fetchPlatformVendors().then(setVendors).catch(() => setVendors([]));
   }, []);
+
+  useEffect(() => {
+    setStatus(String(order.status ?? "created"));
+  }, [order.status]);
 
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -316,19 +446,36 @@ function OrderManageModal({ row, onClose, onChanged }: { row: Record<string, unk
   }
 
   return (
-    <PlatformModal title={`Order ${row.orderNumber ?? ""}`} subtitle={String(row.tenantName ?? "")} onClose={onClose}>
+    <div className="card" style={{ padding: 20 }}>
+      <div className="h1" style={{ fontSize: 16, marginBottom: 16 }}>Fulfillment actions</div>
       {err && <PlatformError message={err} />}
-      {okNote && <div className="card" style={{ padding: 10, marginBottom: 12, color: "var(--brand)", fontSize: 13 }}>{okNote}</div>}
+      {okNote && (
+        <div className="card" style={{ padding: 10, marginBottom: 12, color: "var(--brand)", fontSize: 13 }}>
+          {okNote}
+        </div>
+      )}
 
       <div className="field">
         <label className="lbl">Status</label>
         <select className="inp" value={status} onChange={(e) => setStatus(e.target.value)}>
-          {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
+          {ORDER_STATUSES.map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+          ))}
         </select>
       </div>
-      <input className="inp" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button type="button" className="btn btn-soft btn-sm" style={{ marginTop: 10 }} disabled={busy || status === row.status}
-        onClick={() => run(() => setOrderStatus(id, status, note || undefined), "Status updated.")}>
+      <input
+        className="inp"
+        placeholder="Note (optional)"
+        value={statusNote}
+        onChange={(e) => setStatusNote(e.target.value)}
+      />
+      <button
+        type="button"
+        className="btn btn-soft btn-sm"
+        style={{ marginTop: 10 }}
+        disabled={busy || status === order.status}
+        onClick={() => run(() => setOrderStatus(id, status, statusNote || undefined), "Status updated.")}
+      >
         Save status
       </button>
 
@@ -337,46 +484,318 @@ function OrderManageModal({ row, onClose, onChanged }: { row: Record<string, unk
         <label className="lbl">Assign production vendor</label>
         <select className="inp" value={vendorId} onChange={(e) => setVendorId(e.target.value)}>
           <option value="">Select a vendor…</option>
-          {vendors.map((v) => <option key={v._id} value={v._id}>{v.name}</option>)}
+          {vendors.map((v) => (
+            <option key={v._id} value={v._id}>{v.name}</option>
+          ))}
         </select>
       </div>
-      <button type="button" className="btn btn-soft btn-sm" disabled={busy || !vendorId}
-        onClick={() => run(() => assignOrderVendor(id, vendorId), "Vendor assigned.")}>
+      <button
+        type="button"
+        className="btn btn-soft btn-sm"
+        disabled={busy || !vendorId}
+        onClick={() => run(() => assignOrderVendor(id, vendorId), "Vendor assigned.")}
+      >
         Assign vendor
       </button>
 
       <div className="divider" style={{ margin: "18px 0" }} />
       <div className="field">
         <label className="lbl">Internal note</label>
-        <input className="inp" placeholder="Add an internal note" value={note} onChange={(e) => setNote(e.target.value)} />
+        <input
+          className="inp"
+          placeholder="Add an internal note"
+          value={internalNote}
+          onChange={(e) => setInternalNote(e.target.value)}
+        />
       </div>
-      <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={busy || !note.trim()}
-          onClick={() => run(() => addOrderNote(id, note.trim()), "Note added.")}>
-          Add note
-        </button>
-      </div>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        disabled={busy || !internalNote.trim()}
+        onClick={() => run(() => addOrderNote(id, internalNote.trim()), "Note added.")}
+      >
+        Add note
+      </button>
 
       <div className="divider" style={{ margin: "18px 0" }} />
       <div className="field">
         <label className="lbl">Mockup image URL</label>
-        <input className="inp" placeholder="https://…" value={mockupUrl} onChange={(e) => setMockupUrl(e.target.value)} />
+        <input
+          className="inp"
+          placeholder="https://…"
+          value={mockupUrl}
+          onChange={(e) => setMockupUrl(e.target.value)}
+        />
       </div>
-      <button type="button" className="btn btn-ghost btn-sm" disabled={busy || !mockupUrl.trim()}
-        onClick={() => run(() => uploadOrderMockup(id, mockupUrl.trim()), "Mockup attached.")}>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        disabled={busy || !mockupUrl.trim()}
+        onClick={() => run(() => uploadOrderMockup(id, mockupUrl.trim()), "Mockup attached.")}
+      >
         Attach mockup
       </button>
 
       <div className="divider" style={{ margin: "18px 0" }} />
       <div className="field">
         <label className="lbl">Create replacement (reason)</label>
-        <input className="inp" placeholder="Why a replacement is needed" value={replacementReason} onChange={(e) => setReplacementReason(e.target.value)} />
+        <input
+          className="inp"
+          placeholder="Why a replacement is needed"
+          value={replacementReason}
+          onChange={(e) => setReplacementReason(e.target.value)}
+        />
       </div>
-      <button type="button" className="btn btn-ghost btn-sm" style={{ color: "var(--danger)" }} disabled={busy || !replacementReason.trim()}
-        onClick={() => run(() => createOrderReplacement(id, replacementReason.trim()), "Replacement created.")}>
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        style={{ color: "var(--danger)" }}
+        disabled={busy || !replacementReason.trim()}
+        onClick={() => run(() => createOrderReplacement(id, replacementReason.trim()), "Replacement created.")}
+      >
         Create replacement order
       </button>
-    </PlatformModal>
+    </div>
+  );
+}
+
+export function OrderFulfillmentPage({ orderId }: { orderId: string }) {
+  const [reloadKey, setReloadKey] = useState(0);
+  const { data, error, loading } = useLoad(() => fetchPlatformOrder(orderId), [orderId, reloadKey]);
+  const canWrite = canAccessArea(getStoredUser()?.role, "orders", "write");
+  const reload = () => setReloadKey((k) => k + 1);
+
+  const tenant = data?.tenant as { name?: string } | undefined;
+  const recipient = data?.recipient as { name?: string; email?: string; phone?: string } | undefined;
+  const shipping = data?.shippingAddress as {
+    name?: string;
+    phone?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  } | undefined;
+  const breakdown = data?.amountBreakdown as { total?: number; subtotal?: number; gst?: number } | undefined;
+  const items = (data?.items as OrderItem[] | undefined) ?? [];
+  const mockupUrl = String(data?.mockupUrl ?? "");
+  const internalNotes = (data?.internalNotes as Array<{ body: string; at: string }> | undefined) ?? [];
+  const statusHistory = (data?.statusHistory as Array<{ status: string; at: string; note?: string }> | undefined) ?? [];
+
+  return (
+    <>
+      <div style={{ marginBottom: 16 }}>
+        <Link to="/platform/orders" className="btn btn-ghost btn-sm" style={{ paddingLeft: 0 }}>
+          ← Back to orders
+        </Link>
+      </div>
+      {loading && <PlatformLoading />}
+      {error && <PlatformError message={error} />}
+      {data && (
+        <>
+          <PlatformPageHeader
+            title={String(data.orderNumber ?? "Order")}
+            subtitle={tenant?.name ? `Tenant: ${tenant.name}` : "Order fulfillment"}
+            actions={<StatusTag status={String(data.status)} />}
+          />
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: canWrite ? "1fr 340px" : "1fr",
+              gap: 24,
+              alignItems: "start",
+            }}
+          >
+            <div>
+              <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+                <div className="h1" style={{ fontSize: 16, marginBottom: 16 }}>Order summary</div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 16,
+                    fontSize: 14,
+                  }}
+                >
+                  <div>
+                    <div className="lbl">Created</div>
+                    <div>{new Date(String(data.createdAt)).toLocaleString("en-IN")}</div>
+                  </div>
+                  <div>
+                    <div className="lbl">Total</div>
+                    <div>{inr(Number(breakdown?.total ?? 0))}</div>
+                  </div>
+                  <div>
+                    <div className="lbl">Subtotal</div>
+                    <div>{inr(Number(breakdown?.subtotal ?? 0))}</div>
+                  </div>
+                  <div>
+                    <div className="lbl">GST</div>
+                    <div>{inr(Number(breakdown?.gst ?? 0))}</div>
+                  </div>
+                </div>
+
+                {(recipient || shipping) && (
+                  <>
+                    <div className="divider" style={{ margin: "18px 0" }} />
+                    <div className="h1" style={{ fontSize: 14, marginBottom: 12 }}>Recipient &amp; shipping</div>
+                    {recipient && (
+                      <div style={{ fontSize: 14, marginBottom: 8 }}>
+                        <strong>{recipient.name}</strong>
+                        {recipient.email ? ` · ${recipient.email}` : ""}
+                        {recipient.phone ? ` · ${recipient.phone}` : ""}
+                      </div>
+                    )}
+                    {shipping && (
+                      <div style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.5 }}>
+                        {shipping.name && <div>{shipping.name}</div>}
+                        {shipping.line1 && <div>{shipping.line1}</div>}
+                        {shipping.line2 && <div>{shipping.line2}</div>}
+                        <div>
+                          {[shipping.city, shipping.state, shipping.pincode].filter(Boolean).join(", ")}
+                        </div>
+                        {shipping.phone && <div>{shipping.phone}</div>}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {mockupUrl && (
+                  <>
+                    <div className="divider" style={{ margin: "18px 0" }} />
+                    <div className="lbl" style={{ marginBottom: 8 }}>Order mockup</div>
+                    <img
+                      src={mockupUrl}
+                      alt="Order mockup"
+                      style={{ maxWidth: 280, maxHeight: 280, borderRadius: 8, border: "1px solid var(--line)" }}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="h1" style={{ fontSize: 16, marginBottom: 16 }}>Line items</div>
+              {items.map((item, idx) => {
+                const product = item.product;
+                const variant = item.variant;
+                const tintHex = resolveColorHex(variant?.color, matchVariantHex(product, variant));
+                const printAreas = product?.printAreas ?? [];
+                const mockup =
+                  printAreas[0]?.mockupImageUrl ||
+                  product?.primaryImageUrl ||
+                  product?.imageUrls?.[0] ||
+                  item.imageUrl ||
+                  "";
+
+                return (
+                  <div key={idx} className="card" style={{ padding: 20, marginBottom: 20 }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <div className="h1" style={{ fontSize: 16 }}>{item.name ?? product?.name ?? "Product"}</div>
+                      <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                        SKU: {item.sku || "—"}
+                        {variant?.size ? ` · Size: ${variant.size}` : ""}
+                        {variant?.color ? ` · Color: ${variant.color}` : ""}
+                        {item.qty != null ? ` · Qty: ${item.qty}` : ""}
+                        {item.unitPriceInr != null ? ` · ${inr(item.unitPriceInr)} each` : ""}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: 16,
+                        marginBottom: printAreas.length ? 20 : 0,
+                      }}
+                    >
+                      <FulfillmentImage src={product?.baseImageUrl} label="Base (internal / production)" />
+                      <div>
+                        <div className="lbl" style={{ marginBottom: 8 }}>
+                          Mask (customer, tinted)
+                        </div>
+                        <div
+                          style={{
+                            aspectRatio: "1 / 1",
+                            background: "var(--surface-2)",
+                            border: "1px solid var(--line)",
+                            borderRadius: 10,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <TintedGarment
+                            src={product?.maskImageUrl}
+                            hex={tintHex}
+                            alt={`${variant?.color ?? "Garment"} mask`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {printAreas.length > 0 && mockup && (
+                      <>
+                        <div className="lbl" style={{ marginBottom: 8 }}>Design — print areas</div>
+                        <div style={{ maxWidth: 420, marginBottom: 16 }}>
+                          <PrintAreaPreview mockup={mockup} areas={printAreas} tintHex={tintHex} />
+                        </div>
+                        <ul style={{ paddingLeft: 18, fontSize: 13, color: "var(--ink-2)", margin: 0 }}>
+                          {printAreas.map((area, i) => (
+                            <li key={area.key ?? i} style={{ marginBottom: 6 }}>
+                              <strong>{area.label}</strong>
+                              {area.methods?.length ? ` · ${area.methods.join(", ")}` : ""}
+                              {(area.maxWidthCm || area.maxHeightCm) && (
+                                <> · max {area.maxWidthCm ?? "—"}×{area.maxHeightCm ?? "—"} cm</>
+                              )}
+                              {area.dpi ? ` · ${area.dpi} DPI` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+              {(internalNotes.length > 0 || statusHistory.length > 0) && (
+                <div className="card" style={{ padding: 20, marginTop: 8 }}>
+                  {statusHistory.length > 0 && (
+                    <>
+                      <div className="h1" style={{ fontSize: 14, marginBottom: 12 }}>Status timeline</div>
+                      <ul style={{ paddingLeft: 18, fontSize: 13, color: "var(--ink-2)", margin: "0 0 16px" }}>
+                        {statusHistory.map((h, i) => (
+                          <li key={i} style={{ marginBottom: 6 }}>
+                            <StatusTag status={h.status} />
+                            {" · "}
+                            {new Date(h.at).toLocaleString("en-IN")}
+                            {h.note ? ` — ${h.note}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {internalNotes.length > 0 && (
+                    <>
+                      <div className="h1" style={{ fontSize: 14, marginBottom: 12 }}>Internal notes</div>
+                      <ul style={{ paddingLeft: 18, fontSize: 13, color: "var(--ink-2)", margin: 0 }}>
+                        {internalNotes.map((n, i) => (
+                          <li key={i} style={{ marginBottom: 6 }}>
+                            {n.body}
+                            <span className="muted"> · {new Date(n.at).toLocaleString("en-IN")}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {canWrite && (
+              <OrderFulfillmentActions order={data} onChanged={reload} />
+            )}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 

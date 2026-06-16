@@ -74,7 +74,7 @@ export async function getPlatformOrder(orderId) {
   return order;
 }
 
-/** §3.5 order detail drawer — snapshot items, recipient, timeline, notes. */
+/** §3.5 order detail — snapshot items, recipient, timeline, notes, catalog fulfillment assets. */
 export async function getPlatformOrderDetail(orderId) {
   const order = await getPlatformOrder(orderId);
   const [tenant, campaign, recipient, shipment, productionTask] = await Promise.all([
@@ -87,8 +87,44 @@ export async function getPlatformOrderDetail(orderId) {
     ProductionTask.findOne({ orderId: order._id }).lean(),
   ]);
 
+  const catalogIds = [
+    ...new Set(
+      (order.items ?? [])
+        .map((item) => item.catalogProductId)
+        .filter(Boolean)
+        .map(String),
+    ),
+  ];
+  const catalogProducts = catalogIds.length
+    ? await CatalogProduct.find({ _id: { $in: catalogIds } })
+        .select('name baseImageUrl maskImageUrl primaryImageUrl imageUrls printAreas variants')
+        .lean()
+    : [];
+  const productById = Object.fromEntries(catalogProducts.map((p) => [String(p._id), p]));
+
+  const obj = order.toObject();
+  const items = (obj.items ?? []).map((item) => {
+    const product = item.catalogProductId ? productById[String(item.catalogProductId)] : null;
+    return {
+      ...item,
+      product: product
+        ? {
+            _id: product._id,
+            name: product.name,
+            baseImageUrl: product.baseImageUrl ?? '',
+            maskImageUrl: product.maskImageUrl ?? '',
+            primaryImageUrl: product.primaryImageUrl ?? '',
+            imageUrls: product.imageUrls ?? [],
+            printAreas: product.printAreas ?? [],
+            variants: product.variants ?? [],
+          }
+        : null,
+    };
+  });
+
   return {
-    ...order.toObject(),
+    ...obj,
+    items,
     validNextStatuses: validNextStatuses('order', order.status),
     tenant,
     campaign,

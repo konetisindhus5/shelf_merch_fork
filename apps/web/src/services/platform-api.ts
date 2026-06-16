@@ -46,6 +46,21 @@ export async function fetchPlatformOrders(params?: { status?: string; limit?: nu
   return apiFetch<Paginated<Record<string, unknown>>>(`/platform/orders${q ? `?${q}` : ""}`);
 }
 
+export type OrderItemProduct = {
+  _id: string;
+  name: string;
+  baseImageUrl?: string;
+  maskImageUrl?: string;
+  primaryImageUrl?: string;
+  imageUrls?: string[];
+  printAreas?: PrintArea[];
+  variants?: ProductVariant[];
+};
+
+export function fetchPlatformOrder(id: string) {
+  return apiFetch<Record<string, unknown>>(`/platform/orders/${id}`);
+}
+
 export async function fetchPlatformProducts(params?: { status?: string; limit?: number }) {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
