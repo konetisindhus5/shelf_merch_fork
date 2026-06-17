@@ -33,6 +33,7 @@ const createSchema = z.object({
   name: z.string().min(1),
   productRefs: z.array(productRef).min(1),
   preferredColors: z.array(z.string().min(1)).optional().default([]),
+  artworkUrl: z.string().optional().default(''),
 });
 
 router.get(
@@ -56,6 +57,7 @@ router.post(
       if (!shop) throw new NotFoundError('Shop not found');
       shopId = shop._id;
     }
+    const artworkUrl = req.body.artworkUrl || '';
     const collection = await Collection.create({
       tenantId: req.tenantId,
       shopId,
@@ -63,6 +65,8 @@ router.post(
       name: req.body.name,
       productRefs: req.body.productRefs,
       preferredColors: req.body.preferredColors || [],
+      artworkUrl,
+      status: artworkUrl ? 'ready' : 'draft',
       createdBy: req.user.userId,
     });
     writeAudit({ req, action: 'collection.create', entityType: 'Collection', entityId: collection._id, after: collection.toObject() });

@@ -127,6 +127,41 @@ export async function createKitApi(payload: {
   return mapKit(kit);
 }
 
+export async function updateKitApi(payload: {
+  id: string;
+  name?: string;
+  pickedIndices: number[];
+  catalog: UiProduct[];
+  packaging?: "none" | "box";
+  designNotes?: string;
+}) {
+  const productRefs = payload.pickedIndices.map((i) => {
+    const p = payload.catalog[i];
+    if (!p) throw new Error("Invalid product selection");
+    return productRefFromUi(p);
+  });
+  const body: Record<string, unknown> = { productRefs };
+  if (payload.name != null) body.name = payload.name;
+  if (payload.packaging != null) body.packaging = payload.packaging;
+  if (payload.designNotes != null) body.designNotes = payload.designNotes;
+
+  const kit = await apiFetch<Record<string, unknown>>(`/kits/${payload.id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  return mapKit(kit);
+}
+
+export async function uploadKitArtworkApi(kitId: string, file: File) {
+  const form = new FormData();
+  form.append("artwork", file);
+  const kit = await apiFetch<Record<string, unknown>>(`/kits/${kitId}/artwork`, {
+    method: "POST",
+    body: form,
+  });
+  return mapKit(kit);
+}
+
 type ArtworkInput = { file?: File; preview?: string; name?: string };
 
 async function artworkFileFromInput(art: ArtworkInput): Promise<File | null> {
@@ -163,6 +198,7 @@ export async function createCollectionApi(payload: {
   pickedIndices: number[];
   catalog: UiProduct[];
   preferredColors?: string[];
+  artworkUrl?: string;
   artwork?: ArtworkInput;
 }) {
   const productRefs = payload.pickedIndices.map((i) => {
@@ -179,6 +215,7 @@ export async function createCollectionApi(payload: {
     preferredColors: payload.preferredColors || [],
   };
   if (payload.shopId) body.shopId = payload.shopId;
+  if (payload.artworkUrl) body.artworkUrl = payload.artworkUrl;
   const col = await apiFetch<Record<string, unknown>>("/collections", {
     method: "POST",
     body: JSON.stringify(body),

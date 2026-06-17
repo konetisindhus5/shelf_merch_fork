@@ -202,7 +202,7 @@ function render(){
   if(S.loading){ APP().innerHTML = `<div class="auth"><div style="display:grid;place-items:center;min-height:60vh;color:var(--ink-2);font-size:15px">Loading…</div></div>`; return; }
   if(!S.authed){ APP().innerHTML = S.view==='signup'?ViewSignup():ViewLogin(); return; }
   // full-screen wizard flows render without shell
-  const full = ['createShop','shopBuilder','swagName','swagCatalog','swagArtwork','sendPoints','createKit','sendItems'];
+  const full = ['createShop','shopBuilder','swagName','swagCatalog','swagArtwork','sendPoints','createKit','editKit','sendItems'];
   if(full.includes(S.view)){ APP().innerHTML = Wizards[S.view](); afterRender(); return; }
   APP().innerHTML = Shell( ViewFor(S.view) );
   afterRender();
@@ -412,22 +412,7 @@ Wizards.createKit=function(){
     body=`<h1 style="font-size:24px;margin-bottom:4px">Choose products for "${esc(f.kitName)}"</h1><p class="muted" style="margin-bottom:18px">Select the items to include. You can brand them in the next step.</p>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${getCatalogList().map((p,i)=>{const on=f.picked.includes(i);return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="ktPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div></div></div>`;}).join('')}</div>`;
   } else if(step===2){
-    const prods=f.picked.map(i=>getCatalogList()[i]);
-    const hasLogo=!!f.logoFile?.preview;
-    const lf=f.logoFile||{};
-    const logoName=esc(lf.name||'logo');
-    const logoMeta=esc(lf.ext&&lf.size?lf.ext+' · '+fmtFileSize(lf.size):lf.ext||'');
-    const logoPicker=hasLogo
-      ?`<div class="row" style="align-items:center;justify-content:space-between;border:1px solid var(--brand);border-radius:var(--r-sm);padding:10px 12px;background:var(--brand-50);margin-bottom:12px"><div class="row" style="gap:10px;align-items:center"><div class="logo-chip" style="width:36px;height:36px;overflow:hidden;padding:3px">${kitLogoImg(f)}</div><div><div style="font-weight:600;font-size:13px">${logoName}</div><div class="mut3" style="font-size:11px">${logoMeta}</div></div></div><button type="button" class="xbtn" data-act="ktLogoClear">✕</button></div>`
-      :`<div id="kt-logo-drop" style="border:1.5px dashed var(--line);border-radius:var(--r);padding:24px;text-align:center;color:var(--ink-2);background:#fff;margin-bottom:12px;cursor:pointer" data-act="ktLogoUpload">${I.upload.replace('currentColor','#15784C')}<div style="margin-top:8px;font-weight:600">Upload logo</div><div class="mut3" style="font-size:11px;margin-top:6px">SVG, PNG, WEBP, JPEG · max 5 MB</div></div>`;
-    body=`<div style="display:grid;grid-template-columns:380px 1fr;gap:26px">
-      <div><h1 style="font-size:22px;margin-bottom:6px">Brand your kit</h1><p class="muted" style="font-size:13px;margin-bottom:16px">Upload logos and leave notes for our design team. We'll mock up each item for approval.</p>
-        ${logoPicker}
-        <input type="file" id="kt-logo-inp" accept=".svg,.png,.webp,.jpeg,.jpg,image/svg+xml,image/png,image/webp,image/jpeg" style="display:none">
-        <button class="btn ${hasLogo?'btn-ghost':'btn-dark'} btn-block" data-act="ktLogoUpload">${hasLogo?'Replace logo':'Add logo'}</button>
-        <div class="field" style="margin-top:16px"><label class="lbl">Notes to design team</label><textarea class="inp" id="kt-notes" rows="4" placeholder="e.g. White logo on the chest, full-colour on mugs">${esc(f.notes)}</textarea></div></div>
-      <div><div class="${hasLogo?'banner info':'banner'}" style="margin-bottom:16px">${hasLogo?'<div>Branding applied. Our team will share proofs within 2 business days.</div>':'<div>Add a logo to preview branded mockups for each item.</div>'}</div>
-        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">${prods.map(p=>pcard(p,{branded:hasLogo,artworkUrl:f.logoFile?.preview,act:'noop'})).join('')}</div></div></div>`;
+    body=kitBrandingPanel(f);
   } else {
     const pk=f.pkg;
     body=`<div style="max-width:680px;margin:0 auto"><h1 style="font-size:24px;margin-bottom:6px">Choose packaging</h1><p class="muted" style="margin-bottom:18px">How should "${esc(f.kitName)}" arrive? Premium packaging is charged per kit.</p>
@@ -445,6 +430,28 @@ function kitLogoImg(f){
   const url=f?.logoFile?.preview;
   if(url) return `<img src="${url}" alt="Kit logo" style="max-width:100%;max-height:100%;object-fit:contain;display:block">`;
   return '';
+}
+function kitBrandingPanel(f){
+  const prods=f.picked.map(i=>getCatalogList()[i]).filter(Boolean);
+  const hasLogo=!!f.logoFile?.preview;
+  const lf=f.logoFile||{};
+  const logoName=esc(lf.name||'logo');
+  const logoMeta=esc(lf.ext&&lf.size?lf.ext+' · '+fmtFileSize(lf.size):lf.ext||'');
+  const logoPicker=hasLogo
+    ?`<div class="row" style="align-items:center;justify-content:space-between;border:1px solid var(--brand);border-radius:var(--r-sm);padding:10px 12px;background:var(--brand-50);margin-bottom:12px"><div class="row" style="gap:10px;align-items:center"><div class="logo-chip" style="width:36px;height:36px;overflow:hidden;padding:3px">${kitLogoImg(f)}</div><div><div style="font-weight:600;font-size:13px">${logoName}</div><div class="mut3" style="font-size:11px">${logoMeta}</div></div></div><button type="button" class="xbtn" data-act="ktLogoClear">✕</button></div>`
+    :`<div id="kt-logo-drop" style="border:1.5px dashed var(--line);border-radius:var(--r);padding:24px;text-align:center;color:var(--ink-2);background:#fff;margin-bottom:12px;cursor:pointer" data-act="ktLogoUpload">${I.upload.replace('currentColor','#15784C')}<div style="margin-top:8px;font-weight:600">Upload logo</div><div class="mut3" style="font-size:11px;margin-top:6px">SVG, PNG, WEBP, JPEG · max 5 MB</div></div>`;
+  return `<div style="display:grid;grid-template-columns:380px 1fr;gap:26px">
+    <div><h1 style="font-size:22px;margin-bottom:6px">Brand your kit</h1><p class="muted" style="font-size:13px;margin-bottom:16px">Upload logos and leave notes for our design team. We'll mock up each item for approval.</p>
+      ${logoPicker}
+      <input type="file" id="kt-logo-inp" accept=".svg,.png,.webp,.jpeg,.jpg,image/svg+xml,image/png,image/webp,image/jpeg" style="display:none">
+      <button class="btn ${hasLogo?'btn-ghost':'btn-dark'} btn-block" data-act="ktLogoUpload">${hasLogo?'Replace logo':'Add logo'}</button>
+      <div class="field" style="margin-top:16px"><label class="lbl">Notes to design team</label><textarea class="inp" id="kt-notes" rows="4" placeholder="e.g. White logo on the chest, full-colour on mugs">${esc(f.notes||'')}</textarea></div></div>
+    <div><div class="${hasLogo?'banner info':'banner'}" style="margin-bottom:16px">${hasLogo?'<div>Branding applied. Our team will share proofs within 2 business days.</div>':'<div>Add a logo to preview branded mockups for each item.</div>'}</div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">${prods.map(p=>pcard(p,{branded:hasLogo,artworkUrl:f.logoFile?.preview,act:'noop'})).join('')}</div></div></div>`;
+}
+function kitArtworkInput(f){
+  if(!f.logoFile?.file) return undefined;
+  return { file:f.logoFile.file, preview:f.logoFile.preview, name:f.logoFile.name };
 }
 function ktLogoSetFile(file){
   if(!LOGO_ACCEPT.test(file.name)){ toast('Accepted formats: SVG, PNG, WEBP, JPEG, JPG',false); return; }
@@ -470,7 +477,9 @@ function ktNext(){ const f=S.flow; if(f.step===0)f.kitName=document.getElementBy
 async function kitPublish(){
   const f=S.flow;
   if(api.useMocks()){
-    const k={id:nid('k'),name:f.kitName,items:f.picked.length,status:'live',sent:false,artworkUrl:f.logoFile?.preview||''};
+    const catalog=getCatalogList();
+    const productRefs=f.picked.map(i=>{const p=catalog[i]; return p?{catalogProductId:p.id||'',name:p.nm,brand:p.brand||'',group:p.g}:null;}).filter(Boolean);
+    const k={id:nid('k'),name:f.kitName,items:f.picked.length,status:'live',sent:false,artworkUrl:f.logoFile?.preview||'',designNotes:f.notes||'',picked:f.picked.slice(),productRefs};
     S.kits.push(k);
     toast('Kit "'+k.name+'" published');
     sendItemsStartFor(k.id, f.picked.slice(), k.artworkUrl);
@@ -478,13 +487,15 @@ async function kitPublish(){
   }
   try{
     S.loading=true; render();
-    const k={...await api.createKitFlow({
+    const created=await api.createKitFlow({
       name:f.kitName||'New Kit',
       pickedIndices:f.picked,
       catalog:getCatalogList(),
       packaging:f.pkg||'box',
       designNotes:f.notes||'',
-    }),artworkUrl:f.logoFile?.preview||''};
+      artwork:kitArtworkInput(f),
+    });
+    const k={...created,artworkUrl:created.artworkUrl||f.logoFile?.preview||''};
     S.kits.push(k);
     S.loading=false;
     toast('Kit "'+k.name+'" saved to your workspace');
@@ -495,11 +506,121 @@ async function kitPublish(){
   }
 }
 
+/* ---------- EDIT KIT ---------- */
+function kitPickedIndices(kit){
+  if(!kit) return [];
+  const catalog=getCatalogList();
+  if(Array.isArray(kit.picked)&&kit.picked.length) return kit.picked.slice();
+  if(Array.isArray(kit.productRefs)&&kit.productRefs.length){
+    const indices=[];
+    for(const ref of kit.productRefs){
+      let idx=catalog.findIndex(p=>p.id&&ref.catalogProductId&&p.id===ref.catalogProductId);
+      if(idx<0&&ref.name) idx=catalog.findIndex(p=>p.nm===ref.name&&(p.brand||'')===(ref.brand||''));
+      if(idx>=0&&!indices.includes(idx)) indices.push(idx);
+    }
+    if(indices.length) return indices;
+  }
+  return kit.items?[0,2,3].slice(0,kit.items):[];
+}
+function kitProductLabels(kit){
+  const catalog=getCatalogList();
+  return kitPickedIndices(kit).map(i=>catalog[i]).filter(Boolean);
+}
+function kitLogoFromKit(k){
+  if(!k?.artworkUrl) return null;
+  return { name:'Kit artwork', preview:k.artworkUrl, ext:'LOGO', existing:true };
+}
+function editKitStart(id){
+  closeLayer();
+  const k=S.kits.find(x=>x.id===id);
+  if(!k){ toast('Kit not found'); return; }
+  S.flow={exitTo:'kits',kitId:id,kitName:k.name,picked:kitPickedIndices(k),step:0,logoFile:kitLogoFromKit(k),notes:k.designNotes||''};
+  go('editKit');
+}
+const EDIT_KIT_STEPS=['Products','Branding'];
+Wizards.editKit=function(){
+  const f=S.flow; const step=f.step|0;
+  let body='';
+  if(step===0){
+    const selected=f.picked.map(i=>getCatalogList()[i]).filter(Boolean);
+    const selectedCards=selected.length
+      ?`<div style="margin-bottom:22px"><div class="lbl" style="margin-bottom:10px">Current items (${selected.length})</div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">${selected.map((p,si)=>`<div class="pcard" style="position:relative"><div class="img">${productImg(p)}</div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div></div>
+          <button type="button" class="xbtn" style="position:absolute;top:8px;right:8px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12)" data-act="ekRemove" data-arg="${f.picked[si]}" title="Remove">✕</button></div>`).join('')}</div></div>`
+      :`<div class="banner" style="margin-bottom:18px">No products in this kit yet. Add items from the catalog below.</div>`;
+    body=`<div style="max-width:900px;margin:0 auto">
+      <h1 style="font-size:26px;margin-bottom:6px">Edit kit</h1>
+      <p class="muted" style="margin-bottom:20px">Update the kit name and choose which catalog products to include.</p>
+      <div class="field" style="max-width:420px;margin-bottom:24px"><label class="lbl">Kit name</label><input class="inp" id="ek-name" value="${esc(f.kitName)}" autofocus></div>
+      ${selectedCards}
+      <div class="lbl" style="margin-bottom:10px">Add from catalog</div>
+      <p class="muted" style="font-size:13px;margin-bottom:14px">Tap a product to add or remove it from this kit.</p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${getCatalogList().map((p,i)=>{const on=f.picked.includes(i);return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="ekPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div></div></div>`;}).join('')}</div></div>`;
+  } else {
+    body=kitBrandingPanel(f);
+  }
+  const back=step>0?backLink('Back','ekBack',null,{mb:'0'}):backLink('Cancel','wzExit',null,{mb:'0'});
+  const next=step<1
+    ?`<button class="btn btn-dark" ${!f.picked.length?'disabled':''} data-act="ekNext">Next</button>`
+    :`<button class="btn btn-brand" data-act="kitSaveEdit">Save changes</button>`;
+  return wzChrome('Edit kit',EDIT_KIT_STEPS,step,body,back+next);
+};
+function ekBack(){ S.flow.step--; render(); }
+function ekNext(){
+  const f=S.flow;
+  if(f.step===0) f.kitName=(document.getElementById('ek-name')||{}).value||f.kitName;
+  f.step++; render();
+}
+function ekPick(el){ const i=+el.dataset.arg; const a=S.flow.picked; const k=a.indexOf(i); if(k<0)a.push(i); else a.splice(k,1); render(); }
+function ekRemove(el){ const i=+el.dataset.arg; const a=S.flow.picked; const k=a.indexOf(i); if(k>=0)a.splice(k,1); render(); }
+async function kitSaveEdit(){
+  const f=S.flow;
+  if((f.step|0)===0) f.kitName=(document.getElementById('ek-name')||{}).value||f.kitName;
+  else f.notes=(document.getElementById('kt-notes')||{}).value||'';
+  if(!f.picked.length){ toast('Add at least one product to the kit',false); return; }
+  const k=S.kits.find(x=>x.id===f.kitId);
+  if(!k){ toast('Kit not found'); return; }
+  if(api.useMocks()){
+    const catalog=getCatalogList();
+    k.name=f.kitName;
+    k.items=f.picked.length;
+    k.picked=f.picked.slice();
+    k.productRefs=f.picked.map(i=>{const p=catalog[i]; return p?{catalogProductId:p.id||'',name:p.nm,brand:p.brand||'',group:p.g}:null;}).filter(Boolean);
+    k.artworkUrl=f.logoFile?.preview||'';
+    k.designNotes=f.notes||'';
+    toast('Kit updated');
+    go('kits');
+    return;
+  }
+  try{
+    S.loading=true; render();
+    const updated=await api.updateKitFlow({
+      id:String(f.kitId),
+      name:f.kitName,
+      pickedIndices:f.picked,
+      catalog:getCatalogList(),
+      designNotes:f.notes||'',
+      artwork:kitArtworkInput(f),
+    });
+    Object.assign(k,{
+      ...updated,
+      artworkUrl:updated.artworkUrl||f.logoFile?.preview||k.artworkUrl||'',
+    });
+    S.loading=false;
+    toast('Kit updated');
+    go('kits');
+  }catch(err){
+    S.loading=false; render();
+    toast(err.message||'Failed to update kit',false);
+  }
+}
+
 /* ---------- SEND ITEMS ---------- */
 const SI_STEPS=['Items','Recipients','Experience','Checkout'];
 function sendItemsStart(el){ const id=el&&el.dataset?el.dataset.arg:null; closeLayer();
   const k=S.kits.find(x=>x.id===id);
-  const picked = k? [0,2,3].slice(0,k.items) : [0,2,3];
+  const picked=kitPickedIndices(k);
+  if(!picked.length){ toast('This kit has no products — edit the kit to add items',false); return; }
   sendItemsStartFor(id, picked, k?.artworkUrl);
 }
 function sendItemsStartFor(kitId, picked, artworkUrl){
@@ -1699,7 +1820,10 @@ async function swagAddToShopDo(){
     render();
     return;
   }
-  const moveWholeCollection=col.products.length===1;
+  // Only "move/link" when the source collection is not already tied to a shop.
+  // If it's already tied to another shop, copy instead so the product can exist
+  // in multiple shops.
+  const moveWholeCollection=!col.shopId&&col.products.length===1;
   try{
     if(api.useMocks()){
       if(moveWholeCollection){
@@ -1930,9 +2054,16 @@ function ViewKits(){
     </div>`;
 }
 function kitOpen(id){ const k=S.kits.find(x=>x.id===id);
-  openModal(`<div class="modal-pad"><div class="modal-h"><div><div class="eyebrow">${k.status} · ${k.items} items</div><h3>${esc(k.name)}</h3></div><button class="xbtn" data-act="closeLayer">✕</button></div>
-    <p class="muted" style="margin:8px 0 16px">A reusable ${k.items}-item kit. Send it to new recipients any time without rebuilding.</p>
-    <div class="row"><button class="btn btn-ghost btn-block" data-act="toast" data-arg="Editing kit">Edit kit</button><button class="btn btn-brand btn-block" data-act="sendItemsStart" data-arg="${id}">Send this kit</button></div></div>`); }
+  const prods=kitProductLabels(k);
+  const hasBrand=!!k.artworkUrl;
+  const prodList=prods.length?`<div style="margin:12px 0 16px"><div class="mut3" style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Included products</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px">${prods.map(p=>{const ep=enrichProduct(p);const mock=hasBrand||productHasPrintArea(ep);return `<div class="pcard" data-act="noop"><div class="img${mock?' img-mockup':''}">${productImg(ep,mock?{width:'100%',height:'100%'}:{})}${hasBrand?productArtOverlay(ep,k.artworkUrl):''}</div></div>`;}).join('')}</div></div>`:'';
+  const artBlock=k.artworkUrl?`<div style="margin:12px 0 16px"><div class="mut3" style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Kit artwork</div>
+    <div class="row" style="gap:12px;align-items:center"><div class="logo-chip" style="width:48px;height:48px;overflow:hidden;padding:4px"><img src="${esc(k.artworkUrl)}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"></div><span class="muted" style="font-size:13px">Branded across all items</span></div></div>`:'';
+  openModal(`<div class="modal-pad" style="max-width:640px"><div class="modal-h"><div><div class="eyebrow">${k.status} · ${k.items} items</div><h3>${esc(k.name)}</h3></div><button class="xbtn" data-act="closeLayer">✕</button></div>
+    <p class="muted" style="margin:8px 0 0">A reusable ${k.items}-item kit. Send it to new recipients any time without rebuilding.</p>
+    ${artBlock}${prodList}
+    <div class="row" style="margin-top:16px"><button class="btn btn-ghost btn-block" data-act="editKitStart" data-arg="${id}">Edit kit</button><button class="btn btn-brand btn-block" data-act="sendItemsStart" data-arg="${id}">Send this kit</button></div></div>`); }
 
 /* ===================== CONTACTS ===================== */
 function roleSel(c){ return `<select class="inp" style="height:34px;width:auto;padding:0 30px 0 12px;display:inline-block" data-act="noop">${['Owner','Admin','Sender','Member','Non-Member'].map(r=>`<option ${c.role===r?'selected':''}>${r}</option>`).join('')}</select>`; }
@@ -2685,6 +2816,12 @@ const ACT = {
   ktBack:()=>ktBack(),
   ktNext:()=>ktNext(),
   kitPublish:()=>kitPublish(),
+  editKitStart:(el,a)=>editKitStart(a),
+  ekPick:(el)=>ekPick(el),
+  ekRemove:(el)=>ekRemove(el),
+  ekBack:()=>ekBack(),
+  ekNext:()=>ekNext(),
+  kitSaveEdit:()=>kitSaveEdit(),
   // send items
   sendItemsStart:(el)=>sendItemsStart(el),
   siAddOpen:()=>siAddOpen(),

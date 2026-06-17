@@ -47,12 +47,23 @@ export type UiContact = {
   loc: string;
 };
 
+export type UiKitProductRef = {
+  catalogProductId: string;
+  brand?: string;
+  name: string;
+  group?: string;
+};
+
 export type UiKit = {
   id: string;
   name: string;
   items: number;
   status: string;
   sent: boolean;
+  productRefs?: UiKitProductRef[];
+  packaging?: string;
+  designNotes?: string;
+  artworkUrl?: string;
 };
 
 export type UiCollection = {
@@ -229,12 +240,24 @@ export function mapContact(c: ApiProduct): UiContact {
 }
 
 export function mapKit(k: ApiProduct): UiKit {
+  const productRefs = Array.isArray(k.productRefs)
+    ? k.productRefs.map((ref: ApiProduct) => ({
+        catalogProductId: String(ref.catalogProductId ?? ""),
+        brand: ref.brand || "",
+        name: ref.name || "",
+        group: ref.group || "",
+      }))
+    : [];
   return {
     id: String(k._id),
     name: k.name,
-    items: Array.isArray(k.productRefs) ? k.productRefs.length : 0,
+    items: productRefs.length,
     status: k.status === "live" ? "live" : "draft",
     sent: Boolean(k.lastSentAt),
+    productRefs,
+    packaging: k.packaging || "none",
+    designNotes: k.designNotes || "",
+    artworkUrl: k.artworkUrl || "",
   };
 }
 

@@ -15,6 +15,8 @@ import { USE_MOCKS } from "./config";
 import {
   createCollectionApi,
   createKitApi,
+  updateKitApi,
+  uploadKitArtworkApi,
   launchKitCampaignApi,
   launchPointsCampaignApi,
   linkCollectionToShopApi,
@@ -187,11 +189,35 @@ export async function createKitFlow(payload: {
   catalog: UiProduct[];
   packaging: string;
   designNotes?: string;
+  artwork?: { file?: File; preview?: string; name?: string };
 }) {
-  return createKitApi({
+  const kit = await createKitApi({
     ...payload,
     packaging: payload.packaging === "box" ? "box" : "none",
   });
+  if (payload.artwork?.file) {
+    return uploadKitArtworkApi(kit.id, payload.artwork.file);
+  }
+  return kit;
+}
+
+export async function updateKitFlow(payload: {
+  id: string;
+  name?: string;
+  pickedIndices: number[];
+  catalog: UiProduct[];
+  packaging?: string;
+  designNotes?: string;
+  artwork?: { file?: File; preview?: string; name?: string };
+}) {
+  let kit = await updateKitApi({
+    ...payload,
+    packaging: payload.packaging === "box" ? "box" : payload.packaging === "none" ? "none" : undefined,
+  });
+  if (payload.artwork?.file) {
+    kit = await uploadKitArtworkApi(kit.id, payload.artwork.file);
+  }
+  return kit;
 }
 
 export async function createCollectionFlow(payload: {
@@ -232,6 +258,7 @@ export async function addProductToShopFlow(payload: {
     pickedIndices: [catalogIndex],
     catalog: payload.catalog,
     preferredColors: payload.collection.preferredColors || [],
+    artworkUrl: payload.collection.artworkUrl || undefined,
   });
 }
 
