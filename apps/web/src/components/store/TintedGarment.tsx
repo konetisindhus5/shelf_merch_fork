@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { mediaUrlForCanvas, resolveMediaUrl } from "@/lib/mediaUrl";
 
 /**
- * Recolours a garment image to `hex`, colouring ONLY the garment and not the
- * background — works for a flat cut-out whether or not the PNG is transparent.
- *
- * A canvas step (1) removes a plain/uniform background by flood-filling from the
- * edges, then (2) multiply-tints the remaining pixels by the target colour so
- * folds/shadows are preserved. Falls back to a plain <img> when there's no hex,
- * no src, or the canvas is tainted (cross-origin without CORS).
- *
- * Note: results are best on a flat garment shot. An on-model photo will also
- * tint any non-garment pixels (skin, etc.) that survive background removal —
- * an inherent limitation of a pixel heuristic with no true cut-out.
+ * Recolours a garment mask PNG to `hex`, tinting ONLY opaque garment pixels.
+ * Transparent background stays clear. Uses canvas (via same-origin / proxied
+ * src); falls back to a CSS mask fill when canvas is unavailable.
  */
-const MAX_DIM = 1000; // cap working resolution for performance
-const BG_THRESHOLD = 60; // colour distance treated as "background"
+const MAX_DIM = 1000;
+const BG_THRESHOLD = 60;
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
@@ -27,13 +20,6 @@ function dist(r: number, g: number, b: number, c: [number, number, number]) {
   return Math.sqrt((r - c[0]) ** 2 + (g - c[1]) ** 2 + (b - c[2]) ** 2);
 }
 
-/**
- * A "knockout" mask has the garment knocked out (transparent) on an OPAQUE
- * surround — the inverse of a cut-out. We detect it by opaque corners plus a
- * sizeable transparent/semi-transparent region (the garment). Such masks are
- * recoloured by painting the colour behind the mask (alpha encodes shading),
- * not by tinting pixels.
- */
 function isKnockoutMask(img: ImageData): boolean {
   const { data, width: w, height: h } = img;
   const idx = (x: number, y: number) => (y * w + x) * 4;
@@ -48,12 +34,10 @@ function isKnockoutMask(img: ImageData): boolean {
   return total > 0 && nonOpaque / total > 0.08;
 }
 
-/** Remove a uniform background (flood fill from edges), then multiply-tint. */
 function recolorImageData(img: ImageData, target: [number, number, number]) {
   const { data, width: w, height: h } = img;
   const idx = (x: number, y: number) => (y * w + x) * 4;
 
-  // Already a cut-out? If many border pixels are transparent, trust the alpha.
   let borderTransparent = 0;
   let borderCount = 0;
   for (let x = 0; x < w; x += 1) {
@@ -65,7 +49,6 @@ function recolorImageData(img: ImageData, target: [number, number, number]) {
   const hasAlphaCutout = borderTransparent / Math.max(1, borderCount) > 0.5;
 
   if (!hasAlphaCutout) {
-    // Background colour = average of the four corners.
     const corners = [idx(0, 0), idx(w - 1, 0), idx(0, h - 1), idx(w - 1, h - 1)];
     const bg: [number, number, number] = [0, 0, 0];
     for (const c of corners) {
@@ -75,7 +58,6 @@ function recolorImageData(img: ImageData, target: [number, number, number]) {
     }
     bg[0] /= 4; bg[1] /= 4; bg[2] /= 4;
 
-    // Flood fill from every edge pixel; clear pixels close to the bg colour.
     const stack: number[] = [];
     const seen = new Uint8Array(w * h);
     const push = (x: number, y: number) => {
@@ -98,7 +80,6 @@ function recolorImageData(img: ImageData, target: [number, number, number]) {
     }
   }
 
-  // Multiply-tint remaining (garment) pixels by the target colour.
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] === 0) continue;
     const luma = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
@@ -106,6 +87,41 @@ function recolorImageData(img: ImageData, target: [number, number, number]) {
     data[i + 1] = target[1] * luma;
     data[i + 2] = target[2] * luma;
   }
+}
+
+const contain: CSSProperties = { width: "100%", height: "100%", objectFit: "contain" };
+const maskFit: CSSProperties = {
+  WebkitMaskSize: "contain",
+  maskSize: "contain",
+  WebkitMaskRepeat: "no-repeat",
+  maskRepeat: "no-repeat",
+  WebkitMaskPosition: "center",
+  maskPosition: "center",
+};
+
+/** CSS fallback — colour fill clipped to mask alpha, grey shading on top. */
+function MaskShadedTint({ src, hex, alt, style }: { src: string; hex: string; alt?: string; style?: CSSProperties }) {
+  const mask = `url("${src}")`;
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", ...style }} aria-label={alt}>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: hex,
+          WebkitMaskImage: mask,
+          maskImage: mask,
+          ...maskFit,
+        }}
+      />
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        style={{ ...contain, position: "absolute", inset: 0, mixBlendMode: "multiply", pointerEvents: "none" }}
+      />
+    </div>
+  );
 }
 
 export function TintedGarment({
@@ -121,13 +137,18 @@ export function TintedGarment({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
+  const resolved = src ? resolveMediaUrl(src) : "";
+  const tintSrc = resolved ? mediaUrlForCanvas(resolved) : "";
 
   useEffect(() => {
-    if (!src || !hex) return;
+    setFailed(false);
+  }, [tintSrc, hex]);
+
+  useEffect(() => {
+    if (!tintSrc || !hex) return;
     setFailed(false);
     let cancelled = false;
     const image = new Image();
-    image.crossOrigin = "anonymous";
     image.onload = () => {
       if (cancelled) return;
       const canvas = canvasRef.current;
@@ -144,9 +165,6 @@ export function TintedGarment({
       try {
         const data = ctx.getImageData(0, 0, w, h);
         if (isKnockoutMask(data)) {
-          // Garment is transparent on an opaque surround: paint the colour
-          // underneath, then lay the mask back on top so the cut-out shows
-          // the colour (the mask's alpha gives the folds/shading).
           ctx.clearRect(0, 0, w, h);
           ctx.fillStyle = hex;
           ctx.fillRect(0, 0, w, h);
@@ -156,31 +174,28 @@ export function TintedGarment({
           ctx.putImageData(data, 0, 0);
         }
       } catch {
-        setFailed(true); // tainted canvas (cross-origin w/o CORS)
+        setFailed(true);
       }
     };
     image.onerror = () => !cancelled && setFailed(true);
-    image.src = src;
+    image.src = tintSrc;
     return () => {
       cancelled = true;
     };
-  }, [src, hex]);
+  }, [tintSrc, hex]);
 
-  if (!src) {
+  if (!resolved) {
     return (
       <div style={{ display: "grid", placeItems: "center", color: "var(--ink-3)", fontSize: 12, ...style }}>
         No image
       </div>
     );
   }
-  if (!hex || failed) {
-    return <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit: "contain", ...style }} />;
+  if (!hex) {
+    return <img src={resolved} alt={alt} style={{ ...contain, ...style }} />;
   }
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-label={alt}
-      style={{ width: "100%", height: "100%", objectFit: "contain", ...style }}
-    />
-  );
+  if (failed) {
+    return <MaskShadedTint src={tintSrc || resolved} hex={hex} alt={alt} style={style} />;
+  }
+  return <canvas ref={canvasRef} aria-label={alt} style={{ ...contain, ...style }} />;
 }

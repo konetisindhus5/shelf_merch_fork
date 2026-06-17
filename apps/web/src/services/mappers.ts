@@ -1,4 +1,5 @@
 import type { AuthUser } from "./auth-store";
+import { isPlaceholderColorHex, resolveColorHex } from "../lib/colorMap";
 
 export type UiPrintArea = {
   key?: string;
@@ -19,6 +20,8 @@ export type UiProduct = {
   price: string;
   sw: number;
   colors?: string[];
+  /** Variant colour name → hex (from catalog variants). */
+  colorHexByName?: Record<string, string>;
   /** Resolved product photo URL (mask image). */
   imgUrl?: string;
   /** Super-admin design zones — artwork is clipped to the first matching area. */
@@ -165,48 +168,36 @@ const GROUP_BY_CATEGORY: Record<string, string> = {
   Technology: "power",
   Office: "note",
   "Health & Wellness": "pillow",
-  "Food & Beverages": "bottle",
 };
 
-function isDrinkwareCatalogProduct(p: ApiProduct): boolean {
-  const g = String(p.group || GROUP_BY_CATEGORY[p.category] || "").toLowerCase();
-  const c = String(p.category || "").toLowerCase();
-  const n = String(p.name || "").toLowerCase();
-  return (
-    ["bottle", "mug", "tumbler", "drinkware"].includes(g) ||
-    /drink|bottle|mug|tumbler|beverage/.test(c) ||
-    /\b(bottle|mug|mugg|tumbler)\b/.test(n)
-  );
-}
-
-function firstResolvedMediaUrl(...urls: Array<string | undefined>): string | undefined {
-  for (const url of urls) {
-    const resolved = resolveMediaUrl(url);
-    if (resolved) return resolved;
+function extractVariantColors(
+  variants: Array<{ color?: string; colorHex?: string }> | undefined,
+): { colors: string[]; colorHexByName: Record<string, string> } {
+  if (!Array.isArray(variants)) return { colors: [], colorHexByName: {} };
+  const seen = new Set<string>();
+  const colors: string[] = [];
+  const colorHexByName: Record<string, string> = {};
+  for (const v of variants) {
+    const colorName = (v.color || "").trim();
+    const storedHex =
+      v.colorHex && !isPlaceholderColorHex(v.colorHex) ? v.colorHex : undefined;
+    const label =
+      colorName ||
+      (storedHex && !isPlaceholderColorHex(storedHex) ? storedHex : "");
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    colors.push(label);
+    const hex = resolveColorHex(colorName || undefined, storedHex);
+    if (!isPlaceholderColorHex(hex)) colorHexByName[label] = hex;
   }
-  return undefined;
-}
-
-/** Apparel cards use mask cutouts; drinkware uses product photos. */
-export function catalogProductImageUrl(p: ApiProduct): string | undefined {
-  const urls = Array.isArray(p.imageUrls) ? p.imageUrls : [];
-  if (isDrinkwareCatalogProduct(p)) {
-    return firstResolvedMediaUrl(
-      p.primaryImageUrl,
-      urls[0],
-      p.baseImageUrl,
-      urls[1],
-      p.maskImageUrl,
-    );
-  }
-  return firstResolvedMediaUrl(p.maskImageUrl, p.primaryImageUrl, p.baseImageUrl, urls[0]);
+  return { colors, colorHexByName };
 }
 
 export function mapCatalogProduct(p: ApiProduct): UiProduct {
-  const variantColors = Array.isArray(p.variants)
-    ? [...new Set(p.variants.map((v: { color?: string }) => v.color).filter(Boolean) as string[])]
-    : [];
-  const imgUrl = catalogProductImageUrl(p);
+  const { colors: variantColors, colorHexByName } = extractVariantColors(p.variants);
+  const imgUrl = resolveMediaUrl(p.maskImageUrl || p.primaryImageUrl || p.imageUrls?.[0]);
   const printAreas = Array.isArray(p.printAreas)
     ? (p.printAreas as UiPrintArea[]).filter((a) => a?.box?.widthPct > 0 && a?.box?.heightPct > 0)
     : undefined;
@@ -218,6 +209,7 @@ export function mapCatalogProduct(p: ApiProduct): UiProduct {
     price: formatInr(p.basePriceInr ?? 0),
     sw: Array.isArray(p.variants) ? Math.max(p.variants.length, 2) : 4,
     colors: variantColors,
+    colorHexByName: Object.keys(colorHexByName).length ? colorHexByName : undefined,
     imgUrl,
     printAreas: printAreas?.length ? printAreas : undefined,
   };
@@ -225,11 +217,8 @@ export function mapCatalogProduct(p: ApiProduct): UiProduct {
 
 export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProduct>): UiProduct {
   const id = ref.catalogProductId ? String(ref.catalogProductId) : undefined;
-  const fromCatalog = id && catalogById?.get(id);
-  const refImg = resolveMediaUrl(
-    ref.imgUrl || ref.maskImageUrl || ref.primaryImageUrl || ref.imageUrls?.[0],
-  );
-  const imgUrl = fromCatalog?.imgUrl || refImg;
+  const fromCatalog = id ? catalogById?.get(id) : undefined;
+  const imgUrl = resolveMediaUrl(ref.imgUrl || ref.maskImageUrl || ref.primaryImageUrl || ref.imageUrls?.[0] || fromCatalog?.imgUrl);
   return {
     id,
     g: ref.group || fromCatalog?.g || "tee",
@@ -237,6 +226,8 @@ export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProdu
     nm: ref.name,
     price: fromCatalog?.price || "",
     sw: fromCatalog?.sw ?? 4,
+    colors: fromCatalog?.colors,
+    colorHexByName: fromCatalog?.colorHexByName,
     imgUrl,
     printAreas: fromCatalog?.printAreas,
   };

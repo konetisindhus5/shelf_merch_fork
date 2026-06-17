@@ -93,6 +93,16 @@ function pickPrintArea(p: StoreProduct): PrintArea | null {
 }
 
 function printAreaWrapStyle(box?: PrintArea["box"]): CSSProperties {
+  const fit: CSSProperties = {
+    boxSizing: "border-box",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 0,
+    minHeight: 0,
+    pointerEvents: "none",
+  };
   if (!box?.widthPct || !box?.heightPct) {
     return {
       position: "absolute",
@@ -101,11 +111,7 @@ function printAreaWrapStyle(box?: PrintArea["box"]): CSSProperties {
       transform: "translate(-50%, -50%)",
       width: "34%",
       height: "34%",
-      boxSizing: "border-box",
-      overflow: "hidden",
-      display: "grid",
-      placeItems: "center",
-      pointerEvents: "none",
+      ...fit,
     };
   }
   return {
@@ -114,11 +120,7 @@ function printAreaWrapStyle(box?: PrintArea["box"]): CSSProperties {
     top: `${box.yPct}%`,
     width: `${box.widthPct}%`,
     height: `${box.heightPct}%`,
-    boxSizing: "border-box",
-    overflow: "hidden",
-    display: "grid",
-    placeItems: "center",
-    pointerEvents: "none",
+    ...fit,
   };
 }
 

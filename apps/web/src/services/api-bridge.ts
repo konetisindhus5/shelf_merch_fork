@@ -20,6 +20,9 @@ import {
   launchKitCampaignApi,
   launchPointsCampaignApi,
   linkCollectionToShopApi,
+  archiveCollectionApi,
+  restoreCollectionApi,
+  deleteCollectionApi,
   syncOrgWizardApi,
 } from "./mutations-api";
 import type { UiCollection } from "./mappers";
@@ -233,6 +236,18 @@ export async function createCollectionFlow(payload: {
 
 export async function linkCollectionToShopFlow(collectionId: string, shopId: string) {
   return linkCollectionToShopApi(collectionId, shopId);
+}
+
+export async function archiveCollectionFlow(collectionId: string) {
+  return archiveCollectionApi(collectionId);
+}
+
+export async function restoreCollectionFlow(collectionId: string) {
+  return restoreCollectionApi(collectionId);
+}
+
+export async function deleteCollectionFlow(collectionId: string) {
+  return deleteCollectionApi(collectionId);
 }
 
 export async function addProductToShopFlow(payload: {

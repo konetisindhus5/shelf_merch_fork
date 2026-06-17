@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PrintArea } from "@/services/platform-api";
+import { resolveMediaUrl } from "@/lib/mediaUrl";
 import { TintedGarment } from "../store/TintedGarment";
 
 export const CUSTOMIZATION_METHODS = [
@@ -33,20 +34,31 @@ const DEFAULT_BOX = { xPct: 30, yPct: 30, widthPct: 40, heightPct: 30 };
  */
 export function PrintAreaEditor({
   images,
+  maskImageUrl,
   colors = [],
   value,
   onChange,
 }: {
   images: string[];
+  /** Garment mask PNG — colour preview always tints this, not the base photo. */
+  maskImageUrl?: string;
   colors?: { name: string; hex: string }[];
   value: PrintArea[];
   onChange: (areas: PrintArea[]) => void;
 }) {
-  const [mockup, setMockup] = useState(images[0] ?? "");
+  const resolvedImages = images.map((u) => resolveMediaUrl(u)).filter(Boolean);
+  const resolvedMask = maskImageUrl ? resolveMediaUrl(maskImageUrl) : resolvedImages[resolvedImages.length - 1] ?? "";
+  const [mockup, setMockup] = useState(resolvedImages[resolvedImages.length - 1] ?? "");
   const [tintHex, setTintHex] = useState("");
   const [selected, setSelected] = useState(0);
   const drag = useRef<DragState | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+
+  // Prefer mask image (last in wizard order) for colour preview.
+  useEffect(() => {
+    if (!resolvedImages.length) return;
+    setMockup((cur) => (resolvedImages.includes(cur) ? cur : resolvedImages[resolvedImages.length - 1]));
+  }, [resolvedImages.join("|")]);
 
   const update = (index: number, patch: Partial<PrintArea>) =>
     onChange(value.map((a, i) => (i === index ? { ...a, ...patch } : a)));
@@ -114,15 +126,17 @@ export function PrintAreaEditor({
   };
 
   const area = value[selected];
+  // Tint the image currently on screen — never swap which image is shown.
+  const displaySrc = mockup || resolvedMask;
 
   return (
     <div className="row" style={{ gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
       <div style={{ flex: "1 1 360px", minWidth: 320 }}>
-        {images.length > 1 && (
+        {resolvedImages.length > 1 && (
           <div className="field">
             <label className="lbl">Mockup image</label>
             <select className="inp" value={mockup} onChange={(e) => setMockup(e.target.value)}>
-              {images.map((url) => (
+              {resolvedImages.map((url) => (
                 <option key={url} value={url}>
                   {url.split("/").pop()}
                 </option>
@@ -130,9 +144,12 @@ export function PrintAreaEditor({
             </select>
           </div>
         )}
-        {colors.length > 0 && (
+        {colors.length > 0 && displaySrc && (
           <div className="field">
             <label className="lbl">Preview colour</label>
+            <p className="muted" style={{ fontSize: 12, margin: "0 0 8px" }}>
+              Recolours the garment only — background stays transparent.
+            </p>
             <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
               <button type="button" className={tintHex === "" ? "btn btn-dark btn-sm" : "btn btn-ghost btn-sm"} onClick={() => setTintHex("")}>None</button>
               {colors.map((c) => (
@@ -163,9 +180,9 @@ export function PrintAreaEditor({
             touchAction: "none",
           }}
         >
-          {mockup ? (
+          {displaySrc ? (
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-              <TintedGarment src={mockup} hex={tintHex} alt="mockup" />
+              <TintedGarment src={displaySrc} hex={tintHex} alt="mockup" />
             </div>
           ) : (
             <div className="muted" style={{ display: "grid", placeItems: "center", height: "100%" }}>

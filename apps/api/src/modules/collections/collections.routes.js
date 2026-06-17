@@ -76,6 +76,7 @@ router.post(
 
 const patchSchema = z.object({
   shopId: objectId.optional(),
+  status: z.enum(['draft', 'ready', 'archived']).optional(),
 });
 
 router.patch(
@@ -90,9 +91,51 @@ router.patch(
       if (!shop) throw new NotFoundError('Shop not found');
       collection.shopId = shop._id;
     }
+    if (req.body.status) collection.status = req.body.status;
     await collection.save();
     writeAudit({ req, action: 'collection.update', entityType: 'Collection', entityId: collection._id, after: collection.toObject() });
     res.json(collection);
+  }),
+);
+
+router.post(
+  '/:id/archive',
+  adminOnly,
+  validate({ params: z.object({ id: objectId }) }),
+  asyncHandler(async (req, res) => {
+    const collection = await Collection.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!collection) throw new NotFoundError('Collection not found');
+    collection.status = 'archived';
+    await collection.save();
+    writeAudit({ req, action: 'collection.archive', entityType: 'Collection', entityId: collection._id, after: { status: 'archived' } });
+    res.json(collection);
+  }),
+);
+
+router.post(
+  '/:id/restore',
+  adminOnly,
+  validate({ params: z.object({ id: objectId }) }),
+  asyncHandler(async (req, res) => {
+    const collection = await Collection.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!collection) throw new NotFoundError('Collection not found');
+    collection.status = collection.artworkUrl ? 'ready' : 'draft';
+    await collection.save();
+    writeAudit({ req, action: 'collection.restore', entityType: 'Collection', entityId: collection._id, after: { status: collection.status } });
+    res.json(collection);
+  }),
+);
+
+router.delete(
+  '/:id',
+  adminOnly,
+  validate({ params: z.object({ id: objectId }) }),
+  asyncHandler(async (req, res) => {
+    const collection = await Collection.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!collection) throw new NotFoundError('Collection not found');
+    await collection.softDelete();
+    writeAudit({ req, action: 'collection.delete', entityType: 'Collection', entityId: collection._id });
+    res.status(204).send();
   }),
 );
 

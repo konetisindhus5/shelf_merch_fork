@@ -804,35 +804,34 @@ async function sendItemsDo(){
 function swagDesignerStart(el){
   closeLayer();
   const shopId=(el&&el.dataset&&el.dataset.arg)||S.flow.shopId||(S.shops[0]&&S.shops[0].id);
-  S.flow={exitTo:shopId?'shopDetail':'swag', shopId, colName:'New employee Swag', colColors:['Black','White'], picked:[], artwork:false, exitToNav:shopId?'shops':'swag'};
+  S.flow={exitTo:shopId?'shopDetail':'swag', shopId, colName:'New employee Swag', picked:[], artwork:false, exitToNav:shopId?'shops':'swag'};
   go('swagName');
 }
 Wizards.swagName=function(){
   const f=S.flow;
-  const body=`<div style="max-width:640px;margin:0 auto"><h1 style="font-size:26px;margin-bottom:6px">Name your collection</h1><p class="muted" style="margin-bottom:20px">Choose a name and your preferred colours to filter the catalog and set defaults.</p>
-    <div class="field"><label class="lbl">Collection name</label><input class="inp" id="sw-name" value="${esc(f.colName)}" autofocus></div>
-    <div class="lbl">Preferred swag colours</div>
-    <div class="grid" style="grid-template-columns:repeat(4,1fr)">${SWAG_COLORS.map(([n,c])=>`<label class="optcard ${f.colColors.includes(n)?'on':''}" style="padding:10px 12px;align-items:center" data-act="swColor" data-arg="${n}"><span class="sw" style="width:18px;height:18px;background:${c}"></span><span style="font-weight:600;font-size:13px">${n}</span></label>`).join('')}</div></div>`;
+  const body=`<div style="max-width:640px;margin:0 auto"><h1 style="font-size:26px;margin-bottom:6px">Name your collection</h1><p class="muted" style="margin-bottom:20px">Choose a name for your branded product collection.</p>
+    <div class="field"><label class="lbl">Collection name</label><input class="inp" id="sw-name" value="${esc(f.colName)}" autofocus></div></div>`;
   const foot=`${backLink('Back to my swag','wzExit',null,{mb:'0'})}<button class="btn btn-dark" data-act="swNameNext">Next</button>`;
   return wzChrome('Design swag',['Collection','Products','Artwork'],0,body,foot);
 };
-function swColor(el){ const inp=document.getElementById('sw-name'); if(inp) S.flow.colName=inp.value; const n=el.dataset.arg; const a=S.flow.colColors; const i=a.indexOf(n); if(i<0)a.push(n); else a.splice(i,1); render(); }
-function swNameNext(){
+async function swNameNext(){
   S.flow.colName=document.getElementById('sw-name').value||'New Collection';
-  if(!S.flow.colColors?.length){ toast('Pick at least one preferred colour',false); return; }
+  if(!api.useMocks()&&api.isAuthenticated()){
+    try{
+      S.catalogProducts=await api.refreshCatalogProducts();
+    }catch(_e){/* keep cached list */}
+  }
   go('swagCatalog');
 }
 
 Wizards.swagCatalog=function(){
   const f=S.flow; const cats=['All Products','Apparel','Bags','Drinkware','Technology','Office'];
   const catalog=getCatalogList();
-  const prefs=f.colColors||[];
-  const entries=catalogEntriesForPrefs(catalog,prefs);
-  const colorNote=prefs.length?`Showing ${entries.length} of ${catalog.length} products in ${prefs.join(', ')}.`:`${catalog.length} products · pick the items you want to brand.`;
-  const body=`<h1 style="font-size:24px;margin-bottom:4px">Add products to your collection</h1><p class="muted" style="margin-bottom:16px">${colorNote}</p>
+  const entries=catalog.map((p,i)=>({p,i}));
+  const body=`<h1 style="font-size:24px;margin-bottom:4px">Add products to your collection</h1><p class="muted" style="margin-bottom:16px">${catalog.length} products · pick the items you want to brand.</p>
     <div class="tabs" style="margin-bottom:18px">${cats.map((c,i)=>`<button class="${i===0?'on':''}" data-act="noop">${c}</button>`).join('')}</div>
-    ${!entries.length?`<div class="card empty" style="padding:40px"><h3>No products match your colours</h3><p>Try adding more preferred colours on the previous step, or go back to adjust your selection.</p></div>`
-    :`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding-bottom:90px">${entries.map(({p,i})=>{const on=f.picked.includes(i);const sw=productColorNames(p).filter(c=>!prefs.length||prefs.includes(c)).slice(0,4).map(c=>`<span class="sw" style="background:${swagColorHex(c)}" title="${esc(c)}"></span>`).join('');return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="swPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div>${sw?`<div class="swatches">${sw}</div>`:''}</div></div>`;}).join('')}</div>`}`;
+    ${!entries.length?`<div class="card empty" style="padding:40px"><h3>No products in catalog</h3><p>Check back later or contact support if you expected products here.</p></div>`
+    :`<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding-bottom:90px">${entries.map(({p,i})=>{const on=f.picked.includes(i);const ep=enrichProduct(p);const sw=productColorNames(ep).slice(0,4).map(c=>`<span class="sw" style="background:${productColorHex(ep,c)}" title="${esc(c)}"></span>`).join('');return `<div class="pcard" style="${on?'border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-50)':''}" data-act="swPick" data-arg="${i}"><div class="img">${productImg(p)}<div style="position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:${on?'var(--brand)':'#fff'};color:${on?'#fff':'var(--brand)'};border:1px solid var(--brand);display:grid;place-items:center;font-weight:700">${on?'✓':'+'}</div></div><div class="meta">${p.brand?`<div class="brand">${esc(p.brand)}</div>`:''}<div class="nm">${esc(p.nm)}</div><div class="pr">${p.price}</div>${sw?`<div class="swatches">${sw}</div>`:''}</div></div>`;}).join('')}</div>`}`;
   const foot='';
   const bar=`<div style="position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:14px 34px;display:flex;align-items:center;justify-content:space-between;z-index:30">
     <div class="row" style="gap:10px;align-items:center"><b>${esc(f.colName)}</b><span class="tag tag-soft" style="background:var(--brand-50);color:var(--brand-d)">${f.picked.length} item${f.picked.length===1?'':'s'}</span></div>
@@ -919,7 +918,7 @@ async function swGenerate(){
   const f=S.flow;
   const catalog=getCatalogList();
   if(api.useMocks()){
-    const col={id:nid('c'),code:'C'+(100000000+Math.floor(Math.random()*899999999)),name:f.colName,created:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),by:S.user.name,status:'ready',shopId:'',preferredColors:[...(f.colColors||[])],artworkUrl:f.artFile?.preview||'',products:f.picked.map(i=>{const cp=catalog[i];return{id:cp?.id,g:cp?.g||'tee',brand:cp?.brand||'',nm:cp?.nm||'Product',printAreas:cp?.printAreas,imgUrl:cp?.imgUrl};})};
+    const col={id:nid('c'),code:'C'+(100000000+Math.floor(Math.random()*899999999)),name:f.colName,created:new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),by:S.user.name,status:'ready',shopId:'',preferredColors:[],artworkUrl:f.artFile?.preview||'',products:f.picked.map(i=>{const cp=catalog[i];return{id:cp?.id,g:cp?.g||'tee',brand:cp?.brand||'',nm:cp?.nm||'Product',printAreas:cp?.printAreas,imgUrl:cp?.imgUrl};})};
     S.collections.push(col);
     go('swag');
     toast('Collection "'+col.name+'" is design-ready!');
@@ -931,7 +930,6 @@ async function swGenerate(){
       name:f.colName||'New collection',
       pickedIndices:f.picked,
       catalog,
-      preferredColors:f.colColors||[],
       artwork:f.artFile?{file:f.artFile.file,preview:f.artFile.preview,name:f.artFile.name}:undefined,
     });
     col.by=S.user.name;
@@ -1185,6 +1183,12 @@ const DEFAULT_PRODUCT_COLOR_NAMES={
   default:['Black','White','Navy','Gray'],
 };
 function swagColorHex(name){ return SWAG_COLOR_HEX[name]||'#9a9a9a'; }
+function isHexColor(s){ return /^#[0-9a-f]{6}$/i.test(String(s||'')); }
+function productColorHex(p,name){
+  if(p?.colorHexByName?.[name]) return p.colorHexByName[name];
+  if(isHexColor(name)) return name;
+  return swagColorHex(name);
+}
 function sortWhiteFirst(names){
   const i=names.findIndex(n=>String(n).toLowerCase()==='white');
   if(i<=0) return names;
@@ -1197,28 +1201,24 @@ function ensureWhitePrimaryNames(names){
   return ['White',...names];
 }
 function productColorNames(p){
-  const names=p?.colors?.length?p.colors:DEFAULT_PRODUCT_COLOR_NAMES[p?.g]||DEFAULT_PRODUCT_COLOR_NAMES.default;
+  const ep=enrichProduct(p);
+  if(ep?.colors?.length) return ep.colors;
+  const names=DEFAULT_PRODUCT_COLOR_NAMES[ep?.g]||DEFAULT_PRODUCT_COLOR_NAMES.default;
   return ensureWhitePrimaryNames(names);
-}
-function catalogMatchesColors(p,prefs){
-  if(!prefs?.length) return true;
-  return productColorNames(p).some(c=>prefs.includes(c));
-}
-function catalogEntriesForPrefs(catalog,prefs){
-  return catalog.map((p,i)=>({p,i})).filter(({p})=>catalogMatchesColors(p,prefs));
 }
 function collectionProductColorNames(col,p){
   const prefs=col?.preferredColors||[];
   const available=productColorNames(p);
   const names=prefs.length?prefs.filter(c=>!available.length||available.includes(c)):available;
-  return ensureWhitePrimaryNames(names.length?names:available);
+  return names.length?names:available;
 }
 function primaryColorSel(){ return 0; }
 function collectionProductSwatches(col,p){
-  const names=collectionProductColorNames(col,p);
-  const hexes=names.map(swagColorHex);
+  const ep=enrichProduct(p);
+  const names=collectionProductColorNames(col,ep);
+  const hexes=names.map(n=>productColorHex(ep,n));
   if(hexes.length) return hexes;
-  return PRODUCT_COLOR_PALETTES[p.g]||PRODUCT_COLOR_PALETTES.default;
+  return PRODUCT_COLOR_PALETTES[ep?.g]||PRODUCT_COLOR_PALETTES.default;
 }
 
 const PRODUCT_CATEGORIES={tee:'Apparel',hoodie:'Apparel',cap:'Apparel',bag:'Bags',bottle:'Drinkware',mug:'Drinkware',pack:'Bags',power:'Technology',pillow:'Health & Wellness',note:'Office'};
@@ -1580,10 +1580,15 @@ function catalogProductById(id){
 }
 function enrichProduct(p){
   if(!p) return p;
-  if(p.printAreas?.length) return p;
   const full=catalogProductById(p.id);
   if(!full) return p;
-  return {...p, printAreas:full.printAreas, imgUrl:p.imgUrl||full.imgUrl};
+  return {
+    ...p,
+    printAreas:p.printAreas?.length?p.printAreas:full.printAreas,
+    imgUrl:p.imgUrl||full.imgUrl,
+    colors:p.colors?.length?p.colors:full.colors,
+    colorHexByName:p.colorHexByName||full.colorHexByName,
+  };
 }
 function normMediaPath(url){
   if(!url) return '';
@@ -1610,10 +1615,11 @@ function pickPrintArea(p){
   return areas.find(a=>a?.box?.widthPct>0)||areas[0];
 }
 function printAreaWrapStyle(box){
+  const fit='box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;pointer-events:none';
   if(!box||!box.widthPct||!box.heightPct){
-    return 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34%;height:34%;box-sizing:border-box;overflow:hidden;display:grid;place-items:center;pointer-events:none';
+    return `position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34%;height:34%;${fit}`;
   }
-  return `position:absolute;left:${box.xPct}%;top:${box.yPct}%;width:${box.widthPct}%;height:${box.heightPct}%;box-sizing:border-box;overflow:hidden;display:grid;place-items:center;pointer-events:none`;
+  return `position:absolute;left:${box.xPct}%;top:${box.yPct}%;width:${box.widthPct}%;height:${box.heightPct}%;${fit}`;
 }
 function printAreaGuide(p){
   const area=pickPrintArea(enrichProduct(p));
@@ -1698,10 +1704,13 @@ function ViewShopDetail(){
 }
 function shopTabBody(s,tab){
   if(tab==='Branded Swag'){
-    const cols=S.collections.filter(c=>c.shopId===s.id);
+    const allCols=S.collections.filter(c=>c.shopId===s.id);
+    const activeCols=allCols.filter(c=>c.status!=='archived');
+    const archivedCols=allCols.filter(c=>c.status==='archived');
     const sub=S.flow.swSub||'Saved Designs';
+    const cols=sub==='Archived'?archivedCols:activeCols;
     const rail=`<div class="subrail">
-      ${[['Saved Designs',cols.length],['Locker Inventory',''],['Archived','']].map(([k,ct])=>`<div class="item ${sub===k?'on':''}" data-act="swSub" data-arg="${k}">${k}${ct!==''?`<span class="ct">${ct}</span>`:''}</div>`).join('')}</div>`;
+      ${[['Saved Designs',activeCols.length],['Locker Inventory',''],['Archived',archivedCols.length]].map(([k,ct])=>`<div class="item ${sub===k?'on':''}" data-act="swSub" data-arg="${k}">${k}${ct!==''?`<span class="ct">${ct}</span>`:''}</div>`).join('')}</div>`;
     let content;
     if(sub==='Saved Designs'){
       const view=S.flow.swagView||'collection';
@@ -1720,7 +1729,9 @@ function shopTabBody(s,tab){
       content=`<div class="card" style="padding:22px"><div class="row" style="justify-content:space-between;margin-bottom:14px"><h3 style="font-size:17px">Locker inventory</h3><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Reorder requested">Reorder low stock</button></div>
         <table class="tbl"><thead><tr><th>Item</th><th>In locker</th><th>Status</th><th></th></tr></thead><tbody>${items.map(([n,q])=>`<tr><td style="font-weight:600">${n}</td><td class="num">${q}</td><td>${q<50?'<span class="tag tag-warn"><span class="dot"></span>Low</span>':'<span class="tag tag-live"><span class="dot"></span>Healthy</span>'}</td><td style="text-align:right"><span class="lnk" data-act="toast" data-arg="Reorder requested">Reorder</span></td></tr>`).join('')}</tbody></table></div>`;
     } else {
-      content=`<div class="card empty"><div class="ic">${I.swag.replace('currentColor','#cdd6cf')}</div><h3>No archived designs</h3><p>Designs you archive will be stored here and can be restored any time.</p></div>`;
+      content=archivedCols.length
+        ?`<div class="card" style="padding:22px">${swagCollectionView(archivedCols)}</div>`
+        :`<div class="card empty"><div class="ic">${I.swag.replace('currentColor','#cdd6cf')}</div><h3>No archived designs</h3><p>Designs you archive will be stored here and can be restored any time.</p></div>`;
     }
     return `<div style="display:flex;gap:22px">${rail}<div style="flex:1">${content}</div></div>`;
   }
@@ -1907,11 +1918,11 @@ async function swagAddToShopDo(){
   }
 }
 function swagDesignCard(col,p,pIdx){
-  const names=collectionProductColorNames(col,p);
-  const sw=names.slice(0,4).map(c=>`<span class="sw" style="background:${swagColorHex(c)}" title="${esc(c)}"></span>`).join('');
+  const ep=enrichProduct(p);
+  const names=collectionProductColorNames(col,ep);
+  const sw=names.slice(0,4).map(c=>`<span class="sw" style="background:${productColorHex(ep,c)}" title="${esc(c)}"></span>`).join('');
   const more=names.length>4?`<span class="mut3" style="font-size:10px;align-self:center">+${names.length-4}</span>`:'';
   const arg=`${col.id}:${pIdx}`;
-  const ep=enrichProduct(p);
   const mock=productHasPrintArea(ep);
   return `<div class="pcard swag-design-card" data-act="productOpen" data-arg="${arg}">
     <div class="img${mock?' img-mockup':''}">${productImg(ep,mock?{width:'100%',height:'100%'}:{})}
@@ -1935,8 +1946,98 @@ function swagCollectionView(cols){
 function swagDesignsBody(cols,view){
   return view==='product'?swagProductGrid(cols):swagCollectionView(cols);
 }
+function applyCollectionUpdate(updated){
+  const idx=S.collections.findIndex(c=>c.id===updated.id);
+  const prev=idx>=0?S.collections[idx]:null;
+  const merged={...updated, by:updated.by||prev?.by||S.user.name};
+  if(idx>=0) S.collections[idx]=merged;
+  else S.collections.push(merged);
+  syncShopCollections();
+  render();
+}
+function removeCollection(colId){
+  S.collections=S.collections.filter(c=>c.id!==colId);
+  syncShopCollections();
+  render();
+}
+function collectionMenu(el,colId){
+  const col=S.collections.find(c=>c.id===colId);
+  if(!col) return;
+  const r=el.getBoundingClientRect();
+  const left=Math.min(Math.max(8,r.right-210),window.innerWidth-218);
+  const top=Math.min(r.bottom+6,window.innerHeight-180);
+  const archived=col.status==='archived';
+  const items=archived
+    ?`<button type="button" class="card-menu-item" data-act="collectionRestore" data-arg="${colId}">Restore to saved designs</button>
+      <button type="button" class="card-menu-item" data-act="collectionDelete" data-arg="${colId}" style="color:var(--danger)">Delete permanently</button>`
+    :`<button type="button" class="card-menu-item" data-act="collectionArchive" data-arg="${colId}">Archive collection</button>
+      <button type="button" class="card-menu-item" data-act="collectionDelete" data-arg="${colId}" style="color:var(--danger)">Delete collection</button>`;
+  document.getElementById('layer').innerHTML=`<div class="popover-scrim" data-scrim>
+    <div class="card-menu" style="top:${top}px;left:${left}px">${items}</div></div>`;
+}
+async function collectionArchive(colId){
+  closeLayer();
+  const col=S.collections.find(c=>c.id===colId);
+  if(!col) return;
+  if(api.useMocks()){
+    col.status='archived';
+    syncShopCollections();
+    render();
+    toast('Collection archived');
+    return;
+  }
+  try{
+    const updated=await api.archiveCollectionFlow(colId);
+    updated.by=col.by||S.user.name;
+    applyCollectionUpdate(updated);
+    toast('Collection archived');
+  }catch(err){
+    toast(err.message||'Failed to archive collection',false);
+  }
+}
+async function collectionRestore(colId){
+  closeLayer();
+  const col=S.collections.find(c=>c.id===colId);
+  if(!col) return;
+  if(api.useMocks()){
+    col.status=col.artworkUrl?'ready':'draft';
+    syncShopCollections();
+    render();
+    toast('Collection restored');
+    return;
+  }
+  try{
+    const updated=await api.restoreCollectionFlow(colId);
+    updated.by=col.by||S.user.name;
+    applyCollectionUpdate(updated);
+    toast('Collection restored');
+  }catch(err){
+    toast(err.message||'Failed to restore collection',false);
+  }
+}
+async function collectionDelete(colId){
+  closeLayer();
+  const col=S.collections.find(c=>c.id===colId);
+  if(!col) return;
+  if(!confirm(`Delete "${col.name}"? This cannot be undone.`)) return;
+  if(api.useMocks()){
+    removeCollection(colId);
+    toast('Collection deleted');
+    return;
+  }
+  try{
+    await api.deleteCollectionFlow(colId);
+    removeCollection(colId);
+    toast('Collection deleted');
+  }catch(err){
+    toast(err.message||'Failed to delete collection',false);
+  }
+}
 function collectionBlock(c){
   const productLabel=c.products.length===1?'Product':'Products';
+  const statusTag=c.status==='archived'
+    ?'<span class="tag tag-draft">Archived</span>'
+    :'<span class="tag tag-ready">Design ready</span>';
   return `<div class="swag-collection-block">
     <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:12px">
       <div>
@@ -1948,9 +2049,9 @@ function collectionBlock(c){
         <div class="mut3" style="font-size:12px">Created on ${c.created} by ${esc(c.by)} · ${c.products.length} ${productLabel}</div>
       </div>
       <div class="row" style="gap:8px;align-items:center;flex:none">
-        <span class="tag tag-ready">Design ready</span>
+        ${statusTag}
         <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="toast" data-arg="Share link copied">${I.share}</button>
-        <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="toast" data-arg="Collection options">${I.dots}</button>
+        <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="collectionMenu" data-arg="${c.id}">${I.dots}</button>
       </div>
     </div>
     <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">${c.products.map((p,i)=>swagDesignCard(c,p,i)).join('')}</div>
@@ -2808,7 +2909,6 @@ const ACT = {
   shopPublish:()=>shopPublish(),
   // swag designer
   swagDesignerStart:(el)=>swagDesignerStart(el),
-  swColor:(el)=>swColor(el),
   swNameNext:()=>swNameNext(),
   swPick:(el)=>swPick(el),
   swArtUpload:()=>swArtUpload(),
@@ -2822,6 +2922,10 @@ const ACT = {
   swagAddToShopOpen:(el,a)=>swagAddToShopOpen(el,a),
   swagAddToShopPick:(el,a)=>swagAddToShopPick(el,a),
   swagAddToShopDo:()=>swagAddToShopDo(),
+  collectionMenu:(el,a)=>collectionMenu(el,a),
+  collectionArchive:(el,a)=>collectionArchive(a),
+  collectionRestore:(el,a)=>collectionRestore(a),
+  collectionDelete:(el,a)=>collectionDelete(a),
   productOpen:(el,a)=>productOpen(a),
   productBack:()=>productBack(),
   productColor:(el)=>productColor(el),
@@ -2897,7 +3001,7 @@ function onShelfMerchClick(e){
   const fn = ACT[act];
   if(!fn){ return; }
   if(t.tagName==='A') e.preventDefault();
-  if(act==='shopEditOpen'||act==='swagView'||act==='swagCardMenu'||t.classList?.contains('swag-card-menu')) e.stopPropagation();
+  if(act==='shopEditOpen'||act==='swagView'||act==='swagCardMenu'||act==='collectionMenu'||t.classList?.contains('swag-card-menu')) e.stopPropagation();
   fn(t, t.dataset.arg);
 }
 

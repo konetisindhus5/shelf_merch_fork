@@ -40,6 +40,15 @@ const envSchema = z.object({
   R2_SECRET_KEY: z.string().optional().default(''),
   R2_BUCKET: z.string().optional().default('shelfmerch-assets'),
 
+  AWS_ACCESS_KEY_ID: z.string().optional().default(''),
+  AWS_SECRET_ACCESS_KEY: z.string().optional().default(''),
+  AWS_REGION: z.string().optional().default(''),
+  S3_BUCKET_NAME: z.string().optional().default(''),
+  /** Optional CDN or custom domain base, e.g. https://shelfmerch.io */
+  S3_PUBLIC_BASE_URL: z.string().optional().default(''),
+  /** auto = R2 → S3 → local; override with local while fixing IAM */
+  STORAGE_DRIVER: z.enum(['auto', 'local', 's3', 'r2']).default('auto'),
+
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
@@ -75,3 +84,6 @@ export const msg91Configured = () =>
   Boolean(env.MSG91_AUTH_KEY && env.MSG91_OTP_TEMPLATE_ID);
 
 export const emailConfigured = () => Boolean(env.EMAIL_USER && env.EMAIL_PASSWORD);
+
+export const s3Configured = () =>
+  Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_REGION && env.S3_BUCKET_NAME);

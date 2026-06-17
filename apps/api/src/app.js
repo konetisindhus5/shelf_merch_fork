@@ -52,6 +52,7 @@ import {
   platformInventoryRouter,
 } from './modules/catalog/platformCatalog.routes.js';
 import { platformKitsRouter } from './modules/kits/platformKits.routes.js';
+import mediaRoutes from './modules/media/media.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,6 +91,7 @@ export function createApp() {
   });
 
   api.use('/auth', authRoutes);
+  api.use('/media', mediaRoutes);
   api.use('/users', usersRoutes);
   api.use('/tenants', tenantsRouter);
   api.use('/platform/tenants', platformTenantsRouter);

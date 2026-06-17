@@ -18,6 +18,7 @@ import { PlatformError, PlatformPageHeader } from "./platform-ui";
 import { PrintAreaEditor } from "./PrintAreaEditor";
 import { TintedGarment } from "../store/TintedGarment";
 import { isPlaceholderColorHex, resolveColorHex } from "@/lib/colorMap";
+import { resolveMediaUrl } from "@/lib/mediaUrl";
 
 const STEPS = ["Details", "Variants", "Images", "Print areas", "Review"] as const;
 
@@ -540,7 +541,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                 label="Base image — print areas & production"
                 hint="PNG, JPG or WebP · neutral white garment"
                 accept="image/png,image/webp,image/jpeg"
-                imageUrl={product?.baseImageUrl}
+                imageUrl={product?.baseImageUrl ? resolveMediaUrl(product.baseImageUrl) : undefined}
                 disabled={busy || !id}
                 onFile={(file) => uploadMaster(file, "base")}
               />
@@ -548,7 +549,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                 label="Mask image (transparent PNG)"
                 hint="Transparent PNG · defines garment silhouette"
                 accept="image/png"
-                imageUrl={product?.maskImageUrl}
+                imageUrl={product?.maskImageUrl ? resolveMediaUrl(product.maskImageUrl) : undefined}
                 tintHex={firstHex}
                 disabled={busy || !id}
                 onFile={(file) => uploadMaster(file, "mask")}
@@ -574,7 +575,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                   <div className="row" style={{ gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
                     <div>
                       <div style={{ width: 200, height: 200, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface-2)", overflow: "hidden" }}>
-                        <TintedGarment src={product.maskImageUrl} hex={activeSwatch?.hex} />
+                        <TintedGarment src={resolveMediaUrl(product.maskImageUrl)} hex={activeSwatch?.hex} />
                       </div>
                       {activeSwatch && (
                         <div className="row" style={{ gap: 8, alignItems: "center", marginTop: 8 }}>
@@ -606,7 +607,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
                             }}
                           >
                             <div style={{ width: 64, height: 64, borderRadius: 6, overflow: "hidden", background: "var(--surface-2)" }}>
-                              <TintedGarment src={product.maskImageUrl} hex={c.hex} />
+                              <TintedGarment src={resolveMediaUrl(product.maskImageUrl)} hex={c.hex} />
                             </div>
                             <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, maxWidth: 72 }}>
                               <span style={{ width: 10, height: 10, borderRadius: "50%", border: "1px solid var(--line)", background: c.hex, flexShrink: 0 }} />
@@ -633,6 +634,7 @@ export function ProductWizard({ mode, productId }: { mode: "create" | "edit"; pr
             <h3 style={{ marginBottom: 12 }}>Design placeholders</h3>
             <PrintAreaEditor
               images={[product?.baseImageUrl, product?.maskImageUrl].filter(Boolean) as string[]}
+              maskImageUrl={product?.maskImageUrl}
               colors={colorSwatches}
               value={printAreas}
               onChange={setAreas}

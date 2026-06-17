@@ -192,6 +192,24 @@ export async function linkCollectionToShopApi(collectionId: string, shopId: stri
   return mapCollection(col);
 }
 
+export async function archiveCollectionApi(collectionId: string) {
+  const col = await apiFetch<Record<string, unknown>>(`/collections/${collectionId}/archive`, {
+    method: "POST",
+  });
+  return mapCollection(col);
+}
+
+export async function restoreCollectionApi(collectionId: string) {
+  const col = await apiFetch<Record<string, unknown>>(`/collections/${collectionId}/restore`, {
+    method: "POST",
+  });
+  return mapCollection(col);
+}
+
+export async function deleteCollectionApi(collectionId: string) {
+  await apiFetch(`/collections/${collectionId}`, { method: "DELETE" });
+}
+
 export async function createCollectionApi(payload: {
   shopId?: string;
   name: string;
