@@ -185,9 +185,10 @@ function syncAuthState(){
   if(Date.now()-bootState.sessionAt<8000) return;
   S.authed=false; S.view='login';
 }
-function go(view, opts={}){ S.view=view; if(opts.nav)S.nav=opts.nav; Object.assign(S.flow, opts.flow||{}); window.scrollTo(0,0); render(); }
+function go(view, opts={}){ S.view=view; if(opts.nav)S.nav=opts.nav; Object.assign(S.flow, opts.flow||{}); if(view==='contacts')S.flow.contactsSearch=''; window.scrollTo(0,0); render(); }
 async function setNav(n){
   S.nav=n; S.view=n; closeLayer();
+  if(n==='contacts'){ S.flow.contactsSearch=''; }
   render();
   if(n==='catalog'&&!api.useMocks()&&api.isAuthenticated()){
     try{
@@ -2271,23 +2272,22 @@ function kitOpen(id){ const k=S.kits.find(x=>x.id===id);
 /* ===================== CONTACTS ===================== */
 function roleSel(c){ return `<select class="inp" style="height:34px;width:auto;padding:0 30px 0 12px;display:inline-block" data-act="noop">${['Owner','Admin','Sender','Member','Non-Member'].map(r=>`<option ${c.role===r?'selected':''}>${r}</option>`).join('')}</select>`; }
 function ViewContacts(){
-  const rows=S.contacts.map(c=>`<tr>
+  const query = (S.flow.contactsSearch || '').trim().toLowerCase();
+  const filtered = query
+    ? S.contacts.filter(c => (c.name || '').toLowerCase().includes(query) || (c.email || '').toLowerCase().includes(query))
+    : S.contacts;
+  const rows=filtered.map(c=>`<tr>
     <td><input type="checkbox" ${c.role!=='Owner'?'':'disabled'}></td>
     <td class="muted">${esc(c.email)}</td>
     <td style="font-weight:600">${esc(c.name)}</td>
     <td>${c.role==='Owner'?'Owner':roleSel(c)}</td>
     <td class="muted">${c.loc?esc(c.loc):'—'}</td>
     <td style="text-align:right"><button class="iconbtn" style="width:30px;height:30px" data-act="contactEdit" data-arg="${c.id}">${I.edit}</button></td></tr>`).join('');
-  const admins=S.contacts.filter(c=>['Owner','Admin'].includes(c.role)).length;
-  const senders=S.contacts.filter(c=>c.role==='Sender').length;
   return `<div class="page-h"><div><h1>Workspace Contacts</h1><div class="sub">People in your workspace, their roles, and gifting permissions.</div></div>
     <div class="row" style="gap:14px;align-items:center">
-      <div class="row" style="gap:16px"><div style="text-align:center"><div class="mut3" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Admins</div><div class="num" style="font-weight:700">${admins}</div></div>
-      <div style="text-align:center"><div class="mut3" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Senders</div><div class="num" style="font-weight:700">${senders}</div></div>
-      <div style="text-align:center"><div class="mut3" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700">Members</div><div class="num" style="font-weight:700">${S.contacts.length}</div></div></div>
       <button class="btn btn-dark" data-act="addContacts">${I.plus}Add contacts</button></div></div>
   <div class="card" style="padding:18px">
-    <div class="search" style="margin-bottom:14px">${I.search}<input placeholder="Search by name or email" data-act="noop"></div>
+    <div class="search" style="margin-bottom:14px">${I.search}<input placeholder="Search by name or email" data-act="contactsSearch" value="${esc(S.flow.contactsSearch || '')}"></div>
     <table class="tbl"><thead><tr><th></th><th>Email</th><th>Name</th><th>Role</th><th>Home address</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function addContacts(){
@@ -2391,14 +2391,36 @@ function renderAddContacts(){
   const importFile=S.flow.importFile;
   const importReady=!!(importFile&&S.flow.importPreview?.ready&&!S.flow.importParsing);
   const body = tab==='manual'
-    ? `<label class="lbl">Enter emails (comma separated)</label>
-       <textarea class="inp" id="ac-emails" rows="5" placeholder="Enter or paste emails separated by commas or line breaks" autofocus></textarea>
-       <div class="card" style="padding:12px 14px;margin-top:14px;display:flex;justify-content:space-between;align-items:center"><span class="muted" style="font-size:13px">Add these contacts to workspace as:</span>
-       <select class="inp" id="ac-role" style="width:auto;height:36px;padding:0 30px 0 12px"><option>Non-Member</option><option>Member</option><option>Sender</option><option>Admin</option></select></div>`
+    ? `<div class="row">
+         <div class="field" style="flex:1"><label class="lbl">First name</label><input class="inp" id="ac-first" placeholder="e.g. Sushant"></div>
+         <div class="field" style="flex:1"><label class="lbl">Last name</label><input class="inp" id="ac-last" placeholder="e.g. Praveen"></div>
+       </div>
+       <div class="row">
+         <div class="field" style="flex:1"><label class="lbl">Email</label><input class="inp" type="email" id="ac-email" placeholder="e.g. name@domain.com"></div>
+         <div class="field" style="flex:1"><label class="lbl">Phone</label><input class="inp" id="ac-phone" placeholder="e.g. +91 9876543210"></div>
+       </div>
+       <div class="row">
+         <div class="field" style="flex:1"><label class="lbl">Role</label>
+           <select class="inp" id="ac-role" style="height:40px"><option value="Non-Member">Non-Member</option><option value="Member" selected>Member</option><option value="Sender">Sender</option><option value="Admin">Admin</option></select>
+         </div>
+         <div class="field" style="flex:1"><label class="lbl">Department</label><input class="inp" id="ac-dept" placeholder="e.g. Engineering"></div>
+       </div>
+       <div class="row">
+         <div class="field" style="flex:1"><label class="lbl">Employee Code</label><input class="inp" id="ac-emp-code" placeholder="e.g. EMP001"></div>
+         <div class="field" style="flex:1"><label class="lbl">Country</label>
+           <select class="inp" id="ac-country" style="height:40px"><option value="IN" selected>India</option><option value="AE">UAE</option><option value="US">USA</option></select>
+         </div>
+       </div>
+       <div class="field"><label class="lbl">Address</label><input class="inp" id="ac-address" placeholder="e.g. N Convention Road Madhapur Hitech City"></div>
+       <div class="row">
+         <div class="field" style="flex:1"><label class="lbl">City</label><input class="inp" id="ac-city" placeholder="e.g. Hyderabad"></div>
+         <div class="field" style="flex:1"><label class="lbl">State</label><input class="inp" id="ac-state" placeholder="e.g. Telangana"></div>
+         <div class="field" style="flex:1"><label class="lbl">PIN Code</label><input class="inp" id="ac-pin" placeholder="e.g. 500081"></div>
+       </div>`
     : renderAcImportPanel();
   const submitLabel=tab==='csv'?(S.flow.importBusy?'Importing…':S.flow.importParsing?'Reading file…':'Import contacts'):'Add contacts';
   const submitDisabled=tab==='csv'&&(S.flow.importBusy||S.flow.importParsing||!importReady);
-  openModal(`<div class="modal-pad"><div class="modal-h"><h3>Add contacts</h3><button class="xbtn" data-act="closeLayer">✕</button></div>
+  openModal(`<div class="modal-pad" style="max-width:640px"><div class="modal-h"><h3>Add contacts</h3><button class="xbtn" data-act="closeLayer">✕</button></div>
     <div class="tabs" style="max-width:280px;margin:12px 0 18px">${[['manual','Manually'],['csv','Upload file']].map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="acTab" data-arg="${k}">${l}</button>`).join('')}</div>
     ${body}
     <div class="row" style="margin-top:20px"><button class="btn btn-ghost btn-block" data-act="closeLayer" ${S.flow.importBusy?'disabled':''}>Cancel</button><button class="btn btn-brand btn-block" data-act="addContactsDo" ${submitDisabled?'disabled':''}>${submitLabel}</button></div></div>`);
@@ -2406,20 +2428,72 @@ function renderAddContacts(){
 async function addContactsDo(){
   const tab=S.flow.addTab||'manual';
   if(tab==='csv') return addContactsImportDo();
-  const ta=document.getElementById('ac-emails');
-  const role=document.getElementById('ac-role')?document.getElementById('ac-role').value:'Member';
-  const emails=ta?(ta.value.split(/[\s,]+/).filter(x=>x.includes('@'))):[];
-  if(!emails.length){ closeLayer(); toast('No valid emails'); return; }
+  
+  const firstName = document.getElementById('ac-first') ? document.getElementById('ac-first').value.trim() : '';
+  const lastName = document.getElementById('ac-last') ? document.getElementById('ac-last').value.trim() : '';
+  const email = document.getElementById('ac-email') ? document.getElementById('ac-email').value.trim() : '';
+  const phone = document.getElementById('ac-phone') ? document.getElementById('ac-phone').value.trim() : '';
+  const role = document.getElementById('ac-role') ? document.getElementById('ac-role').value : 'Member';
+  const department = document.getElementById('ac-dept') ? document.getElementById('ac-dept').value.trim() : '';
+  const employeeCode = document.getElementById('ac-emp-code') ? document.getElementById('ac-emp-code').value.trim() : '';
+  const line1 = document.getElementById('ac-address') ? document.getElementById('ac-address').value.trim() : '';
+  const city = document.getElementById('ac-city') ? document.getElementById('ac-city').value.trim() : '';
+  const state = document.getElementById('ac-state') ? document.getElementById('ac-state').value.trim() : '';
+  const pincode = document.getElementById('ac-pin') ? document.getElementById('ac-pin').value.trim() : '';
+  const country = document.getElementById('ac-country') ? document.getElementById('ac-country').value : 'IN';
+
+  const name = [firstName, lastName].filter(Boolean).join(' ');
+
+  if (!email || !email.includes('@')) {
+    toast('Please enter a valid email address', false);
+    return;
+  }
+  if (!name) {
+    toast('Please enter a name', false);
+    return;
+  }
+
+  const payload = {
+    name,
+    email,
+    phone,
+    role,
+    department,
+    employeeCode,
+    address: {
+      line1,
+      city,
+      state,
+      pincode,
+      country
+    }
+  };
+
   if(api.useMocks()){
-    emails.forEach(em=>{ S.contacts.push({id:nid('p'),email:em,name:em.split('@')[0],role,address:'',loc:''}); });
-    closeLayer(); toast(`Added ${emails.length} contact${emails.length>1?'s':''}`); render();
+    const mockContact = {
+      id: nid('p'),
+      email,
+      name,
+      role,
+      phone,
+      department,
+      employeeCode,
+      address: line1,
+      loc: [city, state, country].filter(Boolean).join(', '),
+      city,
+      state,
+      pincode,
+      country
+    };
+    S.contacts.push(mockContact);
+    closeLayer(); toast('Added contact successfully'); render();
     return;
   }
   try{
-    const created=await api.addContactsFlow(emails,role);
-    S.contacts.push(...created);
-    closeLayer(); toast(`Added ${created.length} contact${created.length>1?'s':''}`); render();
-  }catch(err){ toast(err.message||'Failed to add contacts'); }
+    const created = await api.addContactFlow(payload);
+    S.contacts.push(created);
+    closeLayer(); toast('Added contact successfully'); render();
+  }catch(err){ toast(err.message||'Failed to add contact'); }
 }
 function acImportPick(){ document.getElementById('ac-import-inp')?.click(); }
 async function parseImportPreview(file){
@@ -2549,11 +2623,23 @@ async function addContactsImportDo(){
   }
 }
 function contactEdit(id){ const c=S.contacts.find(x=>x.id===id);
-  openModal(`<div class="modal-pad"><div class="modal-h"><h3>Fix recipient information</h3><button class="xbtn" data-act="closeLayer">✕</button></div>
+  openModal(`<div class="modal-pad" style="max-width:640px"><div class="modal-h"><h3>Fix recipient information</h3><button class="xbtn" data-act="closeLayer">✕</button></div>
     <p class="muted" style="font-size:13px;margin:6px 0 16px">Update this person's details so they can be added to orders. HRIS-synced fields will override manual entries.</p>
     <div class="row"><div class="field" style="flex:1"><label class="lbl">First name</label><input class="inp" id="contact-first" value="${esc(c.name.split(' ')[0]||'')}"></div>
     <div class="field" style="flex:1"><label class="lbl">Last name</label><input class="inp" id="contact-last" value="${esc(c.name.split(' ').slice(1).join(' '))}"></div></div>
     <div class="row"><div class="field" style="flex:1"><label class="lbl">Email</label><input class="inp" id="contact-email" value="${esc(c.email)}"></div>
+    <div class="field" style="flex:1"><label class="lbl">Phone</label><input class="inp" id="contact-phone" value="${esc(c.phone||'')}"></div></div>
+    <div class="row"><div class="field" style="flex:1"><label class="lbl">Department</label><input class="inp" id="contact-dept" value="${esc(c.department||'')}"></div>
+    <div class="field" style="flex:1"><label class="lbl">Employee Code</label><input class="inp" id="contact-emp-code" value="${esc(c.employeeCode||'')}"></div></div>
+    <div class="row"><div class="field" style="flex:1"><label class="lbl">Role</label>
+      <select class="inp" id="contact-role">
+        <option value="Owner" ${c.role==='Owner'?'selected':''}>Owner</option>
+        <option value="Admin" ${c.role==='Admin'?'selected':''}>Admin</option>
+        <option value="Sender" ${c.role==='Sender'?'selected':''}>Sender</option>
+        <option value="Member" ${c.role==='Member'?'selected':''}>Member</option>
+        <option value="Non-Member" ${c.role==='Non-Member'?'selected':''}>Non-Member</option>
+      </select>
+    </div>
     <div class="field" style="flex:1"><label class="lbl">Country</label><select class="inp" id="contact-country"><option value="IN" ${(c.country||'IN')==='IN'?'selected':''}>India</option><option value="AE" ${c.country==='AE'?'selected':''}>UAE</option><option value="US" ${c.country==='US'?'selected':''}>USA</option></select></div></div>
     <div class="field"><label class="lbl">Address</label><input class="inp" id="contact-address" value="${esc(c.address)}"></div>
     <div class="row"><div class="field" style="flex:1"><label class="lbl">City</label><input class="inp" id="contact-city" value="${esc(c.city||'')}"></div>
@@ -2573,6 +2659,10 @@ async function contactSave(id){
   const payload={
     name:[document.getElementById('contact-first').value.trim(),document.getElementById('contact-last').value.trim()].filter(Boolean).join(' '),
     email:document.getElementById('contact-email').value.trim(),
+    phone:document.getElementById('contact-phone').value.trim(),
+    role:document.getElementById('contact-role').value,
+    department:document.getElementById('contact-dept').value.trim(),
+    employeeCode:document.getElementById('contact-emp-code').value.trim(),
     address,
   };
   try{
@@ -3327,7 +3417,7 @@ const ACT = {
   shopLogoTab:(el,a)=>shopLogoTab(a),
   shopLogoPrev:(el)=>shopLogoPrev(el),
 };
-const LIVE = { spRecalc:1, spMsg:1, reMsg:1, reNote:1, singleLocLive:1, orgWLive:1, orgAllocLive:1, orgMgrLive:1 };  // input-driven
+const LIVE = { spRecalc:1, spMsg:1, reMsg:1, reNote:1, singleLocLive:1, orgWLive:1, orgAllocLive:1, orgMgrLive:1, contactsSearch:1 };  // input-driven
 const CHANGED = { schedSet:1, singleLocLive:1, orgWChange:1, orgMgrRole:1 };              // change-driven
 
 function onShelfMerchClick(e){
@@ -3362,6 +3452,17 @@ document.addEventListener('input', function(e){
   else if(a==='orgWLive') orgWLive(e);
   else if(a==='orgAllocLive') orgAllocLive(e);
   else if(a==='orgMgrLive') orgMgrLive(e);
+  else if(a==='contactsSearch') {
+    S.flow.contactsSearch = t.value;
+    const start = t.selectionStart;
+    const end = t.selectionEnd;
+    render();
+    const inp = document.querySelector('[data-act="contactsSearch"]');
+    if(inp){
+      inp.focus();
+      inp.setSelectionRange(start, end);
+    }
+  }
 });
 
 document.addEventListener('change', function(e){

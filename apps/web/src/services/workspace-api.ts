@@ -274,7 +274,22 @@ export async function updateShopApi(
 }
 
 export async function createContactsApi(
-  entries: Array<{ name: string; email: string; role: string }>,
+  entries: Array<{
+    name: string;
+    email: string;
+    role: string;
+    phone?: string;
+    department?: string;
+    employeeCode?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      country?: string;
+    };
+  }>,
 ) {
   const created = await Promise.all(
     entries.map((c) =>
@@ -284,6 +299,10 @@ export async function createContactsApi(
           name: c.name,
           email: c.email,
           role: c.role,
+          phone: c.phone,
+          department: c.department,
+          employeeCode: c.employeeCode,
+          address: c.address,
         }),
       }),
     ),
@@ -294,14 +313,19 @@ export async function createContactsApi(
 export async function updateContactApi(
   contactId: string,
   payload: {
-    name: string;
-    email: string;
-    address: {
-      line1: string;
-      city: string;
-      state: string;
-      pincode: string;
-      country: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    department?: string;
+    employeeCode?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      country?: string;
     };
   },
 ) {

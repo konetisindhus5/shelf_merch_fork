@@ -52,6 +52,9 @@ export type UiContact = {
   state?: string;
   pincode?: string;
   country?: string;
+  phone?: string;
+  department?: string;
+  employeeCode?: string;
 };
 
 export type UiKitProductRef = {
@@ -274,6 +277,9 @@ export function mapContact(c: ApiProduct): UiContact {
     state: addr.state || "",
     pincode: addr.pincode || "",
     country: addr.country || "IN",
+    phone: c.phone || "",
+    department: c.department || "",
+    employeeCode: c.employeeCode || "",
   };
 }
 

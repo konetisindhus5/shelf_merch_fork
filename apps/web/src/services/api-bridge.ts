@@ -191,17 +191,41 @@ export async function addContactsFlow(emails: string[], role: string) {
   return createContactsApi(entries);
 }
 
+export async function addContactFlow(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  department?: string;
+  employeeCode?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    country?: string;
+  };
+}) {
+  const result = await createContactsApi([payload]);
+  return result[0];
+}
+
 export async function updateContactFlow(
   contactId: string,
   payload: {
-    name: string;
-    email: string;
-    address: {
-      line1: string;
-      city: string;
-      state: string;
-      pincode: string;
-      country: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    department?: string;
+    employeeCode?: string;
+    address?: {
+      line1?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      country?: string;
     };
   },
 ): Promise<UiContact> {
