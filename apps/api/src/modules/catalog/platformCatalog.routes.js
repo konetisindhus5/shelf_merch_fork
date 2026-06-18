@@ -77,6 +77,7 @@ const printAreasSchema = z.object({
         widthPct: pct.refine((n) => n > 0, 'widthPct must be > 0'),
         heightPct: pct.refine((n) => n > 0, 'heightPct must be > 0'),
       }),
+      rotationDeg: z.number().optional().default(0),
       maxWidthCm: z.number().nonnegative().optional().default(0),
       maxHeightCm: z.number().nonnegative().optional().default(0),
       dpi: z.number().int().positive().optional().default(300),

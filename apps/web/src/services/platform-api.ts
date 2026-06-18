@@ -329,6 +329,7 @@ export type PrintArea = {
   label: string;
   mockupImageUrl?: string;
   box: PrintAreaBox;
+  rotationDeg?: number;
   maxWidthCm?: number;
   maxHeightCm?: number;
   dpi?: number;
