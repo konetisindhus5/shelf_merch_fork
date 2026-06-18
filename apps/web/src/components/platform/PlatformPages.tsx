@@ -376,6 +376,10 @@ function PrintAreaPreview({
             top: `${a.box.yPct}%`,
             width: `${a.box.widthPct}%`,
             height: `${a.box.heightPct}%`,
+            // Match Konva's top-left rotation origin so the editor and this
+            // preview show the print area at the same angle.
+            transform: a.rotationDeg ? `rotate(${a.rotationDeg}deg)` : undefined,
+            transformOrigin: "top left",
             border: resolvedArtwork ? "1px solid rgba(46,160,103,.5)" : "2px dashed rgba(46,160,103,.7)",
             background: resolvedArtwork ? "transparent" : "rgba(46,160,103,.1)",
             boxSizing: "border-box",

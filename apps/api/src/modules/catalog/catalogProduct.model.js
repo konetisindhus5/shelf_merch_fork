@@ -62,6 +62,7 @@ const catalogProductSchema = new mongoose.Schema(
           widthPct: { type: Number, default: 0 },
           heightPct: { type: Number, default: 0 },
         },
+        rotationDeg: { type: Number, default: 0 },
         maxWidthCm: { type: Number, default: 0 },
         maxHeightCm: { type: Number, default: 0 },
         dpi: { type: Number, default: 300 },
