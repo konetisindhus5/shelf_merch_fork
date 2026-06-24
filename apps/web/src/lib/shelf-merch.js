@@ -3,6 +3,12 @@
 import * as api from "../services/api-bridge.js";
 import collectionPreview from "../../assets/collection-preview.png";
 import startDesigningImg from "../../assets/start_designing.png";
+import kitsAndItemsImg from "../../assets/kits-&-items.png";
+import noKitsYetImg from "../../assets/no-kits-yet.png";
+import newHireKitImg from "../../assets/new-hire-kit.png";
+import festiveGiftBoxImg from "../../assets/festive-gift-box.png";
+import workFromHomeKitImg from "../../assets/work-from-home-kit.png";
+import wellnessKitImg from "../../assets/wellness-kit.png";
 
 let __mounted = false;
 /** Survives Vite HMR so a hot reload does not reset authed state or re-run boot. */
@@ -608,7 +614,6 @@ export function mountShelfMerch() {
     <div class="acct" data-act="toast" data-arg="Switch workspace"><div><div class="k">Account</div><div class="v">${esc(S.account)}</div></div>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#56655C" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></div>
     <div class="spacer"></div>
-    <button class="btn btn-dark" data-act="sendGift">${I.send}<span>Send Gift</span></button>
     <button class="iconbtn" data-act="toast" data-arg="Help & support">${I.help}</button>
     <div class="avatar" data-act="userMenu">${S.user.initials}</div>
   </div>
@@ -616,7 +621,7 @@ export function mountShelfMerch() {
     <aside class="sidebar scroll">
       ${NAV.map(([k, l, ic]) => `<div class="nav-item ${S.nav === k ? "on" : ""}" data-act="nav" data-arg="${k}">${ic}<span>${l}</span></div>`).join("")}
     </aside>
-    <main class="main scroll"><div class="wrap fade-in">${inner}</div></main>
+    <main class="main scroll"${S.nav === "kits" ? ' style="background:#fff"' : ''}><div class="wrap fade-in">${inner}</div></main>
   </div>
   `;
   }
@@ -4357,6 +4362,209 @@ export function mountShelfMerch() {
     const total = S.kits.length,
       live = S.kits.filter((k) => k.status === "live").length,
       sent = S.kits.filter((k) => k.sent).length;
+
+    if (total === 0) {
+      return `<div class="row" style="justify-content:flex-end;margin-bottom:12px;align-items:center;">
+  </div>
+  <div class="grid animate-fade-in" style="grid-template-columns: 3.3fr 1.7fr; gap: 16px; margin-bottom: 24px; align-items: stretch;">
+    <!-- Hero Banner Card -->
+    <div class="card" style="padding: 32px; display: flex; align-items: stretch; justify-content: space-between; background: #fff; position: relative;">
+      <div style="flex: 1.2; z-index: 2; padding-right: 12px; display: flex; flex-direction: column; justify-content: center;">
+        <h1 style="font-size: clamp(26px, 3vw, 32px); font-weight: 700; margin-bottom: 10px; font-family: var(--disp); line-height: 1.1; color: var(--ink);">Kits &amp; Items</h1>
+        <p class="muted" style="font-size: 13.5px; line-height: 1.55; margin-bottom: 24px; max-width: 340px;">
+          Bundle catalog products into reusable kits and send them to employees at scale for any occasion.
+        </p>
+        <div class="row" style="gap: 12px;">
+          <button class="btn btn-brand" data-act="createKitStart">Create your first kit</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('pre-designed-section')?.scrollIntoView({ behavior: 'smooth' })">View sample kits</button>
+        </div>
+      </div>
+      <div style="flex: 1; display: flex; justify-content: center; align-items: center; min-height: 160px; position: relative; z-index: 1; overflow: visible;">
+        <img src="${kitsAndItemsImg}" alt="Kits and Items" style="max-height: 220px; max-width: 100%; width: auto; height: auto; object-fit: contain; display: block;" />
+      </div>
+    </div>
+
+    <!-- Stat Cards 2x2 Grid -->
+    <div class="grid" style="grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px;">
+      <!-- Total kits -->
+      <div class="card stat" style="display: flex; flex-direction: column; justify-content: space-between; padding: 12px 16px;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="k" style="font-size: 12px; color: var(--ink-2); font-weight: 600;">Total kits</span>
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #EAF5EF; display: grid; place-items: center; color: var(--brand);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </div>
+          </div>
+          <div class="v num" style="font-family: var(--disp); font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--ink);">0</div>
+        </div>
+        <div class="mut3" style="font-size: 11px;">All created kits</div>
+      </div>
+
+      <!-- Live kits -->
+      <div class="card stat" style="display: flex; flex-direction: column; justify-content: space-between; padding: 12px 16px;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="k" style="font-size: 12px; color: var(--ink-2); font-weight: 600;">Live kits</span>
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #EAF5EF; display: grid; place-items: center; color: var(--brand);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
+            </div>
+          </div>
+          <div class="v num" style="font-family: var(--disp); font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--ink);">0</div>
+        </div>
+        <div class="mut3" style="font-size: 11px;">Active and sending</div>
+      </div>
+
+      <!-- Kits sent -->
+      <div class="card stat" style="display: flex; flex-direction: column; justify-content: space-between; padding: 12px 16px;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="k" style="font-size: 12px; color: var(--ink-2); font-weight: 600;">Kits sent</span>
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #EAF5EF; display: grid; place-items: center; color: var(--brand);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </div>
+          </div>
+          <div class="v num" style="font-family: var(--disp); font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--ink);">0</div>
+        </div>
+        <div class="mut3" style="font-size: 11px;">Total sent</div>
+      </div>
+
+      <!-- Recipients reached -->
+      <div class="card stat" style="display: flex; flex-direction: column; justify-content: space-between; padding: 12px 16px;">
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="k" style="font-size: 12px; color: var(--ink-2); font-weight: 600;">Recipients reached</span>
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #EAF5EF; display: grid; place-items: center; color: var(--brand);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+          </div>
+          <div class="v num" style="font-family: var(--disp); font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--ink);">45</div>
+        </div>
+        <div class="mut3" style="font-size: 11px;">Across all kits</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-Step Progress Flow Card -->
+  <div class="card" style="padding: 18px 28px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; background: #fff;">
+    <!-- Step 1 -->
+    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+      <div style="width: 34px; height: 34px; border-radius: 50%; background: #EAF5EF; color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">1</div>
+      <div style="color: var(--brand); flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px;"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8"/></svg>
+      </div>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 2px;">Create a kit</div>
+        <div class="muted" style="font-size: 12px; line-height: 1.35;">Choose products from the catalog and name your kit.</div>
+      </div>
+    </div>
+    <!-- Arrow -->
+    <div style="color: var(--line); font-size: 22px; font-weight: 300; padding: 0 24px; flex-shrink: 0;">&rsaquo;</div>
+    <!-- Step 2 -->
+    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+      <div style="width: 34px; height: 34px; border-radius: 50%; background: #EAF5EF; color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">2</div>
+      <div style="color: var(--brand); flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6a3 3 0 0 1 0 6M16.5 20a5 5 0 0 0-3-4.6"/></svg>
+      </div>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 2px;">Add recipients</div>
+        <div class="muted" style="font-size: 12px; line-height: 1.35;">Select employees or import contacts to receive the kit.</div>
+      </div>
+    </div>
+    <!-- Arrow -->
+    <div style="color: var(--line); font-size: 22px; font-weight: 300; padding: 0 24px; flex-shrink: 0;">&rsaquo;</div>
+    <!-- Step 3 -->
+    <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+      <div style="width: 34px; height: 34px; border-radius: 50%; background: #EAF5EF; color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 14px; flex-shrink: 0;">3</div>
+      <div style="color: var(--brand); flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 22px; height: 22px;"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+      </div>
+      <div>
+        <div style="font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 2px;">Send &amp; track</div>
+        <div class="muted" style="font-size: 12px; line-height: 1.35;">Launch your kit and monitor delivery status in real time.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two Columns Section -->
+  <div class="grid" style="grid-template-columns: 1fr 1.25fr; gap: 20px; align-items: stretch;">
+    <!-- Create from scratch Card -->
+    <div class="card" style="padding: 24px; display: flex; flex-direction: column; justify-content: space-between; background: #fff;">
+      <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 16px;">Create from scratch</h3>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px 0;">
+        <img src="${noKitsYetImg}" alt="No kits yet" style="max-height: 230px; margin-bottom: 18px; object-fit: contain;" />
+        <div style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 6px;">No kits yet</div>
+        <p class="muted" style="font-size: 12.5px; line-height: 1.5; margin-bottom: 20px; max-width: 300px;">
+          Looks like you haven't created any kits yet. Create your first kit to get started.
+        </p>
+        <button class="btn btn-brand" style="margin-bottom: 16px;" data-act="createKitStart">Create your first kit</button>
+        <div class="row" style="gap: 16px; font-size: 13px; font-weight: 600;">
+          <span class="lnk" style="display: inline-flex; align-items: center; gap: 6px;" data-act="addContacts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 6a3 3 0 0 1 0 6M16.5 20a5 5 0 0 0-3-4.6"/></svg>
+            Import recipients
+          </span>
+          <span class="lnk" style="display: inline-flex; align-items: center; gap: 6px;" data-act="toast" data-arg="Guide coming soon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .8-1 1.7M12 17h.01"/></svg>
+            Read guide
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pre-designed Kits Card -->
+    <div id="pre-designed-section" class="card" style="padding: 24px; background: #fff;">
+      <div class="row" style="justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+        <div>
+          <h3 style="font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 3px;">Pre-designed kits</h3>
+          <div class="muted" style="font-size: 12px;">Choose a ready-made template and customize it.</div>
+        </div>
+        <span class="lnk" style="font-size: 12.5px; font-weight: 700;" data-act="toast" data-arg="All pre-designed templates are listed below">View all</span>
+      </div>
+      
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 14px;">
+        <!-- Template 1 -->
+        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
+          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+            <img src="${newHireKitImg}" alt="New Hire Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
+          </div>
+          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">New Hire Kit</div>
+          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">6 items</div>
+          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="New Hire Kit">Use this kit</button>
+        </div>
+
+        <!-- Template 2 -->
+        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
+          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+            <img src="${festiveGiftBoxImg}" alt="Festive Gift Box" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
+          </div>
+          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Festive Gift Box</div>
+          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">8 items</div>
+          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Festive Gift Box">Use this kit</button>
+        </div>
+
+        <!-- Template 3 -->
+        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
+          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+            <img src="${workFromHomeKitImg}" alt="Work From Home Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
+          </div>
+          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Work From Home Kit</div>
+          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">7 items</div>
+          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Work From Home Kit">Use this kit</button>
+        </div>
+
+        <!-- Template 4 -->
+        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
+          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+            <img src="${wellnessKitImg}" alt="Wellness Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
+          </div>
+          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Wellness Kit</div>
+          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">6 items</div>
+          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Wellness Kit">Use this kit</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+    }
+
     const rows = S.kits
       .map(
         (k) => `<tr>
@@ -4372,14 +4580,20 @@ export function mountShelfMerch() {
     <button class="btn btn-brand" data-act="createKitStart">${I.plus}Create a kit</button></div>
     <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
       ${[
-        ["Total kits", total],
-        ["Live kits", live],
-        ["Kits sent", sent],
-        ["Recipients reached", "45"],
+        ["Total kits", total, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`],
+        ["Live kits", live, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>`],
+        ["Kits sent", sent, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`],
+        ["Recipients reached", "45", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`],
       ]
         .map(
-          ([k, v]) =>
-            `<div class="card stat"><div class="k">${k}</div><div class="v num">${v}</div></div>`,
+          ([k, v, icon]) =>
+            `<div class="card stat" style="padding: 12px 16px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <span class="k" style="font-size:12px;color:var(--ink-2);font-weight:600">${k}</span>
+            <div style="width: 28px; height: 28px; border-radius: 8px; background: #EAF5EF; display: grid; place-items: center; color: var(--brand);">${icon}</div>
+          </div>
+          <div class="v num" style="font-family:var(--disp);font-weight:800;font-size:26px;margin-top:2px;letter-spacing:-.03em;color:var(--ink);">${v}</div>
+        </div>`,
         )
         .join("")}</div>
     <div class="card" style="padding:22px">
@@ -4387,6 +4601,30 @@ export function mountShelfMerch() {
         <div class="search" style="max-width:260px">${I.search}<input style="height:36px" placeholder="Search kits" data-act="noop"></div></div>
       <table class="tbl"><thead><tr><th>Kit</th><th>Items</th><th>Status</th><th>Last sent</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
+  }
+
+  function usePreDesignedKit(kitName) {
+    let picked = [0, 2, 3];
+    let pkg = "box";
+    if (kitName === "New Hire Kit") {
+      picked = [0, 2, 3, 5, 6, 7];
+    } else if (kitName === "Festive Gift Box") {
+      picked = [0, 1, 2, 3, 4, 5, 6, 7];
+    } else if (kitName === "Work From Home Kit") {
+      picked = [0, 1, 2, 3, 4, 6, 7];
+    } else if (kitName === "Wellness Kit") {
+      picked = [0, 2, 3, 4, 5, 6];
+    }
+    S.flow = {
+      exitTo: "kits",
+      step: 0,
+      kitName: kitName,
+      picked: picked,
+      logoFile: null,
+      notes: "",
+      pkg: pkg,
+    };
+    go("createKit");
   }
   function kitOpen(id) {
     const k = S.kits.find((x) => x.id === id);
@@ -5010,8 +5248,62 @@ export function mountShelfMerch() {
     if (!list.length) {
       return `<div class="page-h"><div><h1>Campaigns</h1><div class="sub">Launch points campaigns and track redemptions.</div></div>
       <button class="btn btn-dark" data-act="sendGift">${I.send}<span>Send Gift</span></button></div>
-      <div class="card empty"><div class="ic">${I.camp.replace("currentColor", "#cdd6cf")}</div><h3>No campaigns yet</h3><p>Create a campaign from a shop or entity budget to send redemption invites.</p>
-        <button class="btn btn-brand" style="margin-top:14px" data-act="sendGift">${I.send} Send your first gift</button></div>`;
+      <div class="card" style="min-height:238px;padding:28px 24px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;margin-bottom:22px">
+        <div style="width:126px;height:100px;margin-bottom:8px;display:grid;place-items:center">
+          <svg viewBox="0 0 150 120" fill="none" aria-hidden="true" style="width:126px;height:100px">
+            <ellipse cx="74" cy="105" rx="43" ry="8" fill="#E8EEE9"/>
+            <path d="M39 64 75 82l36-18-36-17-36 17Z" fill="#F3F6F4"/>
+            <path d="M39 64v24l36 18V82L39 64Z" fill="#DCE5DF"/>
+            <path d="M111 64v24l-36 18V82l36-18Z" fill="#EEF3F0"/>
+            <path d="M75 47 52 36l-31 15 23 13 31-17Z" fill="#FFFFFF"/>
+            <path d="M75 47 98 36l31 15-23 13-31-17Z" fill="#F8FAF9"/>
+            <path d="M86 25 107 16l5 31-21 9-5-31Z" fill="#1E8E5C"/>
+            <path d="M105 18 123 12l5 31-17 5-6-30Z" fill="#0E5536"/>
+            <path d="m84 43-13 5-4-18 13-5 4 18Z" fill="#EAF5EF"/>
+            <rect x="61" y="35" width="16" height="8" rx="3" transform="rotate(77 61 35)" fill="#15784C"/>
+            <path d="M51 28c-8-5-16-6-24-2M114 63c7 3 12 8 14 15M67 14c-2-5-1-9 2-13" stroke="#D7E2DA" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="28" cy="72" r="3" fill="#BFD3C7"/>
+            <circle cx="78" cy="13" r="3" fill="#D7E2DA"/>
+            <circle cx="125" cy="67" r="2.5" fill="#BFD3C7"/>
+            <path d="m35 34 5 2m-17 18 5-1m97-21 6-3m-9 28 6 2" stroke="#15784C" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3 style="font-size:18px;margin-bottom:8px;color:var(--ink)">No campaigns yet</h3>
+        <p class="muted" style="font-size:13px;max-width:520px;margin-bottom:18px">Create a campaign from a shop or set a budget to send redemption invites.</p>
+        <button class="btn btn-brand" data-act="sendGift">Create your first campaign</button>
+      </div>
+      <h3 style="font-size:15px;margin:0 0 12px">Ways to get started</h3>
+      <div class="grid" style="grid-template-columns:1fr 1fr .76fr;gap:16px;margin-bottom:24px;align-items:stretch">
+        <div class="card" style="padding:20px 22px;display:flex;align-items:center;gap:22px">
+          <div style="width:54px;height:54px;border-radius:50%;background:var(--brand-50);color:var(--brand);display:grid;place-items:center;flex:none">${I.coin.replace("<svg ", '<svg style="width:25px;height:25px" ')}</div>
+          <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:5px">Send a gift</h4><p class="muted" style="font-size:12.5px;line-height:1.35;margin-bottom:14px;max-width:220px">Let recipients choose their own swag from your branded shop.</p><span class="lnk" style="font-size:12.5px" data-act="sendPointsStart">Send points campaign&nbsp;→</span></div>
+        </div>
+        <div class="card" style="padding:20px 22px;display:flex;align-items:center;gap:22px">
+          <div style="width:54px;height:54px;border-radius:50%;background:var(--brand-50);color:var(--brand);display:grid;place-items:center;flex:none">${I.box.replace("<svg ", '<svg style="width:25px;height:25px" ')}</div>
+          <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:5px">Send a kit</h4><p class="muted" style="font-size:12.5px;line-height:1.35;margin-bottom:14px;max-width:230px">Ship a curated bundle of branded items to recipients.</p><span class="lnk" style="font-size:12.5px" data-act="chooseKitToSend">Send kit campaign&nbsp;→</span></div>
+        </div>
+        <div class="card" style="padding:20px 22px;background:var(--brand-50);border-color:transparent;display:flex;align-items:flex-start;gap:16px">
+          <div style="width:30px;height:30px;color:var(--brand);display:grid;place-items:center;flex:none">${I.spark.replace("<svg ", '<svg style="width:22px;height:22px" ')}</div>
+          <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:7px">New to campaigns?</h4><p class="muted" style="font-size:12.5px;line-height:1.45;margin-bottom:18px">Launch, track and optimize your employee gifting in just a few steps.</p><span class="lnk" style="font-size:12.5px" data-act="toast" data-arg="Quick guide coming soon">View quick guide&nbsp;→</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:20px 18px 22px">
+        <h3 style="font-size:15px;margin:0 0 18px">Why use campaigns?</h3>
+        <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:0">
+          <div style="display:flex;gap:18px;align-items:center;padding:8px 28px 8px 0;border-right:1px solid var(--line-2)">
+            <div style="width:50px;height:50px;border-radius:50%;background:var(--surface-2);color:var(--brand);display:grid;place-items:center;flex:none">${I.contacts.replace("<svg ", '<svg style="width:24px;height:24px" ')}</div>
+            <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:5px">Reach more people</h4><p class="muted" style="font-size:12.5px;line-height:1.35">Send to one or many recipients instantly.</p></div>
+          </div>
+          <div style="display:flex;gap:18px;align-items:center;padding:8px 28px;border-right:1px solid var(--line-2)">
+            <div style="width:50px;height:50px;border-radius:50%;background:var(--surface-2);color:var(--brand);display:grid;place-items:center;flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:24px;height:24px"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/><rect x="3" y="10" width="4" height="10" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="13" width="4" height="7" rx="1"/></svg></div>
+            <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:5px">Track performance</h4><p class="muted" style="font-size:12.5px;line-height:1.35">Monitor redemptions and campaign performance.</p></div>
+          </div>
+          <div style="display:flex;gap:18px;align-items:center;padding:8px 0 8px 28px">
+            <div style="width:50px;height:50px;border-radius:50%;background:var(--surface-2);color:var(--brand);display:grid;place-items:center;flex:none">${I.spark.replace("<svg ", '<svg style="width:23px;height:23px" ')}</div>
+            <div><h4 style="font-family:var(--sans);font-size:14px;margin-bottom:5px">Drive engagement</h4><p class="muted" style="font-size:12.5px;line-height:1.35">Celebrate moments and boost employee satisfaction.</p></div>
+          </div>
+        </div>
+      </div>`;
     }
     const rows = list
       .map(
@@ -6177,6 +6469,7 @@ export function mountShelfMerch() {
     ekBack: () => ekBack(),
     ekNext: () => ekNext(),
     kitSaveEdit: () => kitSaveEdit(),
+    usePreDesignedKit: (el, a) => usePreDesignedKit(a),
     // send items
     sendItemsStart: (el) => sendItemsStart(el),
     siAddOpen: () => siAddOpen(),
