@@ -2,6 +2,7 @@
 // Wrapped so it mounts exactly once into #app/#toast/#layer when called from React.
 import * as api from '../services/api-bridge.js';
 import collectionPreview from '../../assets/collection-preview.png';
+import startDesigningImg from '../../assets/start_designing.png';
 
 let __mounted = false;
 /** Survives Vite HMR so a hot reload does not reset authed state or re-run boot. */
@@ -2435,12 +2436,14 @@ function shopTabBody(s,tab){
     <button class="btn btn-soft" style="margin-top:16px" data-act="toast" data-arg="${tab} saved">Edit ${tab.toLowerCase()}</button></div>`;
 }
 function swagEmptyDesigner(){
-  const demo=[{g:'cap'},{g:'note'},{g:'pillow'},{g:'hoodie'},{g:'bag'},{g:'tee'},{g:'bottle'},{g:'mug'}];
-  return `<div class="card" style="padding:26px">
-    <div class="grid" style="grid-template-columns:repeat(8,1fr);margin-bottom:20px">${demo.map(p=>`<div style="aspect-ratio:1;border:1px solid var(--line);border-radius:var(--r-sm);display:grid;place-items:center;background:var(--surface-2)">${PG[p.g]}</div>`).join('')}</div>
-    <div style="text-align:center"><h3 style="font-size:18px">Create swag collections instantly — no design skills required</h3>
-    <p class="muted" style="margin:6px 0 16px">Choose your products, add your artwork, and build a branded collection that'll wow users.</p>
-    <button class="btn btn-dark" data-act="swagDesignerStart">${I.plus}Start designing</button></div></div>`;
+  return `<div class="card" style="padding:40px;text-align:center;max-width:680px;margin:20px auto;box-shadow:var(--sh-1)">
+    <div style="margin-bottom:24px;border-radius:var(--r);overflow:hidden;background:var(--surface-2);border:1px solid var(--line);padding:24px;display:grid;place-items:center">
+      <img src="${startDesigningImg}" alt="Start designing" style="max-height:220px;max-width:100%;object-fit:contain">
+    </div>
+    <h3 style="font-size:22px;font-family:var(--disp);margin-bottom:8px;color:var(--ink)">Create swag collections instantly</h3>
+    <p class="muted" style="margin:8px auto 20px;max-width:48ch;line-height:1.6;font-size:14px">Choose from our curated product catalog, upload your brand assets, and generate mockups in minutes — no design skills required.</p>
+    <button class="btn btn-dark btn-lg" style="padding:0 28px" data-act="swagDesignerStart">${I.plus}Start designing</button>
+  </div>`;
 }
 function swagViewToggleHtml(view){
   return `<div class="view-toggle">
