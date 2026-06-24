@@ -101,7 +101,7 @@ function backLink(label,act,arg,opts={}){
 const defaultState = {
   authed:false, view:'login', nav:'orders', loading:false, loadingMessage:'',
   account:'Rubix', user:{name:'Chandra Sekhar', initials:'CS', email:'hr@rubix.net'},
-  catalogProducts:[], catalogTotal:0, campaigns:[
+  catalogProducts:[], catalogTotal:0, platformKits:[], campaigns:[
     {id:'camp1', name:'Diwali Rewards 2026', type:'send_points', status:'live', recipientCount:520, redemptions:231, redemptionPct:44, totalBudget:260000, creditsPerRecipient:500, launchDate:'Apr 20, 2026', color:'#DB2777'},
     {id:'camp2', name:'New Hire Welcome Gifts', type:'send_kit', status:'scheduled', recipientCount:180, redemptions:0, redemptionPct:0, totalBudget:90000, creditsPerRecipient:500, launchDate:'May 14, 2026', color:'#0891B2'},
     {id:'camp3', name:'Q2 Recognition Rewards', type:'send_points', status:'live', recipientCount:340, redemptions:156, redemptionPct:46, totalBudget:170000, creditsPerRecipient:500, launchDate:'Apr 1, 2026', color:'#65A30D'},
@@ -251,6 +251,24 @@ async function setNav(n){
     }finally{
       if(S.flow.catalogRequestId===requestId){
         S.flow.catalogLoading=false;
+        render();
+      }
+    }
+  }
+  if(n==='kits'&&!api.useMocks()&&api.isAuthenticated()){
+    const requestId=(S.flow.platformKitsRequestId||0)+1;
+    S.flow.platformKitsRequestId=requestId;
+    S.flow.platformKitsLoading=true;
+    render();
+    try{
+      const kits=await api.refreshPlatformKits();
+      if(S.flow.platformKitsRequestId!==requestId) return;
+      S.platformKits=kits;
+    }catch(_e){
+      if(S.flow.platformKitsRequestId===requestId) toast('Could not load pre-designed kits');
+    }finally{
+      if(S.flow.platformKitsRequestId===requestId){
+        S.flow.platformKitsLoading=false;
         render();
       }
     }
@@ -3378,6 +3396,57 @@ function productDetailTab(tab){
 function productPurchase(){ toast('Checkout coming soon — payment will be available in a future update'); }
 
 /* ===================== KITS ===================== */
+const MOCK_PLATFORM_KITS=[
+  {id:'mock-new-hire',name:'New Hire Kit',imageUrls:[newHireKitImg],items:[{},{},{},{},{},{}],picked:[0,2,3,5,6,7]},
+  {id:'mock-festive',name:'Festive Gift Box',imageUrls:[festiveGiftBoxImg],items:Array(8).fill({}),picked:[0,1,2,3,4,5,6,7]},
+  {id:'mock-wfh',name:'Work From Home Kit',imageUrls:[workFromHomeKitImg],items:Array(7).fill({}),picked:[0,1,2,3,4,6,7]},
+  {id:'mock-wellness',name:'Wellness Kit',imageUrls:[wellnessKitImg],items:Array(6).fill({}),picked:[0,2,3,4,5,6]},
+];
+function getPreDesignedKits(){
+  if(api.useMocks()) return MOCK_PLATFORM_KITS;
+  return S.platformKits||[];
+}
+function platformKitImage(kit){
+  const url=kit.imageUrls?.[0];
+  return url?resolveMediaSrc(url):noKitsYetImg;
+}
+function platformKitItemLabel(kit){
+  const count=Array.isArray(kit.items)?kit.items.length:0;
+  return count?`${count} item${count===1?'':'s'}`:'Curated bundle';
+}
+function platformKitPickedIndices(kit){
+  if(Array.isArray(kit.picked)&&kit.picked.length) return kit.picked.slice();
+  const catalog=getCatalogList();
+  const indices=[];
+  for(const item of kit.items||[]){
+    const pid=String(item.catalogProductId?._id||item.catalogProductId||'');
+    if(!pid) continue;
+    const idx=catalog.findIndex(p=>p.id===pid);
+    if(idx>=0&&!indices.includes(idx)) indices.push(idx);
+  }
+  return indices;
+}
+function preDesignedKitCardHtml(kit){
+  const id=kit._id||kit.id;
+  return `<div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
+          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
+            <img src="${esc(platformKitImage(kit))}" alt="${esc(kit.name)}" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
+          </div>
+          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">${esc(kit.name)}</div>
+          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">${platformKitItemLabel(kit)}</div>
+          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="${esc(id)}">Use this kit</button>
+        </div>`;
+}
+function preDesignedKitsGridHtml(){
+  if(S.flow.platformKitsLoading&&!api.useMocks()){
+    return `<div class="muted" style="text-align:center;padding:32px 12px;font-size:13px">Loading pre-designed kits…</div>`;
+  }
+  const kits=getPreDesignedKits();
+  if(!kits.length){
+    return `<div class="muted" style="text-align:center;padding:32px 12px;font-size:13px">No pre-designed kits available yet.</div>`;
+  }
+  return `<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 14px;">${kits.map(preDesignedKitCardHtml).join('')}</div>`;
+}
 function ViewKits() {
     const total = S.kits.length,
       live = S.kits.filter((k) => k.status === "live").length,
@@ -3540,47 +3609,7 @@ function ViewKits() {
         <span class="lnk" style="font-size: 12.5px; font-weight: 700;" data-act="toast" data-arg="All pre-designed templates are listed below">View all</span>
       </div>
       
-      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 14px;">
-        <!-- Template 1 -->
-        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
-          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
-            <img src="${newHireKitImg}" alt="New Hire Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
-          </div>
-          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">New Hire Kit</div>
-          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">6 items</div>
-          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="New Hire Kit">Use this kit</button>
-        </div>
-
-        <!-- Template 2 -->
-        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
-          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
-            <img src="${festiveGiftBoxImg}" alt="Festive Gift Box" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
-          </div>
-          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Festive Gift Box</div>
-          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">8 items</div>
-          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Festive Gift Box">Use this kit</button>
-        </div>
-
-        <!-- Template 3 -->
-        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
-          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
-            <img src="${workFromHomeKitImg}" alt="Work From Home Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
-          </div>
-          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Work From Home Kit</div>
-          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">7 items</div>
-          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Work From Home Kit">Use this kit</button>
-        </div>
-
-        <!-- Template 4 -->
-        <div class="card" style="padding: 14px; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--line); border-radius: var(--r); background: #fff; transition: transform 0.16s ease, box-shadow 0.16s ease;">
-          <div style="width: 100%; aspect-ratio: 1.4; background: #f4f6f4; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px;">
-            <img src="${wellnessKitImg}" alt="Wellness Kit" style="max-height: 90%; max-width: 90%; object-fit: contain;" />
-          </div>
-          <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 2px; color: var(--ink); text-align: center;">Wellness Kit</div>
-          <div class="muted" style="font-size: 11.5px; margin-bottom: 10px; text-align: center;">6 items</div>
-          <button class="btn btn-ghost btn-sm btn-block" style="border: 1px solid var(--line); font-weight: 600; font-size: 12px; height: 32px;" data-act="usePreDesignedKit" data-arg="Wellness Kit">Use this kit</button>
-        </div>
-      </div>
+      ${preDesignedKitsGridHtml()}
     </div>
   </div>`;
     }
@@ -3623,28 +3652,22 @@ function ViewKits() {
     </div>`;
   }
 
-  function usePreDesignedKit(kitName) {
-    let picked = [0, 2, 3];
-    let pkg = "box";
-    if (kitName === "New Hire Kit") {
-      picked = [0, 2, 3, 5, 6, 7];
-    } else if (kitName === "Festive Gift Box") {
-      picked = [0, 1, 2, 3, 4, 5, 6, 7];
-    } else if (kitName === "Work From Home Kit") {
-      picked = [0, 1, 2, 3, 4, 6, 7];
-    } else if (kitName === "Wellness Kit") {
-      picked = [0, 2, 3, 4, 5, 6];
-    }
-    S.flow = {
-      exitTo: "kits",
-      step: 0,
-      kitName: kitName,
-      picked: picked,
-      logoFile: null,
-      notes: "",
-      pkg: pkg,
+  function usePreDesignedKit(kitId) {
+    const kit=getPreDesignedKits().find(k=>String(k._id||k.id)===String(kitId));
+    if(!kit){ toast('Kit not found',false); return; }
+    const picked=platformKitPickedIndices(kit);
+    const pkg=kit.packaging==='none'?'none':'box';
+    S.flow={
+      exitTo:'kits',
+      step:0,
+      kitName:kit.name,
+      picked,
+      logoFile:null,
+      notes:kit.description||'',
+      pkg,
+      platformKitId:kit._id||kit.id,
     };
-    go("createKit");
+    go('createKit');
   }
 function kitOpen(id){ const k=S.kits.find(x=>x.id===id);
   const prods=kitProductLabels(k);

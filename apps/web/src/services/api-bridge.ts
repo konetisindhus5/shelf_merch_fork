@@ -132,6 +132,21 @@ export async function refreshCatalogProducts(category?: string): Promise<Catalog
   };
 }
 
+/** Active platform-curated kits for tenant kit templates. */
+export type PlatformKitTemplate = {
+  _id: string;
+  name: string;
+  description?: string;
+  packaging?: "none" | "box" | "premium_box";
+  imageUrls?: string[];
+  items?: Array<{ catalogProductId: string; qty?: number }>;
+  status?: string;
+};
+
+export async function refreshPlatformKits(): Promise<PlatformKitTemplate[]> {
+  return apiFetch<PlatformKitTemplate[]>("/catalog/kits");
+}
+
 export { fetchPlatformDashboard } from "./platform-api";
 
 export function applyWorkspaceToState(S: Record<string, unknown>, data: WorkspaceSnapshot) {
