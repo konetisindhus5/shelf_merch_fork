@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { key: "integrations", label: "Integrations", icon: Plug, migrated: false },
   { key: "billing", label: "Billing", icon: CreditCard, migrated: false },
   { key: "settings", label: "Settings", icon: Settings, migrated: true },
-  { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: false },
+  { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: true },
 ];
 
 function initialsOf(name: string) {
