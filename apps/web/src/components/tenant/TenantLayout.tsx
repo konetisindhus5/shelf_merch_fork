@@ -32,7 +32,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { key: "orders", label: "Orders", icon: Receipt, migrated: false },
+  { key: "orders", label: "Orders", icon: Receipt, migrated: true },
   { key: "wallets", label: "Wallets", icon: Wallet, migrated: true },
   { key: "shops", label: "Shops", icon: Store, migrated: false },
   { key: "swag", label: "Swag", icon: Shirt, migrated: false },
@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
   { key: "integrations", label: "Integrations", icon: Plug, migrated: false },
   { key: "billing", label: "Billing", icon: CreditCard, migrated: false },
   { key: "settings", label: "Settings", icon: Settings, migrated: true },
-  { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: false },
+  { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: true },
 ];
 
 function initialsOf(name: string) {
