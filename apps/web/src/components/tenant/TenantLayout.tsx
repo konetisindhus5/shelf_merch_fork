@@ -27,25 +27,57 @@ type NavItem = {
   migrated: boolean;
 };
 
-const NAV: NavItem[] = [
-  { key: "orders", label: "Orders", icon: Receipt, migrated: true },
-  { key: "wallets", label: "Wallets", icon: Wallet, migrated: true },
-  { key: "shops", label: "Shops", icon: Store, migrated: true },
-  { key: "swag", label: "Swag", icon: Shirt, migrated: false },
-  { key: "kits", label: "Kits", icon: Gift, migrated: false },
-  { key: "campaigns", label: "Campaigns", icon: Megaphone, migrated: false },
-  { key: "contacts", label: "Contacts", icon: Users, migrated: true },
-  { key: "integrations", label: "Integrations", icon: Plug, migrated: false },
-  { key: "billing", label: "Billing", icon: CreditCard, migrated: false },
-  { key: "settings", label: "Settings", icon: Settings, migrated: true },
-  { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: true },
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Workspace",
+    items: [
+      { key: "orders", label: "Orders", icon: Receipt, migrated: true },
+      { key: "wallets", label: "Wallets", icon: Wallet, migrated: true },
+      { key: "shops", label: "Shops", icon: Store, migrated: true },
+      { key: "swag", label: "Swag", icon: Shirt, migrated: false },
+      { key: "kits", label: "Kits", icon: Gift, migrated: false },
+      { key: "campaigns", label: "Campaigns", icon: Megaphone, migrated: false },
+    ],
+  },
+  {
+    label: "People & tools",
+    items: [
+      { key: "contacts", label: "Contacts", icon: Users, migrated: true },
+      { key: "integrations", label: "Integrations", icon: Plug, migrated: false },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { key: "billing", label: "Billing", icon: CreditCard, migrated: false },
+      { key: "settings", label: "Settings", icon: Settings, migrated: true },
+      { key: "catalog", label: "Catalog", icon: LayoutGrid, migrated: true },
+    ],
+  },
 ];
 
 const MIGRATED_APP_PATHS: Partial<
-  Record<string, "/app/contacts" | "/app/settings" | "/app/orders" | "/app/wallets" | "/app/catalog">
+  Record<
+    string,
+    | "/app/contacts"
+    | "/app/settings"
+    | "/app/orders"
+    | "/app/wallets"
+    | "/app/catalog"
+    | "/app/shops"
+  >
 > = {
+  orders: "/app/orders",
+  wallets: "/app/wallets",
+  shops: "/app/shops",
   contacts: "/app/contacts",
   settings: "/app/settings",
+  catalog: "/app/catalog",
 };
 
 function initialsOf(name: string) {
@@ -78,7 +110,7 @@ function formatWalletBalance(workspace: WorkspaceSnapshot | undefined) {
   const amount =
     workspace.org.active && workspace.org.wallet.amount != null
       ? workspace.org.wallet.amount
-      : workspace.wallets[0]?.balance ?? 0;
+      : (workspace.wallets[0]?.balance ?? 0);
   return `₹${Math.round(amount).toLocaleString("en-IN")}`;
 }
 
@@ -99,13 +131,7 @@ function TopbarChevron() {
   );
 }
 
-function SidebarNavItem({
-  item,
-  active,
-}: {
-  item: NavItem;
-  active: boolean;
-}) {
+function SidebarNavItem({ item, active }: { item: NavItem; active: boolean }) {
   const className = `nav-item${active ? " on" : ""}`;
   const inner = (
     <>
@@ -171,7 +197,7 @@ export default function TenantLayout() {
         </div>
         <div className="spacer" />
         <div className="topbar-right">
-          <a href="/?view=wallets" className="topbar-wallet" aria-label="Wallet balance">
+          <Link to="/app/wallets" className="topbar-wallet" aria-label="Wallet balance">
             <span className="topbar-wallet-icon">
               <img src={walletIconImg} alt="" className="topbar-wallet-img" aria-hidden="true" />
             </span>
@@ -182,7 +208,7 @@ export default function TenantLayout() {
                 <TopbarChevron />
               </span>
             </span>
-          </a>
+          </Link>
           <Link to="/app/settings" className="topbar-user" aria-label="Account menu">
             <span className="topbar-user-avatar">{initialsOf(userName)}</span>
             <span className="topbar-user-copy">
@@ -203,7 +229,10 @@ export default function TenantLayout() {
                 <SidebarNavItem
                   key={item.key}
                   item={item}
-                  active={pathname === `/app/${item.key}` || (item.key === "orders" && pathname === "/app")}
+                  active={
+                    pathname === `/app/${item.key}` ||
+                    (item.key === "orders" && pathname === "/app")
+                  }
                 />
               ))}
             </div>
