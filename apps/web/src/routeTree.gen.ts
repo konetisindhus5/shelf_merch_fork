@@ -30,6 +30,7 @@ import { Route as PlatformFinanceRouteImport } from './routes/platform.finance'
 import { Route as PlatformDashboardRouteImport } from './routes/platform.dashboard'
 import { Route as PlatformCatalogRouteImport } from './routes/platform.catalog'
 import { Route as PlatformAuditRouteImport } from './routes/platform.audit'
+import { Route as AppWalletsRouteImport } from './routes/app.wallets'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppContactsRouteImport } from './routes/app.contacts'
 import { Route as PlatformOrdersIndexRouteImport } from './routes/platform.orders.index'
@@ -148,6 +149,11 @@ const PlatformAuditRoute = PlatformAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => PlatformRoute,
 } as any)
+const AppWalletsRoute = AppWalletsRouteImport.update({
+  id: '/wallets',
+  path: '/wallets',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/platform': typeof PlatformRouteWithChildren
   '/app/contacts': typeof AppContactsRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/wallets': typeof AppWalletsRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/catalog': typeof PlatformCatalogRouteWithChildren
   '/platform/dashboard': typeof PlatformDashboardRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/accept-invite': typeof AcceptInviteRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/wallets': typeof AppWalletsRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/dashboard': typeof PlatformDashboardRoute
   '/platform/finance': typeof PlatformFinanceRoute
@@ -282,6 +290,7 @@ export interface FileRoutesById {
   '/platform': typeof PlatformRouteWithChildren
   '/app/contacts': typeof AppContactsRoute
   '/app/settings': typeof AppSettingsRoute
+  '/app/wallets': typeof AppWalletsRoute
   '/platform/audit': typeof PlatformAuditRoute
   '/platform/catalog': typeof PlatformCatalogRouteWithChildren
   '/platform/dashboard': typeof PlatformDashboardRoute
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/app/contacts'
     | '/app/settings'
+    | '/app/wallets'
     | '/platform/audit'
     | '/platform/catalog'
     | '/platform/dashboard'
@@ -352,6 +362,7 @@ export interface FileRouteTypes {
     | '/accept-invite'
     | '/app/contacts'
     | '/app/settings'
+    | '/app/wallets'
     | '/platform/audit'
     | '/platform/dashboard'
     | '/platform/finance'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/platform'
     | '/app/contacts'
     | '/app/settings'
+    | '/app/wallets'
     | '/platform/audit'
     | '/platform/catalog'
     | '/platform/dashboard'
@@ -571,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformAuditRouteImport
       parentRoute: typeof PlatformRoute
     }
+    '/app/wallets': {
+      id: '/app/wallets'
+      path: '/wallets'
+      fullPath: '/app/wallets'
+      preLoaderRoute: typeof AppWalletsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings': {
       id: '/app/settings'
       path: '/settings'
@@ -661,12 +680,14 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppContactsRoute: typeof AppContactsRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppWalletsRoute: typeof AppWalletsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppContactsRoute: AppContactsRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppWalletsRoute: AppWalletsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
