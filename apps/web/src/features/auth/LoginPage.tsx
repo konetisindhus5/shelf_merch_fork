@@ -1,14 +1,22 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { ChevronRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { login, isPlatformUser } from "@/services/api-bridge";
-import { AuthArt } from "./AuthArt";
-import "@/styles/shelf-merch.css";
+import {
+  AuthDivider,
+  AuthField,
+  AuthLayout,
+  GoogleSignInButton,
+  inputClassName,
+  inputWithToggleClassName,
+} from "./AuthLayout";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("hr@rubix.net");
   const [password, setPassword] = useState("demo1234");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -33,55 +41,72 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth">
-      <AuthArt />
-      <div className="auth-form">
-        <form className="inner stagger" onSubmit={submit}>
-          <div className="eyebrow">Welcome back</div>
-          <h1 style={{ fontSize: 30, marginBottom: 6 }}>Log in to Shelf Merch</h1>
-          <p className="muted" style={{ marginBottom: 22 }}>
-            Pick up where your people team left off.
-          </p>
-          <div className="field">
-            <label className="lbl">Work email</label>
+    <AuthLayout
+      headerHint="New here?"
+      headerActionLabel="Create an account"
+      headerActionTo="/signup"
+      cardIcon={Lock}
+      eyebrow="Welcome back 👋"
+      title="Log in to SwagStore"
+      subtitle="Pick up where your team left off."
+    >
+      <form className="mt-8 space-y-5" onSubmit={submit}>
+        <AuthField label="Work email" icon={Mail}>
+          <input
+            type="email"
+            placeholder="hr@rubix.net"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClassName}
+            autoFocus
+          />
+        </AuthField>
+
+        <div>
+          <AuthField label="Password" icon={Lock}>
             <input
-              className="inp"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="field">
-            <label className="lbl">Password</label>
-            <input
-              className="inp"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className={inputWithToggleClassName}
             />
-          </div>
-          <div style={{ textAlign: "right", marginBottom: 18 }}>
             <button
               type="button"
-              className="lnk-muted"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7a70] hover:text-[#0f4d2e]"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </AuthField>
+          <div className="mt-2 text-right">
+            <button
+              type="button"
+              className="text-sm font-medium text-[#0f4d2e] underline"
               onClick={() => toast("Reset link sent")}
             >
               Forgot password?
             </button>
           </div>
-          <button type="submit" className="btn btn-brand btn-lg btn-block" disabled={busy}>
-            {busy ? "Signing you in…" : "Log in"}
-          </button>
-          <p className="muted" style={{ textAlign: "center", marginTop: 16, fontSize: 13 }}>
-            New here?{" "}
-            <Link to="/signup" className="lnk">
-              Create an account
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0f4d2e] py-3.5 text-sm font-semibold text-white transition hover:bg-[#0a3a22] disabled:opacity-60"
+        >
+          {busy ? "Signing you in…" : "Log in"} {!busy && <ChevronRight className="h-4 w-4" />}
+        </button>
+
+        <AuthDivider />
+        <GoogleSignInButton onClick={() => toast("Google sign-in coming soon")} />
+
+        <p className="text-center text-sm text-[#6b7a70]">
+          New here?{" "}
+          <Link to="/signup" className="font-medium text-[#0f4d2e] underline">
+            Create an account
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 }
