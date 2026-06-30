@@ -1,6 +1,6 @@
 import type { UiCollection, UiProduct } from "@/services/mappers";
-import { ProductThumb } from "@/features/shops/ProductThumb";
 import { collectionProductColorNames, productColorHex } from "./colors";
+import { DesignedProductThumb } from "./DesignedProductThumb";
 
 /** A single branded design within a collection. */
 export function DesignCard({
@@ -24,7 +24,7 @@ export function DesignCard({
       onClick={onOpen}
       aria-label={`View ${product.nm} design`}
     >
-      <ProductThumb product={product} branded />
+      <DesignedProductThumb product={product} artworkUrl={collection.artworkUrl} />
       <div className="meta">
         {(swatches.length > 0 || more > 0) && (
           <div className="swatches">

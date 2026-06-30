@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiProduct } from "@/services/mappers";
 
@@ -5,14 +6,14 @@ import type { UiProduct } from "@/services/mappers";
 const SWATCH_DOTS = ["#1c1c1c", "#2b4a8b", "#9a9a9a", "#7a4a25"];
 
 function thumb(p: UiProduct): string | undefined {
-  return resolveMediaUrl(p.mockupUrl) || resolveMediaUrl(p.imgUrl);
+  return resolveMediaUrl(p.mockupUrl) || resolveMediaUrl(p.photoUrl) || resolveMediaUrl(p.imgUrl);
 }
 
 /** Catalog/browse product card — faithful to the legacy `pcard()` markup. */
-export function ProductCard({ product, onOpen }: { product: UiProduct; onOpen: () => void }) {
+export function ProductCard({ product }: { product: UiProduct }) {
   const src = thumb(product);
-  return (
-    <button type="button" className="pcard" onClick={onOpen} aria-label={`View ${product.nm}`}>
+  const content = (
+    <>
       <div className="img">
         {src ? (
           <img
@@ -44,6 +45,22 @@ export function ProductCard({ product, onOpen }: { product: UiProduct; onOpen: (
           </div>
         )}
       </div>
-    </button>
+    </>
   );
+
+  if (product.id) {
+    return (
+      <Link
+        to="/app/catalog/$id"
+        params={{ id: product.id }}
+        className="pcard"
+        aria-label={`View ${product.nm}`}
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className="pcard">{content}</div>;
 }

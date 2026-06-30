@@ -32,7 +32,7 @@ export function PreDesignedKits() {
   }
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
       {kits.map((kit) => (
         <div
           key={kit._id}

@@ -1,5 +1,5 @@
 /**
- * Thin bridge between the vanilla shelf-merch.js engine and TypeScript API services.
+ * Typed API helpers shared by React features and public surfaces.
  */
 import { ApiError, apiFetch, publicFetch } from "./api";
 import {
@@ -45,18 +45,6 @@ import type { UiContact, UiProduct } from "./mappers";
 
 export { ApiError, getStoredUser, isAuthenticated, isPlatformUser };
 export type { AuthUser };
-
-export function runChatAction(action: string): boolean {
-  if (typeof window === "undefined") return false;
-  const run = (window as Window & { __shelfMerchRunAction?: (a: string) => void })
-    .__shelfMerchRunAction;
-  if (typeof run === "function") {
-    run(action);
-    return true;
-  }
-  window.dispatchEvent(new CustomEvent("sm:chat-action", { detail: { action } }));
-  return false;
-}
 
 export function useMocks(): boolean {
   return USE_MOCKS;
@@ -145,6 +133,11 @@ export async function refreshCatalogProducts(category?: string): Promise<Catalog
   };
 }
 
+export async function fetchCatalogProduct(id: string) {
+  const product = await apiFetch<unknown>(`/catalog/products/${id}`);
+  return mapCatalogProduct(product);
+}
+
 /** Active platform-curated kits for tenant kit templates. */
 export type PlatformKitTemplate = {
   _id: string;
@@ -161,40 +154,6 @@ export async function refreshPlatformKits(): Promise<PlatformKitTemplate[]> {
 }
 
 export { fetchPlatformDashboard } from "./platform-api";
-
-export function applyWorkspaceToState(S: Record<string, unknown>, data: WorkspaceSnapshot) {
-  const prevOrg = (S.org ?? {}) as {
-    step?: number;
-    seq?: number;
-    inWizard?: boolean;
-    _c?: number;
-  };
-  S.account = data.account;
-  S.user = {
-    ...data.userPatch,
-    email: data.userPatch.email,
-    role: data.userPatch.role || "company_admin",
-  };
-  S.shops = data.shops;
-  S.contacts = data.contacts;
-  S.kits = data.kits;
-  S.collections = data.collections;
-  S.catalogProducts = data.catalogProducts;
-  S.catalogTotal = data.catalogTotal;
-  S.campaigns = data.campaigns;
-  S.orders = data.orders;
-  S.wallets = data.wallets;
-  S.primaryEntityId = data.primaryEntityId;
-  // Replace org data from API; keep only in-progress wizard navigation state.
-  S.org = {
-    step: prevOrg.step ?? 1,
-    seq: prevOrg.seq ?? 6,
-    _c: prevOrg._c,
-    ...data.org,
-    // Preserve in-progress wizard navigation state over the API snapshot.
-    inWizard: prevOrg.inWizard ?? false,
-  };
-}
 
 export async function createShopFlow(payload: {
   name: string;

@@ -1,4 +1,4 @@
-/** Mirrors apps/web/src/lib/shelf-merch.js DEMO_PRODUCTS — enriched for platform catalog demos. */
+/** Enriched platform catalog demo products for API seeding. */
 export const CATALOG_PRODUCTS = [
   {
     sku: 'SM-TEE-001',

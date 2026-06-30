@@ -7,7 +7,7 @@ export type StoreShop = {
   bannerPreset?: string;
 };
 
-// Mirrors BANNER_THEMES in lib/shelf-merch.js so public surfaces match the
+// Banner theme presets shared with the tenant shop builder.
 // branding the admin picked in the shop builder.
 export const BANNER_THEMES: Record<string, { bg: string; text: string }> = {
   light: { bg: "#FBFCFB", text: "#0E1E16" },

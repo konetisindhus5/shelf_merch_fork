@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/tenant/PageHeader";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import type { UiProduct } from "@/services/mappers";
 import { ProductCard } from "./ProductCard";
-import { ProductQuickView } from "./ProductQuickView";
 import { useCatalog } from "./hooks";
 import { ALL_PRODUCTS, CATALOG_CATEGORIES } from "./types";
 
@@ -30,7 +28,6 @@ function CatalogSkeleton() {
 export function CatalogPage() {
   const { data: workspace } = useWorkspace();
   const [category, setCategory] = useState<string>(ALL_PRODUCTS);
-  const [selected, setSelected] = useState<{ product: UiProduct; index: number } | null>(null);
 
   const seed = useMemo(
     () =>
@@ -83,16 +80,10 @@ export function CatalogPage() {
       ) : (
         <div style={GRID_STYLE}>
           {items.map((p, index) => (
-            <ProductCard
-              key={p.id ?? `${p.nm}-${index}`}
-              product={p}
-              onOpen={() => setSelected({ product: p, index })}
-            />
+            <ProductCard key={p.id ?? `${p.nm}-${index}`} product={p} />
           ))}
         </div>
       )}
-
-      <ProductQuickView selected={selected} onOpenChange={(open) => !open && setSelected(null)} />
     </>
   );
 }

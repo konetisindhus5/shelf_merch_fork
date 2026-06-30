@@ -11,8 +11,8 @@ declare module "@tanstack/react-router" {
   }
 }
 
-// No StrictMode: the shelf-merch engine mounts imperatively (document-level
-// listeners + innerHTML) and is not safe to double-invoke in dev.
+// React 19 StrictMode double-mounts effects in dev; the app uses imperative portals
+// and document-level listeners in a few places, so we mount without StrictMode.
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <RouterProvider router={router} />,
 );

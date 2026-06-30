@@ -329,7 +329,10 @@ export async function createCollectionApi(payload: {
   }
   if (payload.mockups?.length) {
     const withMockups = await uploadCollectionMockupsApi(result.id, payload.mockups, catalogById);
-    if (withMockups) result = withMockups;
+    if (!withMockups) {
+      throw new Error("Failed to save product mockups — try generating designs again");
+    }
+    result = withMockups;
   }
   return result;
 }

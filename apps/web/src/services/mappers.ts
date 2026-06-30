@@ -26,7 +26,9 @@ export type UiProduct = {
   colors?: string[];
   /** Variant colour name → hex (from catalog variants). */
   colorHexByName?: Record<string, string>;
-  /** Resolved marketing/catalog photo URL. */
+  /** Resolved marketing/catalog photo URL (primary product image). */
+  photoUrl?: string;
+  /** Display URL for mockup/design flows — prefers production mask when set. */
   imgUrl?: string;
   /** Transparent design/production image used by artwork mockups. */
   maskImageUrl?: string;
@@ -215,7 +217,8 @@ function extractVariantColors(
 
 export function mapCatalogProduct(p: ApiProduct): UiProduct {
   const { colors: variantColors, colorHexByName } = extractVariantColors(p.variants);
-  const imgUrl = resolveMediaUrl(p.primaryImageUrl || p.imageUrls?.[0] || p.maskImageUrl);
+  const photoUrl = resolveMediaUrl(p.primaryImageUrl || p.imageUrls?.[0]);
+  const imgUrl = resolveMediaUrl(p.maskImageUrl || photoUrl);
   const printAreas = Array.isArray(p.printAreas)
     ? (p.printAreas as UiPrintArea[]).filter((a) => a?.box?.widthPct > 0 && a?.box?.heightPct > 0)
     : undefined;
@@ -232,6 +235,7 @@ export function mapCatalogProduct(p: ApiProduct): UiProduct {
     sw: Array.isArray(p.variants) ? Math.max(p.variants.length, 2) : 4,
     colors: variantColors,
     colorHexByName: Object.keys(colorHexByName).length ? colorHexByName : undefined,
+    photoUrl,
     imgUrl,
     maskImageUrl: resolveMediaUrl(p.maskImageUrl),
     printAreas: printAreas?.length ? printAreas : undefined,
@@ -241,7 +245,12 @@ export function mapCatalogProduct(p: ApiProduct): UiProduct {
 export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProduct>): UiProduct {
   const id = ref.catalogProductId ? String(ref.catalogProductId) : undefined;
   const fromCatalog = id ? catalogById?.get(id) : undefined;
-  const imgUrl = resolveMediaUrl(ref.imgUrl || ref.primaryImageUrl || ref.imageUrls?.[0] || ref.maskImageUrl || fromCatalog?.imgUrl);
+  const photoUrl = resolveMediaUrl(
+    ref.primaryImageUrl || ref.imageUrls?.[0] || fromCatalog?.photoUrl,
+  );
+  const imgUrl = resolveMediaUrl(
+    ref.maskImageUrl || ref.imgUrl || photoUrl || fromCatalog?.imgUrl,
+  );
   return {
     id,
     g: ref.group || fromCatalog?.g || "tee",
@@ -255,6 +264,7 @@ export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProdu
     sw: fromCatalog?.sw ?? 4,
     colors: fromCatalog?.colors,
     colorHexByName: fromCatalog?.colorHexByName,
+    photoUrl: photoUrl || fromCatalog?.photoUrl,
     imgUrl,
     maskImageUrl: resolveMediaUrl(ref.maskImageUrl) || fromCatalog?.maskImageUrl,
     mockupUrl: resolveMediaUrl(ref.mockupUrl),

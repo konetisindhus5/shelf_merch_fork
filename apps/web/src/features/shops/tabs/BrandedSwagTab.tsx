@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Shirt } from "lucide-react";
+import { DesignedProductThumb } from "@/features/swag/DesignedProductThumb";
 import type { UiCollection, UiShop } from "@/services/mappers";
-import { ProductThumb } from "../ProductThumb";
 
 const LOCKER_ITEMS: [string, number][] = [
   ["Mercer+Mettle Pack", 42],
@@ -168,7 +168,11 @@ function CollectionCard({ collection }: { collection: UiCollection }) {
         style={{ gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginBottom: 12 }}
       >
         {products.map((p, i) => (
-          <ProductThumb key={`${p.id ?? p.nm}-${i}`} product={p} branded />
+          <DesignedProductThumb
+            key={`${p.id ?? p.nm}-${i}`}
+            product={p}
+            artworkUrl={collection.artworkUrl}
+          />
         ))}
       </div>
       <div style={{ fontWeight: 700, fontSize: 14 }}>{collection.name}</div>

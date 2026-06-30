@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { type StoreShop } from "../StoreBanner";
 import { resolveColorHex } from "@/lib/colorMap";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
+import {
+  DesignedProductThumb,
+  storeProductAsUi,
+} from "@/features/swag/DesignedProductThumb";
 import heroBanner from "../../../assets/hero-banner.png";
 
 type PrintArea = {
@@ -32,12 +36,6 @@ export type StoreProduct = {
   printAreas?: PrintArea[];
   variants?: Array<{ size?: string; color?: string; colorHex?: string; material?: string; sku?: string }>;
 };
-
-function normMediaPath(url?: string) {
-  if (!url) return "";
-  const path = url.replace(/^https?:\/\/[^/]+/i, "");
-  return path.startsWith("/") ? path : `/${path}`;
-}
 
 function variantColorNames(p: StoreProduct) {
   return distinct(p.variants?.map((v) => v.color) ?? []);
@@ -82,85 +80,22 @@ function productColorOptions(p: StoreProduct): Array<{ name: string; hex: string
   );
 }
 
-function pickPrintArea(p: StoreProduct): PrintArea | null {
-  const areas = p.printAreas;
-  if (!areas?.length) return null;
-  const mask = normMediaPath(p.maskImageUrl);
-  if (mask) {
-    const maskArea = areas.find((a) => normMediaPath(a.mockupImageUrl) === mask);
-    if (maskArea) return maskArea;
-  }
-  const img = normMediaPath(productImage(p));
-  if (img) {
-    const match = areas.find((a) => normMediaPath(a.mockupImageUrl) === img);
-    if (match) return match;
-  }
-  return areas.find((a) => a?.box?.widthPct > 0 && a?.box?.heightPct > 0) || areas[0] || null;
-}
-
-function printAreaWrapStyle(box?: PrintArea["box"]): CSSProperties {
-  const fit: CSSProperties = {
-    boxSizing: "border-box",
-    overflow: "hidden",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 0,
-    minHeight: 0,
-    pointerEvents: "none",
-  };
-  if (!box?.widthPct || !box?.heightPct) {
-    return {
-      position: "absolute",
-      left: "50%",
-      top: "50%",
-      transform: "translate(-50%, -50%)",
-      width: "34%",
-      height: "34%",
-      ...fit,
-    };
-  }
-  return {
-    position: "absolute",
-    left: `${box.xPct}%`,
-    top: `${box.yPct}%`,
-    width: `${box.widthPct}%`,
-    height: `${box.heightPct}%`,
-    ...fit,
-  };
-}
-
 function ArtworkMockup({ product, className, style }: { product: StoreProduct; className?: string; style?: CSSProperties }) {
-  const overlay = product.artworkUrl ? resolveMediaUrl(product.artworkUrl) : "";
-  const baked = product.mockupUrl ? resolveMediaUrl(product.mockupUrl) : "";
-  // Designed products composite onto the transparent design mask (not the
-  // marketing photo) so the base is consistent with the swag designer all the
-  // way through to redemption. A pre-baked mockup, when present, is shown as-is.
-  const img = baked || (overlay ? resolveMediaUrl(product.maskImageUrl) || productImage(product) : productImage(product));
-  const area = pickPrintArea(product);
-
-  if (!img) {
+  const ui = storeProductAsUi(product);
+  if (!ui.imgUrl && !ui.mockupUrl && !product.artworkUrl) {
     return (
       <div className={className} style={{ display: "grid", placeItems: "center", height: "100%", ...style }}>
         <span className="mut3" style={{ fontSize: 12 }}>No image</span>
       </div>
     );
   }
-
   return (
-    <div className={className} style={{ position: "relative", width: "100%", height: "100%", ...style }}>
-      <img
-        className="mockup-base"
-        src={img}
-        alt={product.name}
-        style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-      />
-      {!baked && overlay && area && (
-        <div className="art-overlay" style={printAreaWrapStyle(area.box)}>
-          <img className="art-overlay-img" src={overlay} alt="Artwork" />
-        </div>
-      )}
-    </div>
+    <DesignedProductThumb
+      product={ui}
+      artworkUrl={product.artworkUrl}
+      className={className}
+      style={style}
+    />
   );
 }
 

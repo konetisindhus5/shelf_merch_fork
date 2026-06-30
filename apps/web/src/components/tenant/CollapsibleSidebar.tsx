@@ -118,11 +118,7 @@ function readExpandedPreference(): boolean {
   }
 }
 
-function isItemActive(item: SidebarNavItem, pathname: string, legacyActiveKey?: string): boolean {
-  if (legacyActiveKey !== undefined) {
-    if (item.internal || item.key === "home") return false;
-    return item.key === legacyActiveKey;
-  }
+function isItemActive(item: SidebarNavItem, pathname: string): boolean {
   if (item.match) return item.match(pathname);
   if (item.internal) return pathname === item.href;
   return false;
@@ -132,14 +128,12 @@ function SidebarNavLink({
   item,
   active,
   expanded,
-  legacyMode,
   onItemHover,
   onItemLeave,
 }: {
   item: SidebarNavItem;
   active: boolean;
   expanded: boolean;
-  legacyMode: boolean;
   onItemHover: (label: string, el: HTMLElement) => void;
   onItemLeave: () => void;
 }) {
@@ -171,14 +165,6 @@ function SidebarNavLink({
     ...hoverHandlers,
   };
 
-  if (legacyMode && !item.internal) {
-    return (
-      <button type="button" {...linkProps} onClick={() => window.__shelfMerchNavigate?.(item.key)}>
-        {content}
-      </button>
-    );
-  }
-
   if (item.internal) {
     return (
       <Link to={item.href} {...linkProps}>
@@ -194,18 +180,12 @@ function SidebarNavLink({
   );
 }
 
-export type CollapsibleSidebarProps = {
-  /** When set, sidebar is hosted inside the legacy shelf-merch shell. */
-  legacyActiveKey?: string;
-};
-
-export function CollapsibleSidebar({ legacyActiveKey }: CollapsibleSidebarProps = {}) {
+export function CollapsibleSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const railRef = useRef<HTMLElement>(null);
   const [expanded, setExpanded] = useState(readExpandedPreference);
   const [flyout, setFlyout] = useState<HoverFlyout | null>(null);
   const [togglePos, setTogglePos] = useState<{ top: number; left: number } | null>(null);
-  const legacyMode = legacyActiveKey !== undefined;
 
   const syncTogglePosition = useCallback(() => {
     const rail = railRef.current;
@@ -292,9 +272,8 @@ export function CollapsibleSidebar({ legacyActiveKey }: CollapsibleSidebarProps 
             <SidebarNavLink
               key={item.key}
               item={item}
-              active={isItemActive(item, pathname, legacyActiveKey)}
+              active={isItemActive(item, pathname)}
               expanded={expanded}
-              legacyMode={legacyMode}
               onItemHover={showFlyout}
               onItemLeave={hideFlyout}
             />

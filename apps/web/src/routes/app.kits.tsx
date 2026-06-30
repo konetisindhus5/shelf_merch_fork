@@ -1,6 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { KitsPage } from "@/features/kits/KitsPage";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app/kits")({
-  component: KitsPage,
+  component: Outlet,
 });

@@ -38,7 +38,6 @@ import { Route as AppOrdersRouteImport } from './routes/app.orders'
 import { Route as AppKitsRouteImport } from './routes/app.kits'
 import { Route as AppIntegrationsRouteImport } from './routes/app.integrations'
 import { Route as AppContactsRouteImport } from './routes/app.contacts'
-import { Route as AppCatalogRouteImport } from './routes/app.catalog'
 import { Route as AppCampaignsRouteImport } from './routes/app.campaigns'
 import { Route as AppBillingRouteImport } from './routes/app.billing'
 import { Route as PlatformOrdersIndexRouteImport } from './routes/platform.orders.index'
@@ -46,6 +45,8 @@ import { Route as PlatformKitsIndexRouteImport } from './routes/platform.kits.in
 import { Route as PlatformCatalogIndexRouteImport } from './routes/platform.catalog.index'
 import { Route as AppSwagIndexRouteImport } from './routes/app.swag.index'
 import { Route as AppShopsIndexRouteImport } from './routes/app.shops.index'
+import { Route as AppKitsIndexRouteImport } from './routes/app.kits.index'
+import { Route as AppCatalogIndexRouteImport } from './routes/app.catalog.index'
 import { Route as PlatformOrdersIdRouteImport } from './routes/platform.orders.$id'
 import { Route as PlatformKitsNewRouteImport } from './routes/platform.kits.new'
 import { Route as PlatformKitsImportRouteImport } from './routes/platform.kits.import'
@@ -57,6 +58,7 @@ import { Route as AppSwagNewRouteImport } from './routes/app.swag.new'
 import { Route as AppShopsNewRouteImport } from './routes/app.shops.new'
 import { Route as AppShopsIdRouteImport } from './routes/app.shops.$id'
 import { Route as AppKitsNewRouteImport } from './routes/app.kits.new'
+import { Route as AppCatalogIdRouteImport } from './routes/app.catalog.$id'
 import { Route as AppCampaignsSendPointsRouteImport } from './routes/app.campaigns.send-points'
 import { Route as AppKitsIdSendRouteImport } from './routes/app.kits.$id.send'
 import { Route as AppKitsIdEditRouteImport } from './routes/app.kits.$id.edit'
@@ -206,11 +208,6 @@ const AppContactsRoute = AppContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCatalogRoute = AppCatalogRouteImport.update({
-  id: '/catalog',
-  path: '/catalog',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
@@ -244,6 +241,16 @@ const AppSwagIndexRoute = AppSwagIndexRouteImport.update({
 const AppShopsIndexRoute = AppShopsIndexRouteImport.update({
   id: '/shops/',
   path: '/shops/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKitsIndexRoute = AppKitsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppKitsRoute,
+} as any)
+const AppCatalogIndexRoute = AppCatalogIndexRouteImport.update({
+  id: '/catalog/',
+  path: '/catalog/',
   getParentRoute: () => AppRoute,
 } as any)
 const PlatformOrdersIdRoute = PlatformOrdersIdRouteImport.update({
@@ -301,6 +308,11 @@ const AppKitsNewRoute = AppKitsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AppKitsRoute,
 } as any)
+const AppCatalogIdRoute = AppCatalogIdRouteImport.update({
+  id: '/catalog/$id',
+  path: '/catalog/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCampaignsSendPointsRoute = AppCampaignsSendPointsRouteImport.update({
   id: '/send-points',
   path: '/send-points',
@@ -326,7 +338,6 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/billing': typeof AppBillingRoute
   '/app/campaigns': typeof AppCampaignsRouteWithChildren
-  '/app/catalog': typeof AppCatalogRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/kits': typeof AppKitsRouteWithChildren
@@ -351,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/app/campaigns/send-points': typeof AppCampaignsSendPointsRoute
+  '/app/catalog/$id': typeof AppCatalogIdRoute
   '/app/kits/new': typeof AppKitsNewRoute
   '/app/shops/$id': typeof AppShopsIdRoute
   '/app/shops/new': typeof AppShopsNewRoute
@@ -362,6 +374,8 @@ export interface FileRoutesByFullPath {
   '/platform/kits/import': typeof PlatformKitsImportRoute
   '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/orders/$id': typeof PlatformOrdersIdRoute
+  '/app/catalog/': typeof AppCatalogIndexRoute
+  '/app/kits/': typeof AppKitsIndexRoute
   '/app/shops/': typeof AppShopsIndexRoute
   '/app/swag/': typeof AppSwagIndexRoute
   '/platform/catalog/': typeof PlatformCatalogIndexRoute
@@ -377,10 +391,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/billing': typeof AppBillingRoute
   '/app/campaigns': typeof AppCampaignsRouteWithChildren
-  '/app/catalog': typeof AppCatalogRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/integrations': typeof AppIntegrationsRoute
-  '/app/kits': typeof AppKitsRouteWithChildren
   '/app/orders': typeof AppOrdersRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/wallets': typeof AppWalletsRoute
@@ -399,6 +411,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppIndexRoute
   '/platform': typeof PlatformIndexRoute
   '/app/campaigns/send-points': typeof AppCampaignsSendPointsRoute
+  '/app/catalog/$id': typeof AppCatalogIdRoute
   '/app/kits/new': typeof AppKitsNewRoute
   '/app/shops/$id': typeof AppShopsIdRoute
   '/app/shops/new': typeof AppShopsNewRoute
@@ -410,6 +423,8 @@ export interface FileRoutesByTo {
   '/platform/kits/import': typeof PlatformKitsImportRoute
   '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/orders/$id': typeof PlatformOrdersIdRoute
+  '/app/catalog': typeof AppCatalogIndexRoute
+  '/app/kits': typeof AppKitsIndexRoute
   '/app/shops': typeof AppShopsIndexRoute
   '/app/swag': typeof AppSwagIndexRoute
   '/platform/catalog': typeof PlatformCatalogIndexRoute
@@ -428,7 +443,6 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/billing': typeof AppBillingRoute
   '/app/campaigns': typeof AppCampaignsRouteWithChildren
-  '/app/catalog': typeof AppCatalogRoute
   '/app/contacts': typeof AppContactsRoute
   '/app/integrations': typeof AppIntegrationsRoute
   '/app/kits': typeof AppKitsRouteWithChildren
@@ -453,6 +467,7 @@ export interface FileRoutesById {
   '/app/': typeof AppIndexRoute
   '/platform/': typeof PlatformIndexRoute
   '/app/campaigns/send-points': typeof AppCampaignsSendPointsRoute
+  '/app/catalog/$id': typeof AppCatalogIdRoute
   '/app/kits/new': typeof AppKitsNewRoute
   '/app/shops/$id': typeof AppShopsIdRoute
   '/app/shops/new': typeof AppShopsNewRoute
@@ -464,6 +479,8 @@ export interface FileRoutesById {
   '/platform/kits/import': typeof PlatformKitsImportRoute
   '/platform/kits/new': typeof PlatformKitsNewRoute
   '/platform/orders/$id': typeof PlatformOrdersIdRoute
+  '/app/catalog/': typeof AppCatalogIndexRoute
+  '/app/kits/': typeof AppKitsIndexRoute
   '/app/shops/': typeof AppShopsIndexRoute
   '/app/swag/': typeof AppSwagIndexRoute
   '/platform/catalog/': typeof PlatformCatalogIndexRoute
@@ -483,7 +500,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/billing'
     | '/app/campaigns'
-    | '/app/catalog'
     | '/app/contacts'
     | '/app/integrations'
     | '/app/kits'
@@ -508,6 +524,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/platform/'
     | '/app/campaigns/send-points'
+    | '/app/catalog/$id'
     | '/app/kits/new'
     | '/app/shops/$id'
     | '/app/shops/new'
@@ -519,6 +536,8 @@ export interface FileRouteTypes {
     | '/platform/kits/import'
     | '/platform/kits/new'
     | '/platform/orders/$id'
+    | '/app/catalog/'
+    | '/app/kits/'
     | '/app/shops/'
     | '/app/swag/'
     | '/platform/catalog/'
@@ -534,10 +553,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/billing'
     | '/app/campaigns'
-    | '/app/catalog'
     | '/app/contacts'
     | '/app/integrations'
-    | '/app/kits'
     | '/app/orders'
     | '/app/settings'
     | '/app/wallets'
@@ -556,6 +573,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/platform'
     | '/app/campaigns/send-points'
+    | '/app/catalog/$id'
     | '/app/kits/new'
     | '/app/shops/$id'
     | '/app/shops/new'
@@ -567,6 +585,8 @@ export interface FileRouteTypes {
     | '/platform/kits/import'
     | '/platform/kits/new'
     | '/platform/orders/$id'
+    | '/app/catalog'
+    | '/app/kits'
     | '/app/shops'
     | '/app/swag'
     | '/platform/catalog'
@@ -584,7 +604,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/billing'
     | '/app/campaigns'
-    | '/app/catalog'
     | '/app/contacts'
     | '/app/integrations'
     | '/app/kits'
@@ -609,6 +628,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/platform/'
     | '/app/campaigns/send-points'
+    | '/app/catalog/$id'
     | '/app/kits/new'
     | '/app/shops/$id'
     | '/app/shops/new'
@@ -620,6 +640,8 @@ export interface FileRouteTypes {
     | '/platform/kits/import'
     | '/platform/kits/new'
     | '/platform/orders/$id'
+    | '/app/catalog/'
+    | '/app/kits/'
     | '/app/shops/'
     | '/app/swag/'
     | '/platform/catalog/'
@@ -845,13 +867,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContactsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/catalog': {
-      id: '/app/catalog'
-      path: '/catalog'
-      fullPath: '/app/catalog'
-      preLoaderRoute: typeof AppCatalogRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/campaigns': {
       id: '/app/campaigns'
       path: '/campaigns'
@@ -899,6 +914,20 @@ declare module '@tanstack/react-router' {
       path: '/shops'
       fullPath: '/app/shops/'
       preLoaderRoute: typeof AppShopsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/kits/': {
+      id: '/app/kits/'
+      path: '/'
+      fullPath: '/app/kits/'
+      preLoaderRoute: typeof AppKitsIndexRouteImport
+      parentRoute: typeof AppKitsRoute
+    }
+    '/app/catalog/': {
+      id: '/app/catalog/'
+      path: '/catalog'
+      fullPath: '/app/catalog/'
+      preLoaderRoute: typeof AppCatalogIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/platform/orders/$id': {
@@ -978,6 +1007,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppKitsNewRouteImport
       parentRoute: typeof AppKitsRoute
     }
+    '/app/catalog/$id': {
+      id: '/app/catalog/$id'
+      path: '/catalog/$id'
+      fullPath: '/app/catalog/$id'
+      preLoaderRoute: typeof AppCatalogIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/campaigns/send-points': {
       id: '/app/campaigns/send-points'
       path: '/send-points'
@@ -1016,12 +1052,14 @@ const AppCampaignsRouteWithChildren = AppCampaignsRoute._addFileChildren(
 
 interface AppKitsRouteChildren {
   AppKitsNewRoute: typeof AppKitsNewRoute
+  AppKitsIndexRoute: typeof AppKitsIndexRoute
   AppKitsIdEditRoute: typeof AppKitsIdEditRoute
   AppKitsIdSendRoute: typeof AppKitsIdSendRoute
 }
 
 const AppKitsRouteChildren: AppKitsRouteChildren = {
   AppKitsNewRoute: AppKitsNewRoute,
+  AppKitsIndexRoute: AppKitsIndexRoute,
   AppKitsIdEditRoute: AppKitsIdEditRoute,
   AppKitsIdSendRoute: AppKitsIdSendRoute,
 }
@@ -1032,7 +1070,6 @@ const AppKitsRouteWithChildren =
 interface AppRouteChildren {
   AppBillingRoute: typeof AppBillingRoute
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
-  AppCatalogRoute: typeof AppCatalogRoute
   AppContactsRoute: typeof AppContactsRoute
   AppIntegrationsRoute: typeof AppIntegrationsRoute
   AppKitsRoute: typeof AppKitsRouteWithChildren
@@ -1040,9 +1077,11 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppWalletsRoute: typeof AppWalletsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppCatalogIdRoute: typeof AppCatalogIdRoute
   AppShopsIdRoute: typeof AppShopsIdRoute
   AppShopsNewRoute: typeof AppShopsNewRoute
   AppSwagNewRoute: typeof AppSwagNewRoute
+  AppCatalogIndexRoute: typeof AppCatalogIndexRoute
   AppShopsIndexRoute: typeof AppShopsIndexRoute
   AppSwagIndexRoute: typeof AppSwagIndexRoute
 }
@@ -1050,7 +1089,6 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBillingRoute: AppBillingRoute,
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
-  AppCatalogRoute: AppCatalogRoute,
   AppContactsRoute: AppContactsRoute,
   AppIntegrationsRoute: AppIntegrationsRoute,
   AppKitsRoute: AppKitsRouteWithChildren,
@@ -1058,9 +1096,11 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppWalletsRoute: AppWalletsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppCatalogIdRoute: AppCatalogIdRoute,
   AppShopsIdRoute: AppShopsIdRoute,
   AppShopsNewRoute: AppShopsNewRoute,
   AppSwagNewRoute: AppSwagNewRoute,
+  AppCatalogIndexRoute: AppCatalogIndexRoute,
   AppShopsIndexRoute: AppShopsIndexRoute,
   AppSwagIndexRoute: AppSwagIndexRoute,
 }

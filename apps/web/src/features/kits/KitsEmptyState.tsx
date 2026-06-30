@@ -122,7 +122,7 @@ export function KitsEmptyState() {
       <div
         className="grid"
         style={{
-          gridTemplateColumns: "3.3fr 1.7fr",
+          // gridTemplateColumns: "3.3fr 1.7fr",
           gap: 16,
           marginBottom: 24,
           alignItems: "stretch",
@@ -200,7 +200,7 @@ export function KitsEmptyState() {
           </div>
         </div>
 
-        <div
+        {/* <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -212,7 +212,7 @@ export function KitsEmptyState() {
           <StatCard label="Live kits" value="0" hint="Active and sending" icon={Radio} />
           <StatCard label="Kits sent" value="0" hint="Total sent" icon={Send} />
           <StatCard label="Recipients reached" value="45" hint="Across all kits" icon={Users} />
-        </div>
+        </div> */}
       </div>
 
       <div
@@ -315,8 +315,24 @@ export function KitsEmptyState() {
             </div>
           </div>
         </div>
+      
+      <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "1fr 1fr",
+            gap: 16,
+          }}
+        >
+          <StatCard label="Total kits" value="0" hint="All created kits" icon={Package} />
+          <StatCard label="Live kits" value="0" hint="Active and sending" icon={Radio} />
+          <StatCard label="Kits sent" value="0" hint="Total sent" icon={Send} />
+          <StatCard label="Recipients reached" value="45" hint="Across all kits" icon={Users} />
+        </div>
 
-        <div id="pre-designed-section" className="card" style={{ padding: 24, background: "#fff" }}>
+      </div>
+      
+        <div id="pre-designed-section" className="card" style={{ marginTop: 24, padding: 24, background: "#fff" }}>
           <div
             className="row"
             style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}
@@ -332,7 +348,6 @@ export function KitsEmptyState() {
           </div>
           <PreDesignedKits />
         </div>
-      </div>
     </>
   );
 }

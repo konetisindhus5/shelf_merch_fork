@@ -1,4 +1,4 @@
-import { resolveMediaUrl } from "@/lib/mediaUrl";
+import { mediaUrlForCanvas, resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiProduct } from "@/services/mappers";
 
 /** Per-product artwork placement, stored as % of the square stage. */
@@ -49,16 +49,35 @@ export function productHasPrintArea(p: UiProduct): boolean {
   return Boolean(pickPrintArea(p)?.box?.widthPct);
 }
 
-export function loadImageEl(src: string): Promise<HTMLImageElement> {
+/** Default artwork placement — matches Konva / bakeMockup when none is stored. */
+export function defaultPlacement(ep: UiProduct, artAspect = 1): Placement {
+  const area = pickPrintArea(ep);
+  const box = area?.box?.widthPct ? area.box : DEFAULT_BOX;
+  const size = 100;
+  const bw = (box.widthPct / 100) * size;
+  const bh = (box.heightPct / 100) * size;
+  const fitW = Math.min(bw * 0.92, (bh * 0.92) / Math.max(artAspect, 0.01));
+  return {
+    xPct: box.xPct + box.widthPct / 2,
+    yPct: box.yPct + box.heightPct / 2,
+    wPct: (fitW / size) * 100,
+    rot: 0,
+  };
+}
+
+/** Load an image for canvas compositing (CORS-safe via media proxy when needed). */
+export function loadImageEl(src: string, forCanvas = false): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     if (!src) {
       reject(new Error("no src"));
       return;
     }
+    const resolved = forCanvas ? mediaUrlForCanvas(src) || resolveMediaSrc(src) : resolveMediaSrc(src);
     const im = new Image();
+    if (forCanvas) im.crossOrigin = "anonymous";
     im.onload = () => resolve(im);
     im.onerror = reject;
-    im.src = src;
+    im.src = resolved;
   });
 }
 
@@ -187,10 +206,10 @@ export async function bakeMockup(
 ): Promise<string> {
   if (!artUrl) return "";
   try {
-    const maskUrl = resolveMediaSrc(designImgUrl(ep));
+    const maskUrl = designImgUrl(ep);
     const [maskImg, artImg] = await Promise.all([
-      maskUrl ? loadImageEl(maskUrl).catch(() => null) : Promise.resolve(null),
-      loadImageEl(artUrl),
+      maskUrl ? loadImageEl(maskUrl, true).catch(() => null) : Promise.resolve(null),
+      loadImageEl(artUrl, true),
     ]);
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -202,21 +221,8 @@ export async function bakeMockup(
       const h = maskImg.naturalHeight * s;
       ctx.drawImage(maskImg, (size - w) / 2, (size - h) / 2, w, h);
     }
-    const area = pickPrintArea(ep);
-    const box = area && area.box && area.box.widthPct ? area.box : DEFAULT_BOX;
     const aspect = (artImg.naturalHeight || 1) / (artImg.naturalWidth || 1);
-    let pl = placement;
-    if (!pl) {
-      const bw = (box.widthPct / 100) * size;
-      const bh = (box.heightPct / 100) * size;
-      const fitW = Math.min(bw * 0.92, (bh * 0.92) / aspect);
-      pl = {
-        xPct: box.xPct + box.widthPct / 2,
-        yPct: box.yPct + box.heightPct / 2,
-        wPct: (fitW / size) * 100,
-        rot: 0,
-      };
-    }
+    const pl = placement ?? defaultPlacement(ep, aspect);
     const realArt = buildRealisticArtwork(artImg, ep?.g);
     const w0 = (pl.wPct / 100) * size;
     const h0 = w0 * aspect;

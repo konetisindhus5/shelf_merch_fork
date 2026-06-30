@@ -105,12 +105,12 @@ export function KitsPage() {
         }
       />
 
-      <div className="grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 18 }}>
+      {/* <div className="grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 18 }}>
         <StatCard label="Total kits" value={total} icon={Package} />
         <StatCard label="Live kits" value={live} icon={Radio} />
         <StatCard label="Kits sent" value={sent} icon={Send} />
         <StatCard label="Recipients reached" value="45" icon={Users} />
-      </div>
+      </div> */}
 
       <div className="card" style={{ padding: 22 }}>
         <div

@@ -7,9 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiCollection, UiProduct } from "@/services/mappers";
 import { collectionProductColorNames, productColorHex, productDescription } from "./colors";
+import { DesignedProductThumb } from "./DesignedProductThumb";
 
 export type DesignTarget = { collection: UiCollection; product: UiProduct; pIdx: number };
 
@@ -50,7 +50,6 @@ function Body({
 }) {
   const { collection, product } = target;
   const title = product.brand ? `${product.brand} ${product.nm}` : product.nm;
-  const src = resolveMediaUrl(product.mockupUrl) || resolveMediaUrl(product.imgUrl);
   const names = collectionProductColorNames(collection, product);
 
   return (
@@ -63,25 +62,14 @@ function Body({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 14 }}>
         <div
-          className="img img-mockup"
           style={{
             background: "#f4f6f4",
             borderRadius: "var(--r-sm)",
             aspectRatio: "1 / 1",
-            display: "grid",
-            placeItems: "center",
             overflow: "hidden",
           }}
         >
-          {src ? (
-            <img
-              src={src}
-              alt={product.nm}
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
-          ) : (
-            <span className="mut3">No preview</span>
-          )}
+          <DesignedProductThumb product={product} artworkUrl={collection.artworkUrl} />
         </div>
 
         <div>

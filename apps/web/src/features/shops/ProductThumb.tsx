@@ -14,8 +14,12 @@ export function ProductThumb({
   branded?: boolean;
 }) {
   const src = branded
-    ? resolveMediaUrl(product.mockupUrl) || resolveMediaUrl(product.imgUrl)
-    : resolveMediaUrl(product.imgUrl) || resolveMediaUrl(product.mockupUrl);
+    ? resolveMediaUrl(product.mockupUrl) ||
+      resolveMediaUrl(product.maskImageUrl) ||
+      resolveMediaUrl(product.imgUrl)
+    : resolveMediaUrl(product.photoUrl) ||
+      resolveMediaUrl(product.imgUrl) ||
+      resolveMediaUrl(product.mockupUrl);
   return (
     <div className={`img${branded ? " img-mockup" : ""}`}>
       {src ? (

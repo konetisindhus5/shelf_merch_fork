@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { refreshCatalogProducts, type CatalogProductsResult } from "@/services/api-bridge";
+import {
+  fetchCatalogProduct,
+  refreshCatalogProducts,
+  type CatalogProductsResult,
+} from "@/services/api-bridge";
+import type { WorkspaceSnapshot } from "@/services/workspace-api";
 import { ALL_PRODUCTS } from "./types";
 
 export const CATALOG_QUERY_KEY = "catalog";
@@ -14,6 +19,18 @@ export function useCatalog(category: string, seed?: CatalogProductsResult) {
     queryKey: [CATALOG_QUERY_KEY, category],
     queryFn: () => refreshCatalogProducts(category === ALL_PRODUCTS ? undefined : category),
     initialData: category === ALL_PRODUCTS ? seed : undefined,
+    staleTime: 30_000,
+  });
+}
+
+export function useCatalogProduct(id: string, workspace?: WorkspaceSnapshot) {
+  const fromWorkspace = workspace?.catalogProducts.find((p) => p.id === id);
+
+  return useQuery({
+    queryKey: [CATALOG_QUERY_KEY, "product", id],
+    queryFn: () => fetchCatalogProduct(id),
+    initialData: fromWorkspace,
+    enabled: Boolean(id),
     staleTime: 30_000,
   });
 }

@@ -1,16 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiProduct } from "@/services/mappers";
 import { detailRows, productSwatches, productUniqueId } from "./types";
 
-type Selected = { product: UiProduct; index: number } | null;
 type Tab = "description" | "features" | "size";
 
 const TABS: [Tab, string][] = [
@@ -20,58 +12,26 @@ const TABS: [Tab, string][] = [
 ];
 
 /** Read-only catalog product detail (description / key features / size guide). */
-export function ProductQuickView({
-  selected,
-  onOpenChange,
+export function ProductDetail({
+  product,
+  index,
 }: {
-  selected: Selected;
-  onOpenChange: (open: boolean) => void;
+  product: UiProduct;
+  index: number;
 }) {
   const [tab, setTab] = useState<Tab>("description");
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (selected) {
-      setTab("description");
-      setExpanded(false);
-    }
-  }, [selected]);
+    setTab("description");
+    setExpanded(false);
+  }, [product.id]);
 
-  return (
-    <Dialog open={selected !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm-modal">
-        {selected && (
-          <Body
-            product={selected.product}
-            index={selected.index}
-            tab={tab}
-            setTab={setTab}
-            expanded={expanded}
-            setExpanded={setExpanded}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Body({
-  product,
-  index,
-  tab,
-  setTab,
-  expanded,
-  setExpanded,
-}: {
-  product: UiProduct;
-  index: number;
-  tab: Tab;
-  setTab: (t: Tab) => void;
-  expanded: boolean;
-  setExpanded: (b: boolean) => void;
-}) {
   const title = product.brand ? `${product.brand} ${product.nm}` : product.nm;
-  const src = resolveMediaUrl(product.mockupUrl) || resolveMediaUrl(product.imgUrl);
+  const src =
+    resolveMediaUrl(product.mockupUrl) ||
+    resolveMediaUrl(product.photoUrl) ||
+    resolveMediaUrl(product.imgUrl);
   const desc = String(product.description || "");
   const short = desc.length > 180 && !expanded ? `${desc.slice(0, 180).trim()}…` : desc;
   const featureRows = detailRows(product.keyFeatures);
@@ -79,17 +39,15 @@ function Body({
   const swatches = productSwatches(product);
 
   return (
-    <div className="modal-pad">
-      <DialogHeader>
-        <div className="eyebrow">
-          #{productUniqueId(product, index)}
-          {product.price ? ` · ${product.price}` : ""}
-        </div>
-        <DialogTitle style={{ fontSize: 20 }}>{title}</DialogTitle>
-        <DialogDescription className="muted" style={{ fontSize: 13 }}>
-          Ready to customize with your artwork.
-        </DialogDescription>
-      </DialogHeader>
+    <div>
+      <div className="eyebrow">
+        #{productUniqueId(product, index)}
+        {product.price ? ` · ${product.price}` : ""}
+      </div>
+      <h1 style={{ fontSize: 20, margin: "4px 0 6px" }}>{title}</h1>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        Ready to customize with your artwork.
+      </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, marginTop: 14 }}>
         <div
