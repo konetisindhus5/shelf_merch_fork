@@ -1,7 +1,13 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "./styles/shelf-merch.css";
+/*
+ * Legacy design-system CSS is imported into the `base` cascade layer so that
+ * Tailwind utility classes (emitted in the `utilities` layer) win over its
+ * global resets (e.g. `*{padding:0}`, `button{background:none}`). Without this,
+ * unlayered legacy rules override every Tailwind utility on the auth pages.
+ */
+@import "./styles/shelf-merch.css" layer(base);
 
 @custom-variant dark (&:is(.dark *));
 
