@@ -1,6 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
+import bottleAsset from "../../assets/bottle.png";
+import capAsset from "../../assets/cap.png";
+import diaryAsset from "../../assets/diary.png";
+import hoodieAsset from "../../assets/hoodie.png";
+import mugAsset from "../../assets/mug.png";
+import templateAsset from "../../assets/template.png";
+import toteAsset from "../../assets/tote.png";
 import {
   Award,
   Backpack,
@@ -8,6 +15,9 @@ import {
   Cake,
   Calendar,
   Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Coffee,
   CreditCard,
   CupSoda,
@@ -19,6 +29,7 @@ import {
   Globe,
   Hand,
   Handshake,
+  Headphones,
   Heart,
   HeartHandshake,
   IdCard,
@@ -26,6 +37,7 @@ import {
   Laptop,
   Linkedin,
   Megaphone,
+  Menu,
   MessageCircle,
   Monitor,
   Package,
@@ -102,12 +114,36 @@ function LpSectionHeader({
   );
 }
 
-const HERO_STATS: { icon: LucideIcon; label: string }[] = [
-  { icon: Globe, label: "170+ Countries" },
-  { icon: Award, label: "Premium Quality" },
-  { icon: Gift, label: "Curated Products" },
-  { icon: Truck, label: "Reliable Delivery" },
+const HERO_NAV_LINKS = [
+  { label: "Products", href: "#products", chevron: true },
+  { label: "Solutions", href: "#solutions", chevron: true },
+  { label: "Pricing", href: "#pricing", chevron: false },
+  { label: "Resources", href: "#resources", chevron: true },
+] as const;
+
+const HERO_TRUST_ITEMS: { icon: LucideIcon; label: string }[] = [
+  { icon: CheckCircle2, label: "100% risk-free" },
+  { icon: Truck, label: "No inventory" },
+  { icon: Globe, label: "Global fulfillment" },
+  { icon: Headphones, label: "Expert support" },
 ];
+
+const HERO_FLOATS = [
+  { src: hoodieAsset, alt: "Green hoodie mockup", className: "lp-hero__float--hoodie" },
+  { src: toteAsset, alt: "Canvas tote mockup", className: "lp-hero__float--tote" },
+  { src: mugAsset, alt: "Branded mug mockup", className: "lp-hero__float--mug" },
+  { src: bottleAsset, alt: "Water bottle mockup", className: "lp-hero__float--bottle" },
+  { src: diaryAsset, alt: "Notebook mockup", className: "lp-hero__float--diary" },
+  { src: capAsset, alt: "Cap mockup", className: "lp-hero__float--cap" },
+] as const;
+
+const INTRO_FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
+  { icon: Monitor, title: "One dashboard", desc: "Shops, gifts, and swag unified" },
+  { icon: Sparkles, title: "Smart automation", desc: "Milestones and peer recognition" },
+  { icon: Globe, title: "Global reach", desc: "Fulfillment in 170+ countries" },
+];
+
+const INTRO_CHAPTERS = ["Overview", "Kits & Swag", "Gifting", "Analytics"] as const;
 
 /* ─── offerings tabs (ShelfMerch) ─── */
 const OFFERING_TABS = [
@@ -413,97 +449,113 @@ export default function LandingPage() {
       <style>{LP_CSS}</style>
 
       {/* ── NAV ── */}
-      <header className="lp-nav">
-        <div className="lp-container lp-nav__inner">
+      <header className="lp-nav lp-nav--merch">
+        <div className="lp-container lp-nav__inner lp-nav__inner--merch">
           <a href="/" className="lp-logo">
             <img
-              src="/images/logo/shelfmerch-logo-dark.svg"
-              alt="ShelfMerch"
-              width={168}
-              height={28}
+              src="/assets/rockefeller.png"
+              alt="Shelf Merch"
+              width={178}
+              height={30}
               className="lp-logo__img"
             />
           </a>
-          <nav className="lp-nav__links">
-            <a href="#products">Products</a>
-            <a href="#solutions">Solutions</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#resources">Resources</a>
+
+          <nav className="lp-nav__links lp-nav__links--merch">
+            {HERO_NAV_LINKS.map((item) => (
+              <a key={item.label} href={item.href}>
+                <span>{item.label}</span>
+                {item.chevron ? <ChevronDown className="lp-nav__chevron" aria-hidden /> : null}
+              </a>
+            ))}
           </nav>
-          <div className="lp-nav__actions">
-            <Link to="/login" className="lp-btn-ghost">Log in</Link>
-            <Link to="/signup" className="lp-btn-primary lp-btn-primary-sm">Get Started</Link>
+
+          <div className="lp-nav__actions lp-nav__actions--merch">
+            <Link to="/login" className="lp-btn-ghost lp-btn-ghost--merch">
+              Log in
+            </Link>
+            <Link to="/signup" className="lp-btn-primary lp-btn-primary-sm lp-btn-pill">
+              Get started
+            </Link>
           </div>
+
+          <button type="button" className="lp-nav__menu" aria-label="Open navigation">
+            <Menu className="lp-nav__menu-icon" aria-hidden />
+          </button>
         </div>
       </header>
 
-      {/* ── HERO + OFFERINGS INTRO (unified dark band) ── */}
-      <div className="lp-hero-zone">
-        <section className="lp-hero">
-          <div className="lp-hero__bg" aria-hidden="true">
-            <div className="lp-hero__blob lp-hero__blob--1" />
-            <div className="lp-hero__blob lp-hero__blob--2" />
-            <div className="lp-hero__blob lp-hero__blob--3" />
-          </div>
+      {/* ── HERO ── */}
+      <div className="lp-hero-zone lp-hero-zone--merch">
+        <div className="lp-hero__floats" aria-hidden="true">
+          {HERO_FLOATS.map((product) => (
+            <img
+              key={product.alt}
+              src={product.src}
+              alt={product.alt}
+              className={`lp-hero__float ${product.className}`}
+              loading="eager"
+            />
+          ))}
+          <LpHeroDecorSprig className="lp-hero__decor lp-hero__decor--sprig" />
+          <LpHeroDecorSquiggle className="lp-hero__decor lp-hero__decor--squiggle" />
+          <LpHeroDecorWave className="lp-hero__decor lp-hero__decor--wave" />
+          <LpHeroDecorDots className="lp-hero__decor lp-hero__decor--dots-r" />
+          <LpHeroDecorDots className="lp-hero__decor lp-hero__decor--dots-l" />
+        </div>
 
-          <div className="lp-container lp-hero__inner">
-            <div className="lp-hero__content">
-              <span className="lp-hero__badge">All-in-one recognition platform</span>
-              <h1 className="lp-hero__title">
-                Recognition that <span className="c-gold">inspires.</span>
+        <section className="lp-hero lp-hero--merch">
+          <div className="lp-hero--merch__inner">
+            <div className="lp-hero__content lp-hero__content--merch">
+              {/* <a href="#products" className="lp-hero__announce">
+                <strong>NEW</strong>
+                <span>Spring collection now available</span>
+                <ChevronRight className="lp-hero__announce-icon" aria-hidden />
+              </a> */}
+
+              <h1 className="lp-hero__headline">
+                Limitless engagement.
                 <br />
-                Rewards that <span className="c-gold">matter.</span>
+                One platform.
               </h1>
-              <p className="lp-hero__sub">
-                Celebrate milestones and build a culture of recognition with premium swag, gifts, and
-                experiences—delivered globally.
+
+              <p className="lp-hero__lede">
+                Power your global recognition programs with premium swag,
+                <br className="lp-hero__lede-br" />
+                snack boxes, and gifts—all fulfilled locally in 170+ countries.
               </p>
-              <ul className="lp-hero__stats">
-                {HERO_STATS.map((stat) => (
-                  <li key={stat.label}>
-                    <span className="lp-hero__stat-icon">
-                      <LpIcon icon={stat.icon} size={17} strokeWidth={2.25} />
-                    </span>
-                    {stat.label}
+
+              <div className="lp-hero__ctas lp-hero__ctas--merch">
+                <Link to="/signup" className="lp-btn-primary lp-btn-pill">
+                  Get started for free
+                </Link>
+                <a href="#demo" className="lp-btn-outline-green">
+                  Book a demo
+                </a>
+              </div>
+
+              <ul className="lp-hero__trust">
+                {HERO_TRUST_ITEMS.map((item, index) => (
+                  <li key={item.label}>
+                    {index > 0 ? <span className="lp-hero__trust-sep" aria-hidden /> : null}
+                    <LpIcon icon={item.icon} size={14} className="lp-hero__trust-icon" strokeWidth={2} />
+                    <span>{item.label}</span>
                   </li>
                 ))}
               </ul>
-              <div className="lp-hero__ctas">
-                <Link to="/app/catalog" className="lp-btn-gold lp-btn-gold--sm">Explore Products</Link>
-                <a href="#demo" className="lp-btn-outline lp-btn-outline--sm">Book a Demo</a>
-              </div>
             </div>
 
-            <div className="lp-hero__visual">
-              <img
-                src="/images/landing/hero-collage.png"
-                alt="ShelfMerch branded swag, gifts, and recognition products"
-                width={480}
-                height={480}
-                loading="eager"
-                decoding="async"
-              />
+            <div className="lp-hero__mockup">
+              <div className="lp-hero__mockup-frame">
+                <img
+                  src={templateAsset}
+                  alt="Shelf Merch editor interface for creating a branded hoodie design"
+                  loading="eager"
+                />
+              </div>
             </div>
           </div>
         </section>
-
-        <header className="lp-offerings__header">
-          <div className="lp-container">
-            <span className="lp-hero__badge">Our Offerings</span>
-            <h2 className="lp-offerings__title">
-              Supercharge Your <span className="c-gold">Engagement</span>
-            </h2>
-            <p className="lp-offerings__sub">
-              ShelfMerch offerings and a curated swag catalog will take your engagement to new heights.
-            </p>
-          </div>
-        </header>
-
-        <div className="lp-hero-zone__curve" aria-hidden="true">
-          <svg viewBox="0 0 1440 64" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0,32 C360,80 1080,0 1440,40 L1440,64 L0,64 Z" fill="var(--lp-body-bg)" />
-          </svg>
-        </div>
       </div>
 
       {/* ── OFFERINGS TABS ── */}
@@ -719,7 +771,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── VIDEO INTRO ── */}
-      <section className="lp-section lp-intro">
+      <section className="lp-section lp-intro" id="demo">
         <div className="lp-container">
           <LpSectionHeader
             badge="Platform Tour"
@@ -729,26 +781,87 @@ export default function LandingPage() {
           <div className="lp-shell lp-intro__shell">
             <div className="lp-intro__grid">
               <div className="lp-intro__copy">
+                <p className="lp-intro__eyebrow">
+                  <Play size={12} fill="currentColor" strokeWidth={0} aria-hidden />
+                  2-minute product walkthrough
+                </p>
                 <h3>Take your ShelfMerch experience further</h3>
-                <p>
+                <p className="lp-intro__lede">
                   From onboarding kits to global gifting campaigns—manage every recognition moment
                   without juggling vendors.
                 </p>
-                <ul className="lp-intro__points">
-                  <li><Check size={14} strokeWidth={3} /> One dashboard for shops, gifts, and swag</li>
-                  <li><Check size={14} strokeWidth={3} /> Automate milestones and peer recognition</li>
-                  <li><Check size={14} strokeWidth={3} /> Ship to 170+ countries with ease</li>
+                <ul className="lp-intro__features">
+                  {INTRO_FEATURES.map((feature) => (
+                    <li key={feature.title} className="lp-intro__feature">
+                      <span className="lp-intro__feature-icon" aria-hidden>
+                        <LpIcon icon={feature.icon} size={18} strokeWidth={2.25} />
+                      </span>
+                      <span className="lp-intro__feature-text">
+                        <strong>{feature.title}</strong>
+                        <span>{feature.desc}</span>
+                      </span>
+                    </li>
+                  ))}
                 </ul>
-                <Link to="/app" className="lp-btn-gold lp-btn-gold--sm">Get Started →</Link>
+                <div className="lp-intro__ctas">
+                  <Link to="/signup" className="lp-btn-primary lp-btn-primary-sm lp-btn-pill">
+                    Get started free
+                  </Link>
+                  <a href="#intro-video" className="lp-intro__play-link">
+                    <span className="lp-intro__play-link-icon" aria-hidden>
+                      <Play size={14} fill="currentColor" strokeWidth={0} />
+                    </span>
+                    Watch overview
+                  </a>
+                </div>
               </div>
-              <div className="lp-video-mock">
-                <div className="lp-video-mock__bar">
-                  <span /><span /><span />
+              <div className="lp-intro__media" id="intro-video">
+                <div className="lp-video-mock">
+                  <div className="lp-video-mock__bar" aria-hidden>
+                    <span className="lp-video-mock__dot lp-video-mock__dot--close" />
+                    <span className="lp-video-mock__dot lp-video-mock__dot--min" />
+                    <span className="lp-video-mock__dot lp-video-mock__dot--max" />
+                    <span className="lp-video-mock__title">ShelfMerch — Platform Overview</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="lp-video-mock__screen"
+                    aria-label="Play platform overview video (2 minutes 45 seconds)"
+                  >
+                    <img
+                      className="lp-video-mock__poster"
+                      src={templateAsset}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <span className="lp-video-mock__overlay" aria-hidden>
+                      <span className="lp-video-mock__play">
+                        <Play size={26} fill="currentColor" strokeWidth={0} />
+                      </span>
+                      <span className="lp-video-mock__label">Platform Overview</span>
+                    </span>
+                    <span className="lp-video-mock__duration">2:45</span>
+                    <span className="lp-video-mock__progress" aria-hidden>
+                      <span className="lp-video-mock__progress-fill" />
+                    </span>
+                  </button>
+                  <div className="lp-video-mock__chapters" role="list" aria-label="Video chapters">
+                    {INTRO_CHAPTERS.map((chapter, index) => (
+                      <span
+                        key={chapter}
+                        role="listitem"
+                        className={`lp-video-mock__chapter${index === 0 ? " is-active" : ""}`}
+                      >
+                        {chapter}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="lp-video-mock__screen">
-                  <div className="play-btn"><Play size={22} fill="currentColor" strokeWidth={0} /></div>
-                  <p>Platform Overview</p>
-                </div>
+                <p className="lp-intro__caption">
+                  <Users size={14} strokeWidth={2.25} aria-hidden />
+                  Trusted by HR, Marketing &amp; Ops teams worldwide
+                </p>
               </div>
             </div>
           </div>
@@ -756,7 +869,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── SOCIAL PROOF (logos + quote) ── */}
-      <section className="lp-section lp-social">
+      <section className="lp-section lp-social" style={{height: "50vh"}}>
         <div className="lp-container lp-social__layout">
           <div className="lp-social__copy">
             <p className="lp-social__label">For every possible occasion</p>
@@ -779,7 +892,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-        <div className="lp-container">
+        <div className="lp-container" style={{position: "relative", top: "20px"}}>
           <figure className="lp-social__quote lp-shell">
             <span className="lp-social__mark" aria-hidden="true">"</span>
             <blockquote>
@@ -836,7 +949,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── INTEGRATIONS ── */}
-      <section className="lp-section lp-integrations">
+      {/* <section className="lp-section lp-integrations">
         <div className="lp-container">
           <LpSectionHeader
             badge="Integrations"
@@ -865,7 +978,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── TEAMS TABS ── */}
       <section className="lp-section lp-teams-section">
@@ -929,7 +1042,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FLEXIBILITY ── */}
-      <section className="lp-section lp-flex-section" id="pricing">
+      {/* <section className="lp-section lp-flex-section" id="pricing">
         <div className="lp-container">
           <LpSectionHeader
             badge="Total Flexibility"
@@ -978,7 +1091,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── TESTIMONIALS ── */}
       <section className="lp-section lp-testimonials" id="resources">
@@ -1052,6 +1165,54 @@ export default function LandingPage() {
   );
 }
 
+function LpHeroDecorSprig({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="58" height="42" viewBox="0 0 58 42" fill="none" aria-hidden>
+      <path d="M13 29L2 19" stroke="#004D3D" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
+      <path d="M26 14L21 1" stroke="#004D3D" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
+      <path d="M41 22L55 16" stroke="#004D3D" strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
+    </svg>
+  );
+}
+
+function LpHeroDecorSquiggle({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="70" height="90" viewBox="0 0 70 90" fill="none" aria-hidden>
+      <path
+        d="M48 7C25 16 15 35 21 47C27 59 46 58 50 70C53 79 46 86 34 87"
+        stroke="#004D3D"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity="0.45"
+      />
+    </svg>
+  );
+}
+
+function LpHeroDecorWave({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="62" height="92" viewBox="0 0 62 92" fill="none" aria-hidden>
+      <path
+        d="M17 6C32 12 44 25 37 39C31 52 12 55 11 68C10 77 15 83 22 87"
+        stroke="#004D3D"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity="0.45"
+      />
+    </svg>
+  );
+}
+
+function LpHeroDecorDots({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      {Array.from({ length: 12 }).map((_, index) => (
+        <span key={index} className="lp-hero__decor-dot" />
+      ))}
+    </div>
+  );
+}
+
 /* ─── styles (single-file) ─── */
 const LP_CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1090,7 +1251,7 @@ const LP_CSS = `
 .lp-btn-primary{display:inline-flex;align-items:center;gap:6px;background:#006838;color:#fff;font-weight:600;font-size:.9rem;padding:12px 24px;border-radius:8px;border:none;cursor:pointer;text-decoration:none;transition:background .2s}
 .lp-btn-primary:hover{background:#004d2a}
 .lp-btn-primary-sm{padding:8px 18px;font-size:.85rem}
-.lp-btn-primary-sm,.lp-btn-ghost,.lp-btn-gold,.lp-btn-outline,.lp-btn-outline-green{text-decoration:none;display:inline-flex;align-items:center;cursor:pointer;font:inherit}
+.lp-btn-primary-sm,.lp-btn-ghost,.lp-btn-gold,.lp-btn-outline,.lp-btn-outline-green{text-decoration:none;display:inline-flex;align-items:center}
 .lp-btn-gold{background:var(--lp-gold);color:#1a2e28;font-weight:700;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;font-size:.95rem;transition:transform .2s,box-shadow .2s}
 .lp-btn-gold--sm{padding:11px 22px;font-size:.88rem;border-radius:8px}
 .lp-btn-gold:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(212,162,76,.35)}
@@ -1099,7 +1260,8 @@ const LP_CSS = `
 .lp-btn-outline:hover{border-color:#fff}
 .lp-btn-outline-green{background:#fff;color:#006838;border:2px solid #006838;padding:12px 28px;border-radius:999px;font-weight:700;font-size:.85rem;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s}
 .lp-btn-outline-green:hover{background:#006838;color:#fff}
-.lp-btn-ghost{color:#1a1a1a;font-weight:500;font-size:.9rem;padding:8px 16px;border:none;background:transparent}
+.lp-btn-ghost{color:#1a1a1a;font-weight:500;font-size:.9rem;padding:8px 16px;border:none;background:transparent;cursor:pointer;font:inherit}
+.lp-btn-ghost:disabled{opacity:.6;cursor:wait}
 .lp-btn-ghost:hover{color:#006838}
 .lp-btn-full{width:100%;justify-content:center;margin-top:16px}
 .lp-btn-pill{border-radius:999px;padding:14px 36px}
@@ -1176,6 +1338,342 @@ const LP_CSS = `
   .lp-hero__stats,.lp-hero__ctas{justify-content:center}
   .lp-hero__visual img{max-width:min(300px,80vw);margin:0 auto}
 }
+
+/* merch landing nav + hero */
+.lp-nav--merch{
+  position:sticky;
+  top:0;
+  background:#FCFEFD;
+  border-bottom:none;
+  z-index:100;
+}
+.lp-hero-zone--merch{
+  --lp-nav-merch-height:68px;
+  position:relative;
+  background:#FCFEFD;
+  color:#004D3D;
+  height:calc(100dvh - var(--lp-nav-merch-height));
+  max-height:calc(100dvh - var(--lp-nav-merch-height));
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.lp-nav__inner--merch{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  height:68px;
+  gap:16px;
+}
+@media(min-width:1024px){
+  .lp-nav__inner--merch{grid-template-columns:1fr auto 1fr}
+  .lp-nav__links--merch{justify-self:center}
+  .lp-nav__actions--merch{justify-self:end}
+}
+.lp-nav__links--merch{display:none;gap:28px}
+@media(min-width:1024px){.lp-nav__links--merch{display:flex}}
+.lp-nav__links--merch a{
+  color:#004D3D;
+  text-decoration:none;
+  font-size:.9375rem;
+  font-weight:500;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  transition:opacity .2s;
+}
+.lp-nav__links--merch a:hover{opacity:.7}
+.lp-nav__chevron{width:14px;height:14px;opacity:.7;flex-shrink:0}
+.lp-nav__actions--merch{display:none;align-items:center;gap:16px}
+@media(min-width:1024px){.lp-nav__actions--merch{display:flex}}
+.lp-btn-ghost--merch{color:#004D3D}
+.lp-btn-ghost--merch:hover{color:#004D3D;opacity:.7}
+.lp-nav__menu{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:40px;
+  height:40px;
+  border-radius:8px;
+  border:1px solid #d4e5dc;
+  background:#fff;
+  color:#004D3D;
+  cursor:pointer;
+  justify-self:end;
+  padding:0;
+}
+.lp-nav__menu-icon{width:20px;height:20px}
+@media(min-width:1024px){.lp-nav__menu{display:none}}
+.lp-hero--merch{
+  position:relative;
+  flex:1;
+  min-height:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  padding:clamp(4px,1.2vh,16px) 0 clamp(8px,1.5vh,16px);
+  background:transparent;
+  color:inherit;
+  text-align:center;
+  overflow:hidden;
+}
+.lp-hero--merch__inner{
+  position:relative;
+  z-index:2;
+  flex:1;
+  min-height:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:space-around;
+  gap:clamp(4px,1vh,12px);
+  max-width:1320px;
+  margin:0 auto;
+  width:100%;
+  padding:0 clamp(20px,3vw,40px);
+}
+.lp-hero__content--merch{
+  flex-shrink:0;
+  max-width:680px;
+  margin:0 auto;
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:clamp(12px,2.2vh,20px);
+}
+.lp-hero__headline{
+  margin:0 auto;
+  max-width:860px;
+  font-size:clamp(2.15rem,5vh + 1.15rem,6rem);
+  font-weight:600;
+  line-height:1.05;
+  letter-spacing:normal;
+  color:#004D3D;
+}
+.lp-hero__lede{
+  margin:0 auto;
+  max-width:640px;
+  font-size:clamp(.995rem,1.3vh + .65rem,1.825rem);
+  line-height:1.45;
+  color:#5a6b64;
+}
+.lp-hero__lede-br{display:none}
+@media(min-width:768px){.lp-hero__lede-br{display:inline}}
+.lp-hero__announce{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 16px;
+  border-radius:999px;
+  background:#e8f2ec;
+  color:#004D3D;
+  font-size:.8125rem;
+  font-weight:500;
+  text-decoration:none;
+  transition:opacity .2s;
+}
+.lp-hero__announce:hover{opacity:.8}
+.lp-hero__announce strong{font-weight:600}
+.lp-hero__announce-icon{width:14px;height:14px;flex-shrink:0}
+.lp-hero__title--merch{
+  font-size:clamp(2.5rem,5.2vw,4.25rem);
+  font-weight:700;
+  line-height:1.05;
+  letter-spacing:-.03em;
+  color:#004D3D;
+  margin:20px 0 16px;
+}
+.lp-hero__sub--merch{
+  font-size:clamp(1rem,1.4vw,1.1875rem);
+  color:#5a6b64;
+  line-height:1.55;
+  max-width:560px;
+  margin:0 auto 28px;
+}
+.lp-hero__ctas--merch{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px;
+  margin-top:clamp(8px,1.5vh,16px);
+  margin-bottom:0;
+}
+.lp-hero__ctas--merch .lp-btn-primary{padding:clamp(9px,1.2vh,12px) clamp(20px,2.5vw,28px);font-size:clamp(.84rem,.9vh + .4rem,.9375rem)}
+.lp-hero__ctas--merch .lp-btn-outline-green{padding:clamp(8px,1.1vh,11px) clamp(20px,2.5vw,28px);font-size:clamp(.84rem,.9vh + .4rem,.9375rem);text-transform:none;letter-spacing:0}
+.lp-hero__trust{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  align-items:center;
+  gap:8px 12px;
+  list-style:none;
+  margin-top:clamp(8px,1.5vh,16px);
+  margin-bottom:0;
+  padding:0;
+  font-size:clamp(.72rem,.9vh + .35rem,.8125rem);
+  color:#5a6b64;
+}
+.lp-hero__trust li{display:inline-flex;align-items:center;gap:6px}
+.lp-hero__trust-sep{
+  display:none;
+  width:4px;
+  height:4px;
+  border-radius:50%;
+  background:#b8ccc4;
+  flex-shrink:0;
+}
+@media(min-width:640px){.lp-hero__trust-sep{display:inline-block}}
+.lp-hero__trust-icon{color:#004D3D;flex-shrink:0}
+.lp-hero__mockup{
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  width:min(100%,600px);
+  margin:0 auto;
+  padding:0 8px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  perspective:1800px;
+  transform-style:preserve-3d;
+  transform-origin:bottom right;
+}
+.lp-hero__mockup::before{
+  content:'';
+  position:absolute;
+  inset:-12% -8% -4%;
+  background:radial-gradient(ellipse 80% 60% at 50% 85%,rgba(0,77,61,.1) 0%,transparent 72%);
+  pointer-events:none;
+  z-index:0;
+}
+.lp-hero__mockup::after{
+  content:'';
+  position:absolute;
+  bottom:-6px;
+  left:8%;
+  width:72%;
+  height:28px;
+  background:radial-gradient(ellipse,rgba(0,77,61,.22) 0%,transparent 70%);
+  filter:blur(6px);
+  pointer-events:none;
+  z-index:0;
+}
+.lp-hero__mockup:hover{
+  transform:rotateX(9deg) rotateY(7deg);
+}
+.lp-hero__mockup-frame{
+  position:relative;
+  z-index:1;
+  max-height:100%;
+  width:100%;
+  overflow:hidden;
+  border-radius:clamp(12px,1.5vh,20px);
+  border:1px solid rgba(0,77,61,.12);
+  background:#fff;
+  box-shadow:
+    0 1px 2px rgba(0,77,61,.06),
+    0 6px 16px rgba(0,77,61,.08),
+    0 20px 40px rgba(0,77,61,.1),
+    0 40px 80px -16px rgba(0,77,61,.18),
+    inset 0 1px 0 rgba(255,255,255,.8);
+}
+.lp-hero__mockup:hover .lp-hero__mockup-frame{
+  box-shadow:
+    0 2px 4px rgba(0,77,61,.08),
+    0 10px 24px rgba(0,77,61,.12),
+    0 28px 56px rgba(0,77,61,.14),
+    0 48px 96px -12px rgba(0,77,61,.24),
+    inset 0 1px 0 rgba(255,255,255,.8);
+}
+.lp-hero__mockup-frame img{
+  display:block;
+  width:100%;
+  max-height:min(45vh,340px);
+  object-fit:contain;
+  object-position:bottom center;
+}
+@keyframes lp-float-bob-1 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1.2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+@keyframes lp-float-bob-2 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(-1.5deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+@keyframes lp-float-bob-3 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(0.8deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+.lp-hero__floats{
+  pointer-events:none;
+  position:absolute;
+  inset:0;
+  z-index:1;
+  overflow:hidden;
+}
+.lp-hero__float{
+  position:absolute;
+  display:none;
+  z-index:1;
+  user-select:none;
+  filter:drop-shadow(0 16px 32px rgba(0,77,61,.12));
+}
+@media(min-width:1280px){.lp-hero__float{display:block}}
+.lp-hero__float--hoodie{left:9%;top:6%;width:clamp(170px,20vw,220px);animation:lp-float-bob-1 6s ease-in-out infinite}
+.lp-hero__float--tote{left:2%;bottom:16%;width:clamp(120px,20vw,180px);animation:lp-float-bob-2 7s ease-in-out infinite}
+.lp-hero__float--mug{left:19%;bottom:4%;width:clamp(150px,12vw,180px);animation:lp-float-bob-3 5.5s ease-in-out infinite}
+.lp-hero__float--bottle{right:10%;top:7%;width:clamp(100px,12vw,240px);animation:lp-float-bob-2 8s ease-in-out infinite}
+.lp-hero__float--diary{right:2%;bottom:28%;width:clamp(88px,9vw,140px);animation:lp-float-bob-1 6.5s ease-in-out infinite}
+.lp-hero__float--cap{right:10%;bottom:2%;width:clamp(100px,16vw,180px);animation:lp-float-bob-3 7.5s ease-in-out infinite}
+@media(min-width:1536px){
+  .lp-hero__float--hoodie{width:clamp(200px,20vw,260px)}
+  .lp-hero__float--tote{width:clamp(180px,20vw,260px)}
+  .lp-hero__float--mug{width:clamp(150px,13vw,190px)}
+  .lp-hero__float--bottle{width:clamp(200px,24vw,240px)}
+  .lp-hero__float--diary{width:clamp(180px,20vw,240px)}
+  .lp-hero__float--cap{width:clamp(150px,20vw,230px)}
+}
+.lp-hero__decor{
+  position:absolute;
+  display:none;
+  z-index:1;
+  pointer-events:none;
+}
+@media(min-width:1280px){.lp-hero__decor{display:block}}
+.lp-hero__decor--sprig{left:3%;top:8%}
+.lp-hero__decor--squiggle{left:24%;top:38%}
+.lp-hero__decor--wave{right:3.5%;top:10%;transform:rotate(10deg)}
+.lp-hero__decor--dots-r{
+  right:2.8%;
+  bottom:8%;
+  display:none;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.lp-hero__decor--dots-l{
+  left:1%;
+  bottom:10%;
+  display:none;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+@media(min-width:1280px){
+  .lp-hero__decor--dots-r,.lp-hero__decor--dots-l{display:grid}
+}
+.lp-hero__decor-dot{
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#004D3D;
+  opacity:.3;
+}
+
 .lp-badge{display:inline-flex;align-items:center;gap:6px}
 .lp-int-icon{display:flex;align-items:center;justify-content:center}
 .lp-teams-nav__icon{display:inline-flex;align-items:center;margin-right:4px}
@@ -1192,6 +1690,13 @@ const LP_CSS = `
 /* offerings — ShelfMerch tabbed section */
 .lp-offerings{background:var(--lp-body-bg)}
 .lp-offerings.lp-section{padding:0 0 clamp(64px,8vw,96px)}
+.lp-nav--merch + .lp-hero-zone--merch + .lp-offerings.lp-section,
+.lp-hero-zone--merch + .lp-offerings.lp-section{
+  padding-top:clamp(32px,5vw,56px);
+}
+.lp-hero-zone--merch + .lp-offerings .lp-offerings__shell{
+  margin-top:0;
+}
 .lp-offerings__header{text-align:center;padding:0 24px clamp(20px,3vw,28px);position:relative;z-index:1}
 .lp-offerings__header .lp-hero__badge{
   border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.1);color:#d4e8dc;
@@ -1328,21 +1833,159 @@ const LP_CSS = `
 
 /* intro */
 .lp-intro{background:var(--lp-body-bg)}
-.lp-intro__shell{padding:clamp(24px,3.5vw,36px)}
-.lp-intro__grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4vw,40px);align-items:center}
-.lp-intro__copy h3{font-size:clamp(1.15rem,2.2vw,1.35rem);font-weight:800;color:var(--lp-ink);margin-bottom:12px}
-.lp-intro__copy p{color:var(--lp-text-muted);margin-bottom:16px;line-height:1.65;font-size:.92rem}
-.lp-intro__points{list-style:none;display:flex;flex-direction:column;gap:10px;margin:0 0 20px;padding:0}
-.lp-intro__points li{display:flex;align-items:center;gap:8px;font-size:.84rem;font-weight:600;color:var(--lp-green-mid)}
-.lp-intro__points li svg{color:var(--lp-green);flex-shrink:0}
-.lp-video-mock{background:#1a2e28;border-radius:14px;overflow:hidden;box-shadow:0 16px 40px rgba(20,83,45,.12)}
-.lp-video-mock__bar{display:flex;gap:6px;padding:10px 14px;background:#243d34}
-.lp-video-mock__bar span{width:10px;height:10px;border-radius:50%;background:#4a6358}
-.lp-video-mock__screen{aspect-ratio:16/10;background:linear-gradient(135deg,#2d6a4f,#166534);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
-.play-btn{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:transform .2s,background .2s}
-.play-btn:hover{transform:scale(1.05);background:rgba(255,255,255,.3)}
-.lp-video-mock__screen p{color:rgba(255,255,255,.75);font-size:.82rem}
-@media(max-width:768px){.lp-intro__grid{grid-template-columns:1fr}}
+.lp-intro__shell{padding:0;overflow:hidden}
+.lp-intro__grid{
+  display:grid;grid-template-columns:minmax(280px,.95fr) minmax(300px,1.05fr);
+  gap:0;align-items:stretch;
+}
+.lp-intro__copy{
+  order:1;padding:clamp(28px,4vw,44px);
+  background:linear-gradient(160deg,var(--lp-green-surface) 0%,#fff 55%);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.lp-intro__media{
+  order:2;padding:clamp(20px,3.5vw,36px);
+  display:flex;flex-direction:column;justify-content:center;gap:14px;
+  background:#fff;
+}
+.lp-intro__eyebrow{
+  display:inline-flex;align-items:center;gap:6px;width:fit-content;
+  padding:5px 12px;border-radius:999px;margin-bottom:14px;
+  background:rgba(21,128,61,.1);color:var(--lp-green-mid);
+  font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+}
+.lp-intro__copy h3{
+  font-size:clamp(1.2rem,2.4vw,1.5rem);font-weight:800;color:var(--lp-ink);
+  margin-bottom:10px;line-height:1.25;letter-spacing:-.02em;
+}
+.lp-intro__lede{color:var(--lp-text-muted);margin-bottom:20px;line-height:1.65;font-size:.92rem}
+.lp-intro__features{list-style:none;display:flex;flex-direction:column;gap:10px;margin:0 0 24px;padding:0}
+.lp-intro__feature{
+  display:flex;align-items:flex-start;gap:12px;padding:11px 13px;border-radius:12px;
+  background:#fff;border:1px solid rgba(20,83,45,.08);
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+}
+.lp-intro__feature:hover{
+  border-color:rgba(20,83,45,.14);box-shadow:0 6px 20px rgba(20,83,45,.07);transform:translateY(-1px);
+}
+.lp-intro__feature-icon{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  background:var(--lp-green-surface);color:var(--lp-green);
+  display:flex;align-items:center;justify-content:center;
+}
+.lp-intro__feature-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.lp-intro__feature-text strong{font-size:.84rem;font-weight:700;color:var(--lp-ink);line-height:1.3}
+.lp-intro__feature-text span{font-size:.78rem;color:var(--lp-text-muted);line-height:1.4}
+.lp-intro__ctas{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
+.lp-intro__play-link{
+  display:inline-flex;align-items:center;gap:8px;padding:0;border:none;background:transparent;
+  font:inherit;font-size:.88rem;font-weight:600;color:var(--lp-green-mid);cursor:pointer;
+  text-decoration:none;transition:color .2s,opacity .2s;
+}
+.lp-intro__play-link:hover{color:var(--lp-green-deep)}
+.lp-intro__play-link-icon{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:var(--lp-green-surface);color:var(--lp-green-deep);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,transform .2s;
+}
+.lp-intro__play-link:hover .lp-intro__play-link-icon{background:var(--lp-hero-mint);transform:scale(1.05)}
+.lp-video-mock{
+  background:#152820;border-radius:16px;overflow:hidden;
+  box-shadow:0 20px 50px -12px rgba(20,83,45,.22),0 0 0 1px rgba(20,83,45,.06);
+  transition:transform .3s,box-shadow .3s;
+}
+.lp-intro__media:hover .lp-video-mock{transform:translateY(-3px);box-shadow:0 28px 60px -14px rgba(20,83,45,.28)}
+.lp-video-mock__bar{
+  display:flex;align-items:center;gap:7px;padding:11px 14px;background:#1f352e;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.lp-video-mock__dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lp-video-mock__dot--close{background:#ff5f57}
+.lp-video-mock__dot--min{background:#febc2e}
+.lp-video-mock__dot--max{background:#28c840}
+.lp-video-mock__title{
+  margin-left:6px;font-size:.7rem;font-weight:500;color:rgba(255,255,255,.45);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lp-video-mock__screen{
+  position:relative;display:block;width:100%;aspect-ratio:16/10;padding:0;border:none;
+  background:#0f241c;cursor:pointer;overflow:hidden;
+}
+.lp-video-mock__poster{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;
+  transition:transform .5s ease,filter .35s ease;
+}
+.lp-video-mock__screen:hover .lp-video-mock__poster,.lp-video-mock__screen:focus-visible .lp-video-mock__poster{
+  transform:scale(1.03);filter:brightness(.72);
+}
+.lp-video-mock__overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;background:linear-gradient(180deg,rgba(15,36,28,.15) 0%,rgba(15,36,28,.55) 100%);
+  transition:background .3s;
+}
+.lp-video-mock__screen:hover .lp-video-mock__overlay,.lp-video-mock__screen:focus-visible .lp-video-mock__overlay{
+  background:linear-gradient(180deg,rgba(15,36,28,.25) 0%,rgba(15,36,28,.65) 100%);
+}
+.lp-video-mock__play{
+  position:relative;width:64px;height:64px;border-radius:50%;
+  background:rgba(255,255,255,.95);color:var(--lp-green-deep);
+  display:flex;align-items:center;justify-content:center;padding-left:3px;
+  box-shadow:0 8px 32px rgba(0,0,0,.28);
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;
+}
+.lp-video-mock__play::before{
+  content:'';position:absolute;inset:-10px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.45);animation:lp-intro-pulse 2.2s ease-out infinite;
+}
+@keyframes lp-intro-pulse{
+  0%{transform:scale(.92);opacity:.85}
+  70%,100%{transform:scale(1.18);opacity:0}
+}
+.lp-video-mock__screen:hover .lp-video-mock__play,.lp-video-mock__screen:focus-visible .lp-video-mock__play{
+  transform:scale(1.08);box-shadow:0 12px 40px rgba(0,0,0,.35);
+}
+.lp-video-mock__screen:focus-visible{outline:2px solid var(--lp-gold);outline-offset:-2px}
+.lp-video-mock__label{color:rgba(255,255,255,.9);font-size:.84rem;font-weight:600;letter-spacing:.01em}
+.lp-video-mock__duration{
+  position:absolute;bottom:36px;right:12px;z-index:2;
+  padding:4px 8px;border-radius:6px;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);
+  color:#fff;font-size:.7rem;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.lp-video-mock__progress{
+  position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,.15);z-index:2;
+}
+.lp-video-mock__progress-fill{
+  display:block;height:100%;width:18%;border-radius:0 2px 2px 0;
+  background:linear-gradient(90deg,var(--lp-gold),var(--lp-gold-strong));
+}
+.lp-video-mock__chapters{
+  display:flex;gap:6px;padding:10px 12px;background:#1a2e28;
+  overflow-x:auto;scrollbar-width:none;
+}
+.lp-video-mock__chapters::-webkit-scrollbar{display:none}
+.lp-video-mock__chapter{
+  flex-shrink:0;padding:5px 11px;border-radius:999px;
+  font-size:.68rem;font-weight:600;color:rgba(255,255,255,.55);
+  background:rgba(255,255,255,.06);border:1px solid transparent;
+  transition:background .2s,color .2s,border-color .2s;
+}
+.lp-video-mock__chapter.is-active{
+  color:#fff;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);
+}
+.lp-intro__caption{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  margin:0;font-size:.78rem;font-weight:500;color:var(--lp-text-muted);
+}
+.lp-intro__caption svg{color:var(--lp-green-mint);flex-shrink:0}
+@media(max-width:768px){
+  .lp-intro__grid{grid-template-columns:1fr}
+  .lp-intro__media{order:1;padding-bottom:16px}
+  .lp-intro__copy{order:2}
+  .lp-intro__ctas{flex-direction:column;align-items:stretch}
+  .lp-intro__ctas .lp-btn-primary{justify-content:center}
+  .lp-intro__play-link{justify-content:center}
+}
 
 /* social proof */
 .lp-social{
@@ -1458,7 +2101,7 @@ const LP_CSS = `
 .lp-teams-section{background:#fff}
 .lp-teams-card{display:grid;grid-template-columns:220px 1fr 280px;overflow:hidden}
 .lp-teams-nav{background:linear-gradient(180deg,#fafcfb,#f6faf8);display:flex;flex-direction:column;border-right:1px solid rgba(20,83,45,.08)}
-.lp-teams-nav__item{display:flex;align-items:center;gap:10px;padding:15px 18px;background:none;border:none;border-left:3px solid transparent;cursor:pointer;font-size:.82rem;color:var(--lp-text-muted);text-align:left;transition:all .2s;border-bottom:1px solid rgba(20,83,45,.06)}
+.lp-teams-nav__item{display:flex;align-items:center;gap:10px;padding:25px 20px;background:none;border:none;border-left:3px solid transparent;cursor:pointer;font-size:.82rem;color:var(--lp-text-muted);text-align:left;transition:all .2s;border-bottom:1px solid rgba(20,83,45,.06)}
 .lp-teams-nav__item.active{background:#fff;color:var(--lp-green-mid);border-left-color:var(--lp-green);font-weight:600}
 .lp-teams-nav__item:hover{color:var(--lp-green)}
 .lp-teams-feature{background:linear-gradient(145deg,#2d6a4f,#166534);color:#fff;padding:clamp(28px,4vw,36px) clamp(20px,3vw,28px)}
