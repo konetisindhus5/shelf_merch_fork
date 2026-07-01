@@ -1,6 +1,7 @@
 import { Notification } from './notification.model.js';
 import { getNotificationQueue } from '../../jobs/queues.js';
 import { ensureRedisReady } from '../../config/redis.js';
+import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
 import { sendSms } from '../../services/msg91.service.js';
 import {
@@ -62,9 +63,9 @@ export async function deliverNotification({
 
 /** Enqueue, falling back to immediate delivery when Redis is down. */
 export async function notify(payload) {
-  if (payload.type === 'surprise_gift') {
+  if (payload.type === 'surprise_gift' || env.NODE_ENV !== 'production') {
     await deliverNotification(payload).catch((err) =>
-      logger.error({ err }, 'Direct surprise gift notification delivery failed'),
+      logger.error({ err }, 'Direct notification delivery failed'),
     );
     return;
   }

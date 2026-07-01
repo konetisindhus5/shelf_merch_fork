@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import type { SendMode, ScheduleDraft, WhenMode } from "./types";
 
 const LOGO_DECO = (
@@ -64,6 +65,7 @@ export function RecipientExperience({
   onSchedule,
   preview,
   onPreview,
+  extraLeft,
 }: {
   kind?: "items" | "points";
   shopName?: string;
@@ -80,6 +82,7 @@ export function RecipientExperience({
   onSchedule: (key: keyof ScheduleDraft, value: string) => void;
   preview: "landing" | "email";
   onPreview: (tab: "landing" | "email") => void;
+  extraLeft?: ReactNode;
 }) {
   const isPoints = kind === "points";
   // surprise / single-location item sends ship directly; points always redeem
@@ -230,15 +233,17 @@ export function RecipientExperience({
   );
 
   return (
-    <>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Recipient experience</h1>
-      <p className="muted" style={{ marginBottom: 18 }}>
+    <div className="recipient-exp">
+      <div className="recipient-exp__header">
+      <h1>Recipient experience</h1>
+      <p className="muted">
         {shipMode
           ? "These gifts ship directly to recipients. Preview the tracking page and shipping email they receive."
           : "Craft the message and see exactly what recipients get — on the landing page and in their invitation email."}
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 28 }}>
-        <div>
+      </div>
+      <div className="recipient-exp__grid">
+        <div className="recipient-exp__left">
           <div className="card" style={{ padding: 20 }}>
             <h3 style={{ fontSize: 15, marginBottom: 10 }}>Your message</h3>
             <div className="field">
@@ -336,9 +341,10 @@ export function RecipientExperience({
               </button>
             )}
           </div>
+          {extraLeft}
         </div>
 
-        <div>
+        <div className="recipient-exp__preview card">
           <div className="row" style={{ justifyContent: "center", marginBottom: 16 }}>
             <div className="prevtabs">
               <button
@@ -367,6 +373,6 @@ export function RecipientExperience({
           </p>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -6,7 +6,7 @@
 }
 
 .sidebar-rail {
-  --sidebar-rail-bg: #fcfefd;
+  --sidebar-rail-bg: var(--app-sidebar-bg, #eef6f1);
   --sidebar-rail-icon: #56655c;
   --sidebar-rail-ink: #0e1e16;
   --sidebar-rail-highlight: #eaf5ef;
@@ -40,7 +40,7 @@
   border: 1px solid var(--line);
   border-top: none;
   border-left: none;
-  background: #fcfefd;
+  background: var(--app-sidebar-bg, #eef6f1);
   color: #0e1e16;
   box-shadow: 2px 1px 5px rgba(14, 30, 22, 0.04);
   cursor: pointer;
