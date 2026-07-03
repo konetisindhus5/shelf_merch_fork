@@ -1,5 +1,5 @@
 import { type ComponentType, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "react-router";
 import {
   ArrowRight,
   ArrowUpDown,
@@ -166,6 +166,9 @@ function kitRowsFromWorkspace(
 
 export function KitsPage() {
   const { data: workspace, isLoading, isError, error } = useWorkspace();
+  const { canWrite } = useTenantAccess();
+  const canCreateKits = canWrite("kits");
+  const canSendKits = canWrite("campaignOps");
   const [showAll, setShowAll] = useState(false);
 
   const previewLimit = 4;
@@ -272,7 +275,7 @@ export function KitsPage() {
                     <div>
                       <div className="kits-kit-title">
                         {row.kit ? (
-                          <Link to="/app/kits/$id" params={{ id: row.id }} className="lnk">
+                          <Link to={`/app/kits/${row.id}`} className="lnk">
                             {row.name}
                           </Link>
                         ) : (
@@ -312,8 +315,7 @@ export function KitsPage() {
                   <div className="kits-row-actions">
                     {row.kit ? (
                       <Link
-                        to="/app/kits/$id"
-                        params={{ id: row.id }}
+                        to={`/app/kits/${row.id}`}
                         className="kits-row-btn"
                       >
                         View
@@ -325,8 +327,7 @@ export function KitsPage() {
                     )}
                     {row.status === "live" && row.kit && canSendKits ? (
                       <Link
-                        to="/app/kits/$id/send"
-                        params={{ id: row.id }}
+                        to={`/app/kits/${row.id}/send`}
                         className="kits-send-btn"
                       >
                         Send
@@ -337,8 +338,7 @@ export function KitsPage() {
                       </Link>
                     ) : row.kit && canCreateKits ? (
                       <Link
-                        to="/app/kits/$id/edit"
-                        params={{ id: row.id }}
+                        to={`/app/kits/${row.id}/edit`}
                         className="kits-row-btn"
                       >
                         Edit

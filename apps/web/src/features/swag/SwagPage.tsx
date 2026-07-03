@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "react-router";
 import { LayoutGrid, Plus, Rows3, Shirt } from "lucide-react";
 import { LoadingState } from "@/components/LoadingState";
 import { PageHeader } from "@/components/tenant/PageHeader";
@@ -199,7 +199,7 @@ export function SwagPage() {
                 type="button"
                 className="btn btn-dark btn-lg"
                 style={{ padding: "0 20px", position: "absolute", bottom: 24, left: 80, zIndex: 10 }}
-                onClick={() => navigate({ to: "/app/swag/new" })}
+                onClick={() => navigate("/app/swag/new")}
               >
                 <Plus size={16} /> Start designing
               </button>
@@ -215,10 +215,10 @@ export function SwagPage() {
               product={product}
               productView
               onOpen={() => setDesign({ collection, product, pIdx })}
-              onEditDesign={() => navigate({ to: "/app/swag/new" })}
+              onEditDesign={() => navigate("/app/swag/new")}
               onViewProduct={() => {
                 if (product.id) {
-                  navigate({ to: "/app/catalog/$id", params: { id: product.id } });
+                  navigate(`/app/catalog/${product.id}`);
                 } else {
                   setDesign({ collection, product, pIdx });
                 }
