@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { UiCollection, UiProduct } from "@/services/mappers";
-import { ProductInfoTabs } from "@/features/catalog/ProductInfoTabs";
+import { ProductInfoTabs } from "@/features/catalog/views/ProductInfoTabs";
 import { productUniqueId } from "@/features/catalog/types";
 import { catalogCategoryLabel } from "@/features/shops/types";
 import {

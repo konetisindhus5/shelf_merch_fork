@@ -1,0 +1,188 @@
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { useContacts, useUpdateContact } from "../model";
+import type { UiContact } from "../model";
+import { contactToForm, ROLES } from "../types";
+
+export type ContactsTab = "permissions" | "directory";
+export type SortKey = "email" | "name" | "integrated";
+export type SortDir = "asc" | "desc";
+
+export type RoleCounts = { admins: number; senders: number; members: number };
+
+export type ContactsVm = {
+  isLoading: boolean;
+  errorMessage: string | null;
+  tab: ContactsTab;
+  query: string;
+  roleFilter: string;
+  filterOpen: boolean;
+  sortKey: SortKey;
+  counts: RoleCounts;
+  filtered: UiContact[];
+  selected: Set<string>;
+  allSelected: boolean;
+  someSelected: boolean;
+  isRolePending: boolean;
+  adding: boolean;
+  editing: UiContact | null;
+  onTab: (tab: ContactsTab) => void;
+  onQuery: (query: string) => void;
+  onRoleFilter: (role: string) => void;
+  onFilterOpenChange: (open: boolean) => void;
+  onToggleSort: (key: SortKey) => void;
+  onToggleAll: () => void;
+  onToggleOne: (id: string) => void;
+  onRoleChange: (contact: UiContact, role: string) => void;
+  onAddOpen: () => void;
+  onAddOpenChange: (open: boolean) => void;
+  onEdit: (contact: UiContact) => void;
+  onEditOpenChange: (open: boolean) => void;
+  onMoreActions: () => void;
+  onRestrict: () => void;
+  onFooterLink: (link: string) => void;
+};
+
+export function integratedLabel(c: UiContact) {
+  if (c.employeeCode) return "HRIS";
+  return "—";
+}
+
+function roleCounts(contacts: UiContact[]): RoleCounts {
+  let admins = 0;
+  let senders = 0;
+  let members = 0;
+  for (const c of contacts) {
+    if (c.role === "Owner" || c.role === "Admin") admins += 1;
+    else if (c.role === "Sender") senders += 1;
+    else members += 1;
+  }
+  return { admins, senders, members };
+}
+
+function sortContacts(list: UiContact[], key: SortKey, dir: SortDir) {
+  const mul = dir === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const av = key === "email" ? a.email : key === "name" ? a.name : integratedLabel(a);
+    const bv = key === "email" ? b.email : key === "name" ? b.name : integratedLabel(b);
+    return av.localeCompare(bv, undefined, { sensitivity: "base" }) * mul;
+  });
+}
+
+/** Controller for the contacts screen: list query, table state, role mutation, dialogs. */
+export function useContactsController(): ContactsVm {
+  const workspace = useWorkspace();
+  const { data: contacts, isLoading, isError, error } = useContacts(workspace.data?.contacts);
+  const updateContact = useUpdateContact();
+
+  const [tab, setTab] = useState<ContactsTab>("permissions");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey>("email");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<UiContact | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const counts = useMemo(() => roleCounts(contacts ?? []), [contacts]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = contacts ?? [];
+    if (q) {
+      list = list.filter(
+        (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q),
+      );
+    }
+    if (roleFilter !== "all") {
+      list = list.filter((c) => c.role === roleFilter);
+    }
+    return sortContacts(list, sortKey, sortDir);
+  }, [contacts, query, roleFilter, sortKey, sortDir]);
+
+  const allSelected =
+    filtered.length > 0 && filtered.every((c) => selected.has(c.id) || c.role === "Owner");
+  const someSelected = filtered.some((c) => selected.has(c.id));
+
+  function onToggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  function onToggleAll() {
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(filtered.filter((c) => c.role !== "Owner").map((c) => c.id)));
+  }
+
+  function onToggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function onRoleChange(contact: UiContact, role: string) {
+    if (contact.role === "Owner" || role === contact.role) return;
+    try {
+      await updateContact.mutateAsync({
+        id: contact.id,
+        values: { ...contactToForm(contact), role: role as (typeof ROLES)[number] },
+      });
+      toast.success("Role updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update role");
+    }
+  }
+
+  return {
+    isLoading: isLoading && !contacts,
+    errorMessage: isError
+      ? error instanceof Error
+        ? error.message
+        : "Could not load contacts"
+      : null,
+    tab,
+    query,
+    roleFilter,
+    filterOpen,
+    sortKey,
+    counts,
+    filtered,
+    selected,
+    allSelected,
+    someSelected,
+    isRolePending: updateContact.isPending,
+    adding,
+    editing,
+    onTab: setTab,
+    onQuery: setQuery,
+    onRoleFilter: (role) => {
+      setRoleFilter(role);
+      setFilterOpen(false);
+    },
+    onFilterOpenChange: setFilterOpen,
+    onToggleSort,
+    onToggleAll,
+    onToggleOne,
+    onRoleChange,
+    onAddOpen: () => setAdding(true),
+    onAddOpenChange: setAdding,
+    onEdit: setEditing,
+    onEditOpenChange: (open) => {
+      if (!open) setEditing(null);
+    },
+    onMoreActions: () => toast.message("Import and bulk actions — use Add contacts"),
+    onRestrict: () => toast.message("Contact restrictions — coming soon"),
+    onFooterLink: (link) => toast.message(`${link} — coming soon`),
+  };
+}

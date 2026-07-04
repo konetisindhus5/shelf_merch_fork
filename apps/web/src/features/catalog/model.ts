@@ -7,6 +7,10 @@ import {
 import type { WorkspaceSnapshot } from "@/services/workspace-api";
 import { ALL_PRODUCTS } from "./types";
 
+// Ui types re-exported here so views/controllers never import services/ directly.
+export type { UiProduct } from "@/services/mappers";
+export type { CatalogProductsResult } from "@/services/api-bridge";
+
 export const CATALOG_QUERY_KEY = "catalog";
 
 /**

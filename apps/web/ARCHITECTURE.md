@@ -40,6 +40,10 @@ features/campaigns/
 - Anything that navigates imperatively, mutates, or notifies surfaces as a **callback prop**
   supplied by the controller (`onSendGift`, `onSelectKit`, `onPayNow`, `onApplyPromo`, …).
 - Local DOM wiring (e.g. a `useRef` to a hidden file input) may stay in the view.
+- **Leaf presentational widgets** reused across screens (e.g. `catalog/views/ProductDetail`,
+  `ProductInfoTabs`) may hold their own ephemeral UI state — a tab toggle, an expand/collapse —
+  in the view. This is presentation, not screen logic; screen-level state (filters, pagination,
+  selection, dialog open/closed) still belongs in the controller.
 - Views may import: other views, shared presentational components (`components/LoadingState`,
   `components/ui/*`), icons, pure formatters (`inr`, `POINT_VALUE`), and types/predicates from
   the feature's `model.ts` or controller (types only).
