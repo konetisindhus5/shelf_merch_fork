@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiProduct } from "@/services/mappers";
-import { detailRows, productSwatches, productUniqueId } from "./types";
+import { detailRows, productSwatches, productUniqueId } from "../types";
 
 type Tab = "description" | "features" | "size";
 
@@ -12,13 +12,7 @@ const TABS: [Tab, string][] = [
 ];
 
 /** Read-only catalog product detail (description / key features / size guide). */
-export function ProductDetail({
-  product,
-  index,
-}: {
-  product: UiProduct;
-  index: number;
-}) {
+export function ProductDetail({ product, index }: { product: UiProduct; index: number }) {
   const [tab, setTab] = useState<Tab>("description");
   const [expanded, setExpanded] = useState(false);
 

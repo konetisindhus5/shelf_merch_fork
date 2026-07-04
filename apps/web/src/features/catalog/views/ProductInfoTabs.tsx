@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { UiProduct } from "@/services/mappers";
-import { detailRows } from "./types";
+import { detailRows } from "../types";
 
 type Tab = "description" | "features" | "size";
 

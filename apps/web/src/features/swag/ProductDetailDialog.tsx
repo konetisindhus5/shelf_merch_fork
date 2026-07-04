@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ProductInfoTabs } from "@/features/catalog/ProductInfoTabs";
+import { ProductInfoTabs } from "@/features/catalog/views/ProductInfoTabs";
 import type { UiCollection, UiProduct } from "@/services/mappers";
 import { collectionProductColorNames, productColorHex } from "./colors";
 import { DesignedProductThumb } from "./DesignedProductThumb";

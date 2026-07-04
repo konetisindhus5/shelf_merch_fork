@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Store } from "lucide-react";
-import { ProductInfoTabs } from "@/features/catalog/ProductInfoTabs";
+import { ProductInfoTabs } from "@/features/catalog/views/ProductInfoTabs";
 import type { UiCollection, UiProduct } from "@/services/mappers";
 import { collectionProductColorNames, productColorHex } from "./colors";
 import { DesignedProductThumb } from "./DesignedProductThumb";

@@ -9,6 +9,10 @@ import {
 import type { UiContact } from "@/services/mappers";
 import { toContactPayload, type ContactFormValues } from "./types";
 
+// Ui + service types re-exported here so views/controllers never import services/ directly.
+export type { UiContact } from "@/services/mappers";
+export type { ContactImportStatus } from "@/services/api-bridge";
+
 export const CONTACTS_QUERY_KEY = ["contacts"] as const;
 
 /** Contacts list — seeded from the workspace snapshot to avoid a load flash. */
