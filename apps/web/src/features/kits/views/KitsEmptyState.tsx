@@ -1,9 +1,9 @@
 import { type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router";
 import { BookOpen, Package, Radio, Send, UserPlus, Users } from "lucide-react";
-import { PreDesignedKits } from "./PreDesignedKits";
-import kitsAndItemsImg from "../../../assets/kits.png";
-import noKitsYetImg from "../../../assets/no-kits-yet.png";
+import { PreDesignedKits } from "../PreDesignedKits";
+import kitsAndItemsImg from "../../../../assets/kits.png";
+import noKitsYetImg from "../../../../assets/no-kits-yet.png";
 
 const ICON_CHIP: React.CSSProperties = {
   width: 28,
@@ -166,7 +166,7 @@ export function KitsEmptyState({ contactCount = 0 }: KitsEmptyStateProps) {
             </h1>
             <p
               className="muted"
-              style={{ fontSize: 15.5, lineHeight: 1.70, marginBottom: 20, maxWidth: 400 }}
+              style={{ fontSize: 15.5, lineHeight: 1.7, marginBottom: 20, maxWidth: 400 }}
             >
               Bundle catalog products into reusable kits and send them to employees at scale for any
               occasion.
@@ -320,8 +320,8 @@ export function KitsEmptyState({ contactCount = 0 }: KitsEmptyStateProps) {
             </div>
           </div>
         </div>
-      
-      <div
+
+        <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -339,25 +339,28 @@ export function KitsEmptyState({ contactCount = 0 }: KitsEmptyStateProps) {
             icon={Users}
           />
         </div>
-
       </div>
-      
-        <div id="pre-designed-section" className="card" style={{ marginTop: 24, padding: 24, background: "#fff" }}>
-          <div
-            className="row"
-            style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}
-          >
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", marginBottom: 3 }}>
-                Pre-designed kits
-              </h3>
-              <div className="muted" style={{ fontSize: 12 }}>
-                Choose a ready-made template and customize it.
-              </div>
+
+      <div
+        id="pre-designed-section"
+        className="card"
+        style={{ marginTop: 24, padding: 24, background: "#fff" }}
+      >
+        <div
+          className="row"
+          style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}
+        >
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", marginBottom: 3 }}>
+              Pre-designed kits
+            </h3>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Choose a ready-made template and customize it.
             </div>
           </div>
-          <PreDesignedKits />
         </div>
+        <PreDesignedKits />
+      </div>
     </>
   );
 }

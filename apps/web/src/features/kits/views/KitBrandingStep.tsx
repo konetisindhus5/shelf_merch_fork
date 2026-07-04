@@ -5,7 +5,7 @@ import type { UiProduct } from "@/services/mappers";
 import { ProductThumb } from "@/features/shops/ProductThumb";
 import { MockupCanvas } from "@/features/swag/MockupCanvas";
 import { placementKey, type Placement } from "@/features/swag/mockup-bake";
-import type { KitArtFile } from "./kitDraft";
+import type { KitArtFile } from "../wizard/kitDraft";
 
 const LOGO_ACCEPT = /\.(svg|png|webp|jpe?g)$/i;
 const LOGO_MAX = 5 * 1024 * 1024;
