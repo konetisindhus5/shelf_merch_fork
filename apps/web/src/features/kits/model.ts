@@ -1,7 +1,28 @@
-import { useMutation } from "@tanstack/react-query";
-import { createKitFlow, launchKitCampaignFlow, updateKitFlow } from "@/services/api-bridge";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  createKitFlow,
+  launchKitCampaignFlow,
+  refreshPlatformKits,
+  updateKitFlow,
+  type PlatformKitTemplate,
+} from "@/services/api-bridge";
 import { useInvalidateWorkspace } from "@/hooks/useWorkspace";
 import type { UiProduct } from "@/services/mappers";
+
+// Ui + service types re-exported here so views/controllers never import services/ directly.
+export type { UiKit, UiProduct } from "@/services/mappers";
+export type { PlatformKitTemplate } from "@/services/api-bridge";
+
+export const PLATFORM_KITS_QUERY_KEY = ["platform-kits"] as const;
+
+/** Platform-curated kit templates shown in the "Pre-designed kits" section. */
+export function usePlatformKits() {
+  return useQuery<PlatformKitTemplate[]>({
+    queryKey: PLATFORM_KITS_QUERY_KEY,
+    queryFn: refreshPlatformKits,
+    staleTime: 60_000,
+  });
+}
 
 export type KitArtworkInput = { file?: File; preview?: string; name?: string };
 
