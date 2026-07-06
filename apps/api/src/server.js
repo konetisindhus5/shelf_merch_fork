@@ -7,8 +7,17 @@ async function main() {
   await connectDb();
 
   const app = createApp();
-  const server = app.listen(env.PORT, () => {
-    logger.info(`ShelfMerch API listening on http://localhost:${env.PORT}/api/v1`);
+  const server = app.listen(env.PORT, env.HOST, () => {
+    const base = env.APP_URL.replace(/\/$/, '') || `http://${env.HOST}:${env.PORT}`;
+    logger.info(
+      {
+        host: env.HOST,
+        port: env.PORT,
+        nodeEnv: env.NODE_ENV,
+        appUrl: base,
+      },
+      `ShelfMerch listening on ${base}`,
+    );
   });
 
   const shutdown = async (signal) => {

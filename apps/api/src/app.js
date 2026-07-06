@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import mongoose from 'mongoose';
 import { pinoHttp } from 'pino-http';
 import { logger } from './config/logger.js';
-import { env } from './config/env.js';
+import { existsSync } from 'node:fs';
+import { env, corsOrigins } from './config/env.js';
 import { ensureRedisReady } from './config/redis.js';
 import { LOCAL_UPLOAD_DIR } from './services/storage.service.js';
 import { asyncHandler } from './utils/asyncHandler.js';
@@ -56,13 +57,35 @@ import mediaRoutes from './modules/media/media.routes.js';
 import chatRoutes from './modules/chat/chat.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const WEB_DIST = path.resolve(__dirname, '../../web/dist');
+
+function resolveCorsOptions() {
+  if (env.NODE_ENV !== 'production') {
+    return { origin: true, credentials: true };
+  }
+  const origins = corsOrigins();
+  if (!origins.length) return { origin: true, credentials: true };
+  return {
+    origin(origin, callback) {
+      if (!origin || origins.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  };
+}
 
 export function createApp() {
   const app = express();
 
   app.set('trust proxy', 1);
-  app.use(helmet());
-  app.use(cors({ origin: true, credentials: true }));
+  app.use(
+    helmet(
+      env.NODE_ENV === 'production'
+        ? { contentSecurityPolicy: false }
+        : undefined,
+    ),
+  );
+  app.use(cors(resolveCorsOptions()));
 
   // §9.3 — Razorpay webhook must verify signature against the raw body.
   app.post(
@@ -130,6 +153,16 @@ export function createApp() {
   api.use('/platform/impersonate', platformImpersonateRouter);
 
   app.use('/api/v1', api);
+
+  // Production: serve the Vite SPA from the same origin as the API.
+  if (env.NODE_ENV === 'production' && existsSync(WEB_DIST)) {
+    app.use(express.static(WEB_DIST, { index: false, maxAge: '1d' }));
+    app.get('*', (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) return next();
+      res.sendFile(path.join(WEB_DIST, 'index.html'));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

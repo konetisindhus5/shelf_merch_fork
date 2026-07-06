@@ -25,7 +25,9 @@ const mongoUriSchema = isTest
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(4000),
+  /** Bind address — use 0.0.0.0 in production so the VPS IP is reachable. */
+  HOST: z.string().default(isProd ? '0.0.0.0' : '0.0.0.0'),
+  PORT: z.coerce.number().int().positive().default(isProd ? 8080 : 4000),
 
   MONGODB_URI: mongoUriSchema,
   REDIS_URL: z.string().default('redis://localhost:6379'),
@@ -63,6 +65,8 @@ const envSchema = z.object({
   EMAIL_PASSWORD: z.string().optional().default(''),
   EMAIL_FROM: z.string().optional().default(''),
   APP_URL: z.string().optional().default('http://localhost:8080'),
+  /** Comma-separated allowed CORS origins in production (e.g. http://72.62.76.198:8080). Empty = allow all. */
+  CORS_ORIGINS: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(processEnv);
@@ -76,6 +80,11 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+export const corsOrigins = () =>
+  env.CORS_ORIGINS.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
 export const razorpayConfigured = () =>
   Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET && env.RAZORPAY_WEBHOOK_SECRET);
