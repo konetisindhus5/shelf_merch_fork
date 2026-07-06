@@ -205,6 +205,7 @@
 
 /* Full-screen wizards (send points, kit send, swag editor, etc.) — hide sidebar + toggle together */
 body:has(.sm-fullscreen) .sidebar-mount,
+body:has(.sm-fullscreen) .sidebar-rail__toggle,
 body:has(.sm-fullscreen) .sidebar-rail__flyout {
   display: none !important;
 }
