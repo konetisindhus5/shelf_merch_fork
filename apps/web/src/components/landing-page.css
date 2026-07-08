@@ -1875,14 +1875,16 @@
 
 /* vendor consolidation â€” CSS illustration */
 .lp-consolidate{
-  background:#f6f7f9;
-  padding:clamp(40px,6vw,72px) 0;
+  /* background:#f6f7f9; */
+  /* padding:clamp(40px,6vw,72px) 0; */
+  padding: 0;
 }
 .lp-consolidate__card{
   width:100%;
   max-width:none;
   margin:0 auto;
-  padding:clamp(36px,5vw,52px) clamp(32px,5vw,56px) clamp(32px,4vw,44px);
+  /* padding:clamp(36px,5vw,52px) clamp(32px,5vw,56px) clamp(32px,4vw,44px); */
+  padding: 0;
   background:#fff;
   border-radius:20px;
   border:1px solid rgba(15,23,42,.06);

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import "./landing-page.css";
 import { Link } from "react-router";
 import type { LucideIcon } from "lucide-react";
+import consolidateImg from "../../assets/consolidate.png";
 import {
   Award,
   Backpack,
@@ -826,7 +827,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── GIFTING ── */}
-      <section className="lp-section lp-gifting" id="gifting">
+      {/* <section className="lp-section lp-gifting" id="gifting">
         <div className="lp-container">
           <header className="lp-gifting__header">
             <p className="lp-gifting__eyebrow">Gifting</p>
@@ -864,7 +865,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* ── SOCIAL PROOF ── */}
       <section className="lp-section lp-social">
@@ -931,12 +932,12 @@ export default function LandingPage() {
       <section className="lp-section lp-consolidate" id="integrations">
         <div className="lp-container">
           <div className="lp-consolidate__card">
-            <header className="lp-consolidate__header">
+            {/* <header className="lp-consolidate__header">
               <h2 className="lp-consolidate__title">One platform for employee gifting and swag</h2>
               <p className="lp-consolidate__sub">Replace the vendor sprawl.</p>
-            </header>
+            </header> */}
 
-            <div className="lp-consolidate__visual" aria-hidden="true">
+            {/* <div className="lp-consolidate__visual" aria-hidden="true">
               <svg className="lp-consolidate__path" viewBox="0 0 900 80" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="lp-consolidate-grad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -967,7 +968,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </div> */}
+
+            <img src={consolidateImg} alt="Consolidate" />
           </div>
         </div>
       </section>
