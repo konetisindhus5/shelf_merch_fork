@@ -635,7 +635,13 @@ export async function launchKitCampaignApi(payload: {
   };
   message: { from: string; body: string };
   schedule?: { mode: "now" | "scheduled" | "self"; sendAt?: string | null; timezone?: string };
-  recipients: Array<{ contactId?: string; name: string; email: string; phone?: string }>;
+  recipients: Array<{
+    contactId?: string;
+    name: string;
+    email: string;
+    phone?: string;
+    variants?: Record<string, { size?: string; color?: string }>;
+  }>;
 }) {
   const campaign = await apiFetch<Record<string, unknown>>("/campaigns", {
     method: "POST",
@@ -660,6 +666,7 @@ export async function launchKitCampaignApi(payload: {
         name: r.name,
         email: r.email,
         phone: r.phone || "",
+        variants: r.variants,
       })),
       ...(payload.totalBudget != null ? { totalBudget: payload.totalBudget } : {}),
     }),
