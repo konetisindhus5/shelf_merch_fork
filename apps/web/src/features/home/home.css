@@ -141,7 +141,7 @@
 
 .home-stat__add:hover {
   background: var(--surface-2);
-  border-color: #cfd6d0;
+  border-color: var(--gray-300);
 }
 
 .home-card {
@@ -253,7 +253,7 @@
 }
 
 .home-mini-card:hover {
-  border-color: #cfd6d0;
+  border-color: var(--gray-300);
   box-shadow: var(--sh-2);
 }
 
@@ -329,7 +329,7 @@
   border: 1px solid var(--line);
   flex: 1;
   min-height: 140px;
-  background: linear-gradient(120deg, #1b4332, #15784c 45%, #2d9f6f);
+  background: linear-gradient(120deg, var(--brand-d), var(--brand) 45%, var(--brand-l));
   color: #fff;
   padding: 22px 20px;
   display: flex;

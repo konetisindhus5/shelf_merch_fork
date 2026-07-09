@@ -88,9 +88,9 @@ export default function TenantLayout() {
       <header className="topbar">
         <div className="brandmark">
           <svg viewBox="0 0 32 32" fill="none" width={28} height={28} aria-hidden="true">
-            <path d="M16 3 4 9l12 6 12-6-12-6Z" fill="#15784C" />
-            <path d="M4 15l12 6 12-6" stroke="#0E5536" strokeWidth="2.4" strokeLinejoin="round" />
-            <path d="M4 21l12 6 12-6" stroke="#1E8E5C" strokeWidth="2.4" strokeLinejoin="round" />
+            <path d="M16 3 4 9l12 6 12-6-12-6Z" fill="#3D5FD9" />
+            <path d="M4 15l12 6 12-6" stroke="#2B4E8F" strokeWidth="2.4" strokeLinejoin="round" />
+            <path d="M4 21l12 6 12-6" stroke="#F4741F" strokeWidth="2.4" strokeLinejoin="round" />
           </svg>
           <span
             style={{

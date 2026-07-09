@@ -94,8 +94,8 @@ function WorkspaceSettingsView(vm: SettingsVm) {
             />
           ) : (
             <svg viewBox="0 0 32 32" fill="none" width={26} height={26} aria-hidden="true">
-              <path d="M16 3 4 9l12 6 12-6-12-6Z" fill="#15784C" />
-              <path d="M4 15l12 6 12-6" stroke="#0E5536" strokeWidth="2.4" strokeLinejoin="round" />
+              <path d="M16 3 4 9l12 6 12-6-12-6Z" fill="var(--brand)" />
+              <path d="M4 15l12 6 12-6" stroke="var(--brand-d)" strokeWidth="2.4" strokeLinejoin="round" />
             </svg>
           )}
         </div>

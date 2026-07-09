@@ -1,4 +1,4 @@
-﻿.lp{
+.lp{
   --lp-green-deep:#14532d;
   --lp-green:#15803d;
   --lp-green-mid:#166534;
@@ -815,7 +815,7 @@
 .lp-hero-zone__curve{line-height:0;margin-bottom:-1px}
 .lp-hero-zone__curve svg{display:block;width:100%;height:clamp(28px,3.5vw,40px)}
 
-/* offerings â€” ShelfMerch tabbed section */
+/* offerings — ShelfMerch tabbed section */
 .lp-offerings{
   background:#fff;
   padding:clamp(56px,7vw,88px) 0 clamp(64px,8vw,96px);
@@ -1063,7 +1063,7 @@
   box-shadow:0 8px 32px rgba(20,83,45,.1);
 }
 
-/* anniversaries â€” 3-card showcase */
+/* anniversaries — 3-card showcase */
 .lp-anniv{
   max-width:1040px;
   margin:0 auto;
@@ -1295,7 +1295,7 @@
   gap:6px;
 }
 
-/* gifting mode cards (legacy â€” unused) */
+/* gifting mode cards (legacy — unused) */
 .lp-service-card{
   --service-accent:#3b59b6;
   display:flex;
@@ -1370,7 +1370,7 @@
   color:#6b7280;
 }
 
-/* intro â€” platform tour */
+/* intro — platform tour */
 .lp-intro{
   background:#fff;
   padding:clamp(64px,8vw,96px) 0;
@@ -1723,7 +1723,7 @@
   .lp-video-mock{min-height:260px}
 }
 
-/* social proof â€” Stadium-style */
+/* social proof — Stadium-style */
 .lp-social{
   background:#f0f2f1;
   padding:clamp(56px,7vw,80px) 0;
@@ -1782,7 +1782,7 @@
   .lp-social__logos{grid-template-columns:repeat(2,1fr)}
 }
 
-/* categories â€” Stadium-style catalog grid */
+/* categories — Stadium-style catalog grid */
 .lp-categories-section{
   background:#fff;
   padding:clamp(64px,8vw,96px) 0;
@@ -1873,7 +1873,7 @@
   .lp-cat-card{border-radius:12px}
 }
 
-/* vendor consolidation â€” CSS illustration */
+/* vendor consolidation — CSS illustration */
 .lp-consolidate{
   /* background:#f6f7f9; */
   /* padding:clamp(40px,6vw,72px) 0; */
@@ -1953,7 +1953,7 @@
   .lp-consolidate__path{min-width:520px;left:8px;right:8px;width:calc(100% - 16px)}
 }
 
-/* teams â€” Stadium-style tabbed panel */
+/* teams — Stadium-style tabbed panel */
 .lp-teams-section{
   background:#fff;
   padding:clamp(56px,7vw,80px) 0;
@@ -2110,7 +2110,7 @@
   .lp-teams-stage__card{padding:20px 18px;border-radius:12px}
 }
 
-/* use cases â€” Stadium-style */
+/* use cases — Stadium-style */
 .lp-usecases{
   background:#fff;
   padding:clamp(64px,8vw,96px) 0;
@@ -2193,7 +2193,7 @@
 .lp-diagram__avatars{display:flex;gap:12px;font-size:1.5rem;margin-top:8px}
 @media(max-width:900px){.lp-flex-grid{grid-template-columns:1fr}}
 
-/* testimonials â€” Stadium-style */
+/* testimonials — Stadium-style */
 .lp-testimonials{
   background:#d4ebe3;
   padding:clamp(64px,8vw,96px) 0;
@@ -2295,7 +2295,7 @@
   .lp-testimonials-grid{grid-template-columns:1fr;max-width:520px;margin:0 auto}
 }
 
-/* footer â€” Stadium-style */
+/* footer — Stadium-style */
 .lp-footer{
   background:#141414;
   color:rgba(255,255,255,.65);
