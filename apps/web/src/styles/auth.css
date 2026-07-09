@@ -3,7 +3,7 @@
   min-height:100vh;
   display:flex;
   flex-direction:column;
-  background:#fafaf8;
+  background:oklch(0.9851 0 0);
   color:var(--ink);
 }
 .auth-simple-body{
@@ -99,7 +99,7 @@
   padding:0 14px;
   border:1px solid transparent;
   border-radius:10px;
-  background:#eef1f4;
+  background:var(--gray-100);
   font-size:14px;
   color:var(--ink);
   outline:none;
@@ -163,7 +163,7 @@
   cursor:pointer;
   transition:background .15s ease, opacity .15s ease;
 }
-.auth-simple-submit:hover:not(:disabled){background:#1b3326}
+.auth-simple-submit:hover:not(:disabled){background:#27282E}
 .auth-simple-submit:disabled{opacity:.6;cursor:not-allowed}
 .auth-simple-switch{
   margin:22px 0 0;
@@ -184,7 +184,7 @@
   gap:28px;
   padding:18px 20px 22px;
   border-top:1px solid var(--line);
-  background:#fff;
+  background:transparent;
 }
 .auth-simple-footer-link{
   font-size:11px;

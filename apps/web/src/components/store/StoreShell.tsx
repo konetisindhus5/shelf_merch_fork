@@ -1761,7 +1761,7 @@ export default function StoreShell({
         <div className="sf-content sf-order-success">
           <div className="card sf-fade-in sf-order-success-card">
             <div className="sf-order-success-icon" aria-hidden="true">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#15784C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3D5FD9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
             </div>
             <div className="eyebrow">Order placed</div>
             <h1 className="sf-order-success-title">Thank you{recipientName ? `, ${recipientName}` : ""}!</h1>
