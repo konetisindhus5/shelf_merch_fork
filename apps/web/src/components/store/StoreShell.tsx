@@ -643,9 +643,9 @@ export default function StoreShell({
   const [checkoutFirst, setCheckoutFirst] = useState("");
   const [checkoutLast, setCheckoutLast] = useState("");
   const [checkoutBusiness, setCheckoutBusiness] = useState("");
-  const [addressSaved, setAddressSaved] = useState(false);
   const [shippingConfirmed, setShippingConfirmed] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const checkoutSummaryRef = useRef<HTMLElement>(null);
   const [useRewardPoints, setUseRewardPoints] = useState(true);
   const [addedToBag, setAddedToBag] = useState<AddedToBagInfo | null>(null);
   const catalogRef = useRef<HTMLDivElement>(null);
@@ -689,7 +689,6 @@ export default function StoreShell({
 
   useEffect(() => {
     if (page !== "checkout") {
-      setAddressSaved(false);
       setShippingConfirmed(false);
       setItemsExpanded(false);
       return;
@@ -797,7 +796,6 @@ export default function StoreShell({
   }
 
   function resetCheckoutProgress() {
-    setAddressSaved(false);
     setShippingConfirmed(false);
   }
 
@@ -808,7 +806,7 @@ export default function StoreShell({
     };
   }
 
-  function saveShipping() {
+  function continueToOrderSummary() {
     const next = buildAddressFromCheckout();
     const missing = (["name", "phone", "line1", "city", "state", "pincode"] as const).filter(
       (k) => !(k === "name" ? next.name : next[k]).trim(),
@@ -819,12 +817,10 @@ export default function StoreShell({
     }
     setAddress(next);
     setError("");
-    setAddressSaved(true);
-  }
-
-  function confirmShipping() {
-    if (!addressSaved) return;
     setShippingConfirmed(true);
+    window.setTimeout(() => {
+      checkoutSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   function openProduct(id: string) {
@@ -1584,7 +1580,7 @@ export default function StoreShell({
 
                   <div className="sf-checkout-form-row sf-checkout-form-row--2">
                     <label className="sf-checkout-field">
-                      <span className="sf-checkout-label">Suite / Apt / Other</span>
+                      <span className="sf-checkout-label">Suite / Apt / Other (optional)</span>
                       <input
                         className="sf-checkout-inp"
                         placeholder="Apt 000"
@@ -1636,22 +1632,20 @@ export default function StoreShell({
                   </div>
                 </div>
 
-                <button type="button" className="sf-checkout-save" onClick={saveShipping}>
-                  Save
+                <button
+                  type="button"
+                  className="sf-checkout-continue sf-checkout-continue--inline"
+                  onClick={continueToOrderSummary}
+                >
+                  Continue to order summary
                 </button>
+                <p className="sf-checkout-continue-hint">
+                  Review your totals and pay in the order summary below.
+                </p>
               </div>
-
-              <button
-                type="button"
-                className="sf-checkout-continue"
-                disabled={!addressSaved}
-                onClick={confirmShipping}
-              >
-                Continue
-              </button>
             </div>
 
-            <aside className="sf-checkout-sidebar">
+            <aside ref={checkoutSummaryRef} className="sf-checkout-sidebar">
               <div className="sf-checkout-summary">
                 <h2 className="sf-checkout-summary-title">Order Summary</h2>
                 {mode === "redeem" && balanceInr != null ? (
@@ -1714,6 +1708,9 @@ export default function StoreShell({
                       ? `Pay ${fmtUpiAmount(upiDueInr)} via UPI`
                       : "Pay now"}
                 </button>
+                {!shippingConfirmed ? (
+                  <p className="sf-checkout-pay-hint">Complete shipping above, then continue to pay here.</p>
+                ) : null}
               </div>
 
               <div className="sf-checkout-items">

@@ -5931,7 +5931,7 @@ a.shop-collection-cell:hover{background:#eef1ee}
 }
 .sf-checkout-continue {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 22px;
   height: 52px;
   border: none;
   border-radius: 999px;
@@ -5940,9 +5940,22 @@ a.shop-collection-cell:hover{background:#eef1ee}
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-transform: none;
   cursor: pointer;
+}
+.sf-checkout-continue--inline {
+  width: 100%;
+}
+.sf-checkout-continue-hint {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #6b776f;
+  text-align: center;
+}
+.sf-checkout-continue:hover {
+  background: #0e1e16;
 }
 .sf-checkout-continue:disabled {
   background: #e8ece8;
@@ -6037,6 +6050,13 @@ a.shop-collection-cell:hover{background:#eef1ee}
 }
 .sf-checkout-pay:not(:disabled):hover {
   background: #0e1e16;
+}
+.sf-checkout-pay-hint {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #6b776f;
+  text-align: center;
 }
 .sf-checkout-items {
   background: #fff;
