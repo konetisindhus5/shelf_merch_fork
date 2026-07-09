@@ -67,6 +67,12 @@ const envSchema = z.object({
   APP_URL: z.string().optional().default('http://localhost:8080'),
   /** Comma-separated allowed CORS origins in production (e.g. http://72.62.76.198:8080). Empty = allow all. */
   CORS_ORIGINS: z.string().optional().default(''),
+  GOOGLE_CLIENT_ID: z.string().optional().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
+  GOOGLE_CALLBACK_URL: z.string().optional().default(''),
+  BASE_URL: z.string().optional().default(''),
+  /** SPA route that receives tokens after Google OAuth (hash fragment). */
+  CLIENT_URL: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(processEnv);
@@ -93,6 +99,21 @@ export const msg91Configured = () =>
   Boolean(env.MSG91_AUTH_KEY && env.MSG91_OTP_TEMPLATE_ID);
 
 export const emailConfigured = () => Boolean(env.EMAIL_USER && env.EMAIL_PASSWORD);
+
+export const googleAuthConfigured = () =>
+  Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+
+export const googleCallbackUrl = () => {
+  if (env.GOOGLE_CALLBACK_URL) return env.GOOGLE_CALLBACK_URL.replace(/\/$/, '');
+  const base = (env.BASE_URL || env.APP_URL).replace(/\/$/, '');
+  return `${base}/api/v1/auth/google/callback`;
+};
+
+export const googleClientUrl = () => {
+  if (env.CLIENT_URL) return env.CLIENT_URL.replace(/\/$/, '');
+  const base = (env.BASE_URL || env.APP_URL).replace(/\/$/, '');
+  return `${base}/auth/google`;
+};
 
 export const s3Configured = () =>
   Boolean(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_REGION && env.S3_BUCKET_NAME);
