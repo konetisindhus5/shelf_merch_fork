@@ -99,6 +99,43 @@ rather than replacing it:
 - **L4** — Prod SPA served with `maxAge: '1d'` incl. `index.html` fallback —
   ensure `index.html` is `no-cache` so security fixes roll out immediately.
 
+## 2.5 Implemented in this PR (application-level controls)
+
+Infrastructure/deploy items (TLS, HSTS, firewall — A1) are intentionally **not**
+in this PR; they belong to the server provisioning pass. The code-level controls
+below are done, with tests in `apps/api/tests/security-hardening.test.js` and
+`account-lockout.test.js`:
+
+- **C2 — CORS fail-closed** (`app.js`): removed the empty-origins "allow all with
+  credentials" branch; cross-origin now requires an allowlisted or same-Host Origin.
+- **C3 — Rate limiting fail-closed** (`rateLimit.service.js`,
+  `rateLimit.middleware.js`): auth/OTP scopes are `critical` and fall back to an
+  in-memory limiter when Redis is down (prod/dev; disabled under test); added a
+  coarse per-IP global limiter (production).
+- **C4 — CSP + upload hardening** (`app.js`, `upload.middleware.js`,
+  `error.middleware.js`): production CSP via helmet (report-only by default,
+  `CSP_MODE=enforce` to enforce); `/uploads` served with `nosniff`, CSP sandbox,
+  and `Content-Disposition: attachment` for non-images; a shared upload allowlist
+  rejects SVG/HTML/script uploads across all seven multer routes; MulterError →
+  413/400.
+- **H2 (partial) — password policy + lockout** (`auth.validation.js`,
+  `users.validation.js`, `user.model.js`, `auth.service.js`): min-10 + letter+digit
+  on register/reset/invite; Mongo-backed lockout after 10 failed logins (15 min),
+  independent of Redis.
+- **H3 — JWT hardening** (`config/jwt.js` + all sign/verify sites): pinned HS256 +
+  issuer + audience, `jti` on access tokens, separate audience for redemption
+  sessions (an access token can't be replayed as a redemption session).
+- **M1 — media proxy SSRF** (`media/media.routes.js`): no redirects, 5 s timeout,
+  10 MB cap, image-only content-type.
+- **M2 — NoSQL input hygiene** (`sanitize.middleware.js`): strips `$`-prefixed
+  operator keys from body/params/query on every request.
+- **H4 (partial) — supply-chain CI**: `.github/dependabot.yml`, CodeQL workflow,
+  gitleaks secret scan (`.gitleaks.toml`), advisory `npm audit` job.
+
+Deferred to follow-up PRs (see §4): B1 cookie refresh tokens + reuse detection,
+TOTP 2FA, JWT key rotation (`kid`)/`tokenVersion`, and the `xlsx` replacement
+(which is why the audit job is advisory, not blocking).
+
 ## 3. Implementation plan
 
 Four phases, ordered by risk. Each item lists concrete touch points. Phases

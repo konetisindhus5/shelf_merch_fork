@@ -1,0 +1,21 @@
+# gitleaks configuration — extends the default ruleset and allowlists the
+# intentional demo/sample credentials that live in docs, seeds, and templates so
+# the secret scan flags only real leaks.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Demo and sample credentials (not real secrets)"
+paths = [
+  '''\.env\.example$''',
+  '''(^|/)README\.md$''',
+  '''(^|/)docs/''',
+  '''(^|/)apps/api/src/seed/''',
+  '''(^|/)deploy/env\.production\.template$''',
+]
+regexes = [
+  '''dev-access-secret-change-me''',
+  '''dev-refresh-secret-change-me''',
+  '''demo1234''',
+  '''seedDemo[A-Za-z0-9]+''',
+]

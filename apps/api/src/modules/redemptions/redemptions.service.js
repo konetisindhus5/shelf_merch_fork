@@ -25,6 +25,7 @@ import { Contact } from '../contacts/contact.model.js';
 import { transitionRedemption, finalizeRecipientRedemption } from '../campaigns/campaigns.service.js';
 import { computeAmountBreakdown } from '../../services/pricing.service.js';
 import { env } from '../../config/env.js';
+import { redemptionSignOptions, redemptionVerifyOptions } from '../../config/jwt.js';
 import { sendOtpSms } from '../../services/msg91.service.js';
 import { sendOtpEmail } from '../../services/email.service.js';
 import {
@@ -310,13 +311,13 @@ export function signRedemptionSession(recipient) {
   return jwt.sign(
     { sub: String(recipient._id), type: 'redemption', tenantId: String(recipient.tenantId) },
     env.JWT_ACCESS_SECRET,
-    { expiresIn: SESSION_TTL },
+    redemptionSignOptions({ expiresIn: SESSION_TTL }),
   );
 }
 
 export function verifyRedemptionSession(token) {
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, redemptionVerifyOptions());
     if (payload.type !== 'redemption') throw new Error('wrong type');
     return payload;
   } catch {
