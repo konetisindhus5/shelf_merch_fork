@@ -845,7 +845,11 @@ export async function submitRedemption(
     statusHistory: [{ status: 'created', at: new Date(), actorUserId: null, note: 'Redemption submit' }],
   });
 
-  if (!kitFulfillment && campaign.type !== 'points') {
+  // Points campaigns stay open (pooled credits — the recipient can keep
+  // ordering against remaining credit). Everything else, including one-shot
+  // kit sends, transitions to order_created so the replay guard above stops
+  // duplicate orders.
+  if (campaign.type !== 'points') {
     transitionRedemption(recipient, 'redeemed');
     transitionRedemption(recipient, 'order_created');
     await recipient.save();
