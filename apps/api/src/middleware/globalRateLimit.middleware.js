@@ -1,11 +1,12 @@
 import rateLimit, { MemoryStore } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import { getRedis } from '../config/redis.js';
+import { ensureRedisReady, getRedis } from '../config/redis.js';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 600;
+const REDIS_STORE_TIMEOUT_MS = 250;
 
 /**
  * express-rate-limit store that keeps the coarse per-IP ceiling GLOBAL across
@@ -31,7 +32,15 @@ class ResilientRedisStore {
 
   async #withFallback(method, ...args) {
     try {
-      const result = await this.redisStore[method](...args);
+      if (!(await ensureRedisReady(REDIS_STORE_TIMEOUT_MS))) {
+        throw new Error('Redis is not ready');
+      }
+      const result = await Promise.race([
+        this.redisStore[method](...args),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Redis rate-limit timeout')), REDIS_STORE_TIMEOUT_MS),
+        ),
+      ]);
       if (this.usingFallback) {
         this.usingFallback = false;
         logger.info('Global rate limiter: Redis store recovered');
