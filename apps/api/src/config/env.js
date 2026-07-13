@@ -28,6 +28,13 @@ const envSchema = z.object({
   /** Bind address — use 0.0.0.0 in production so the VPS IP is reachable. */
   HOST: z.string().default(isProd ? '0.0.0.0' : '0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(isProd ? 8080 : 4000),
+  /**
+   * Number of trusted reverse-proxy hops in front of the app (Express `trust
+   * proxy`). Behind the HAProxy LB = 1; behind Cloudflare → HAProxy = 2. Only
+   * trusted hops may set `X-Forwarded-For`, so this must match the real topology
+   * or per-IP rate limits can be spoofed.
+   */
+  TRUST_PROXY: z.coerce.number().int().min(0).default(1),
 
   MONGODB_URI: mongoUriSchema,
   REDIS_URL: z.string().default('redis://localhost:6379'),

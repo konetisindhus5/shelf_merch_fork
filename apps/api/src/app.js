@@ -1,6 +1,5 @@
 import express from 'express';
 import helmet from 'helmet';
-import rateLimitExpress from 'express-rate-limit';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +13,7 @@ import { LOCAL_UPLOAD_DIR } from './services/storage.service.js';
 import { asyncHandler } from './utils/asyncHandler.js';
 import { notFoundHandler, errorHandler } from './middleware/error.middleware.js';
 import { sanitizeMongoInput } from './middleware/sanitize.middleware.js';
+import { globalHttpRateLimit } from './middleware/globalRateLimit.middleware.js';
 import { razorpayWebhook } from './modules/payments/payments.controller.js';
 
 import authRoutes from './modules/auth/auth.routes.js';
@@ -129,7 +129,7 @@ function helmetOptions() {
 export function createApp() {
   const app = express();
 
-  app.set('trust proxy', 1);
+  app.set('trust proxy', env.TRUST_PROXY);
   app.use(helmet(helmetOptions()));
   app.use((req, res, next) => cors(resolveCorsOptions(req))(req, res, next));
 
@@ -166,6 +166,28 @@ export function createApp() {
 
   const api = express.Router();
 
+  // Liveness: the process is up and the event loop responds. Used by the
+  // orchestrator to decide whether to restart the container — must NOT depend on
+  // Mongo/Redis, or a data blip would kill otherwise-healthy replicas.
+  api.get('/health/live', (_req, res) => {
+    res.status(200).json({ status: 'live', uptimeSec: Math.round(process.uptime()) });
+  });
+
+  // Readiness: this replica can serve traffic. The load balancer gates on this —
+  // 503 pulls the replica out of rotation until Mongo AND Redis are reachable.
+  api.get('/health/ready', async (_req, res) => {
+    const mongoOk = mongoose.connection.readyState === 1;
+    const redisOk = await ensureRedisReady(2_000);
+    const ready = mongoOk && redisOk;
+    res.status(ready ? 200 : 503).json({
+      status: ready ? 'ready' : 'not-ready',
+      mongo: mongoOk ? 'up' : 'down',
+      redis: redisOk ? 'up' : 'down',
+      uptimeSec: Math.round(process.uptime()),
+    });
+  });
+
+  // Back-compat combined health check.
   api.get('/health', async (_req, res) => {
     const mongoOk = mongoose.connection.readyState === 1;
     const redisOk = await ensureRedisReady(2_000);
@@ -178,18 +200,9 @@ export function createApp() {
   });
 
   // Coarse per-IP ceiling across the whole API (health excluded above), as
-  // defence-in-depth in front of the fine-grained per-identity limits layered
-  // on auth/OTP routes. Mounted unconditionally so every route is covered;
-  // skipped under test so the suite's many requests aren't throttled.
-  api.use(
-    rateLimitExpress({
-      windowMs: 60_000,
-      max: 600,
-      standardHeaders: true,
-      legacyHeaders: false,
-      skip: () => env.NODE_ENV === 'test',
-    }),
-  );
+  // defence-in-depth in front of the fine-grained per-identity limits layered on
+  // auth/OTP routes. Backed by Redis so the ceiling is shared across replicas.
+  api.use(globalHttpRateLimit);
 
   api.use('/auth', authRoutes);
   api.use('/media', mediaRoutes);
