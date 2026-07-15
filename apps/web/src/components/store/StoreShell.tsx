@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { type StoreShop } from "../StoreBanner";
 import { resolveColorHex } from "@/lib/colorMap";
+import { curatedColorSwatches, productVariantSwatches } from "@/lib/variantColors";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import { shopBannerPresetLabel, shopHeroBannerUrl } from "@/lib/shop-banners";
 import { DesignedProductThumb,
@@ -47,30 +48,8 @@ export type StoreProduct = {
   variants?: Array<{ size?: string; color?: string; colorHex?: string; material?: string; sku?: string }>;
 };
 
-function variantColorNames(p: StoreProduct) {
-  return distinct(p.variants?.map((v) => v.color) ?? []);
-}
-
 function distinct(values: Array<string | undefined>) {
   return Array.from(new Set(values.filter((v): v is string => !!v)));
-}
-
-function isWhiteColor(name: string) {
-  return name.toLowerCase().trim() === "white";
-}
-
-function sortColorsWhiteFirst(colors: Array<{ name: string; hex: string }>) {
-  const whiteIdx = colors.findIndex((c) => isWhiteColor(c.name));
-  if (whiteIdx <= 0) return colors;
-  const sorted = [...colors];
-  const [white] = sorted.splice(whiteIdx, 1);
-  return [white, ...sorted];
-}
-
-/** White is always the primary/default colour option for mockup preview. */
-function ensureWhitePrimary(colors: Array<{ name: string; hex: string }>) {
-  if (colors.some((c) => isWhiteColor(c.name))) return sortColorsWhiteFirst(colors);
-  return [{ name: "White", hex: "#FFFFFF" }, ...colors];
 }
 
 function primaryColorIndex(_colors: Array<{ name: string; hex: string }>) {
@@ -78,16 +57,7 @@ function primaryColorIndex(_colors: Array<{ name: string; hex: string }>) {
 }
 
 function productColorOptions(p: StoreProduct): Array<{ name: string; hex: string }> {
-  const available = variantColorNames(p);
-  const prefs = p.preferredColors || [];
-  const names = prefs.length ? prefs.filter((c) => !available.length || available.includes(c)) : available;
-  const finalNames = names.length ? names : available;
-  return ensureWhitePrimary(
-    finalNames.map((name) => ({
-      name,
-      hex: resolveColorHex(name, p.variants?.find((v) => v.color === name)?.colorHex),
-    })),
-  );
+  return curatedColorSwatches(productVariantSwatches(p), p.preferredColors);
 }
 
 function ArtworkMockup({

@@ -1,9 +1,7 @@
 import { Link } from "react-router";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import type { UiProduct } from "@/services/mappers";
-
-// The legacy catalog card renders a fixed swatch strip plus a "+N" colour count.
-const SWATCH_DOTS = ["#1c1c1c", "#2b4a8b", "#9a9a9a", "#7a4a25"];
+import { productSwatches } from "../types";
 
 function thumb(p: UiProduct): string | undefined {
   return resolveMediaUrl(p.mockupUrl) || resolveMediaUrl(p.photoUrl) || resolveMediaUrl(p.imgUrl);
@@ -12,6 +10,10 @@ function thumb(p: UiProduct): string | undefined {
 /** Catalog/browse product card — faithful to the legacy `pcard()` markup. */
 export function ProductCard({ product }: { product: UiProduct }) {
   const src = thumb(product);
+  const swatches = productSwatches(product);
+  const preview = swatches.slice(0, 4);
+  const more = swatches.length - preview.length;
+
   const content = (
     <>
       <div className="img">
@@ -34,14 +36,21 @@ export function ProductCard({ product }: { product: UiProduct }) {
         {product.brand && <div className="brand">{product.brand}</div>}
         <div className="nm">{product.nm}</div>
         {product.price && <div className="pr">{product.price}</div>}
-        {product.sw > 0 && (
+        {swatches.length > 0 && (
           <div className="swatches">
-            {SWATCH_DOTS.map((c) => (
-              <span key={c} className="sw" style={{ background: c }} />
+            {preview.map((c) => (
+              <span
+                key={c.name}
+                className="sw"
+                style={{ background: c.hex }}
+                title={c.name}
+              />
             ))}
-            <span className="mut3" style={{ fontSize: 11, alignSelf: "center", marginLeft: 2 }}>
-              +{product.sw}
-            </span>
+            {more > 0 && (
+              <span className="mut3" style={{ fontSize: 11, alignSelf: "center", marginLeft: 2 }}>
+                +{more}
+              </span>
+            )}
           </div>
         )}
       </div>

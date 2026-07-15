@@ -1,4 +1,6 @@
 import type { UiCollection, UiProduct } from "@/services/mappers";
+import { resolveColorHex } from "@/lib/colorMap";
+import { curatedColorSwatches, productVariantSwatches } from "@/lib/variantColors";
 
 const SWAG_COLORS: [string, string][] = [
   ["Black", "#1c1c1c"],
@@ -15,20 +17,6 @@ const SWAG_COLORS: [string, string][] = [
   ["Yellow", "#f5d000"],
 ];
 const SWAG_COLOR_HEX: Record<string, string> = Object.fromEntries(SWAG_COLORS);
-
-const DEFAULT_PRODUCT_COLOR_NAMES: Record<string, string[]> = {
-  hoodie: ["Black", "Navy", "Blue", "Green", "Gray", "Red"],
-  tee: ["Black", "White", "Navy", "Blue", "Red", "Green", "Gray", "Yellow"],
-  mug: ["Black", "White"],
-  bottle: ["Black", "Blue", "Green", "Gray", "Navy"],
-  pack: ["Black", "Navy", "Blue", "Gray"],
-  cap: ["Black", "Navy", "Blue", "Gray", "Red"],
-  note: ["Black", "Blue", "Red", "Green"],
-  power: ["Black", "Blue", "Gray"],
-  pillow: ["Black", "Gray", "Blue", "Navy"],
-  bag: ["Black", "Brown", "Green", "Navy"],
-  default: ["Black", "White", "Navy", "Gray"],
-};
 
 const PRODUCT_DESCRIPTIONS: Record<string, string> = {
   hoodie:
@@ -60,36 +48,18 @@ export const DEFAULT_MOCKUP_TINT_HEX = SWAG_COLOR_HEX.White;
 
 export function productColorHex(p: UiProduct, name: string): string {
   if (p?.colorHexByName?.[name]) return p.colorHexByName[name];
+  const fromVariant = p?.variants?.find((v) => v.color === name)?.colorHex;
+  if (fromVariant) return resolveColorHex(name, fromVariant);
   if (isHexColor(name)) return name;
-  return swagColorHex(name);
-}
-
-function sortWhiteFirst(names: string[]): string[] {
-  const i = names.findIndex((n) => String(n).toLowerCase() === "white");
-  if (i <= 0) return names;
-  const out = [...names];
-  const [w] = out.splice(i, 1);
-  return [w, ...out];
-}
-
-function ensureWhitePrimaryNames(names: string[]): string[] {
-  if (names.some((n) => String(n).toLowerCase() === "white")) return sortWhiteFirst(names);
-  return ["White", ...names];
+  return resolveColorHex(name) || swagColorHex(name);
 }
 
 export function productColorNames(p: UiProduct): string[] {
-  if (p?.colors?.length) return ensureWhitePrimaryNames(p.colors);
-  const names = DEFAULT_PRODUCT_COLOR_NAMES[p?.g] || DEFAULT_PRODUCT_COLOR_NAMES.default;
-  return ensureWhitePrimaryNames(names);
+  return productVariantSwatches(p).map((c) => c.name);
 }
 
 export function collectionProductColorNames(col: UiCollection, p: UiProduct): string[] {
-  const prefs = col?.preferredColors || [];
-  const available = productColorNames(p);
-  const names = prefs.length
-    ? prefs.filter((c) => !available.length || available.includes(c))
-    : available;
-  return ensureWhitePrimaryNames(names.length ? names : available);
+  return curatedColorSwatches(productVariantSwatches(p), col?.preferredColors).map((c) => c.name);
 }
 
 export function productDescription(p: UiProduct): string {

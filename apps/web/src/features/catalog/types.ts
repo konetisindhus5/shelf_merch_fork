@@ -1,3 +1,4 @@
+import { productVariantSwatches } from "@/lib/variantColors";
 import type { UiProduct } from "@/services/mappers";
 
 /** Category tabs, matching the legacy catalog filter rail. */
@@ -33,6 +34,5 @@ export function productUniqueId(p: UiProduct, index: number): string {
 
 /** Resolve display swatches: color name → hex (falls back to the name itself). */
 export function productSwatches(p: UiProduct): { name: string; hex: string }[] {
-  const names = p.colors ?? [];
-  return names.map((name) => ({ name, hex: p.colorHexByName?.[name] || name }));
+  return productVariantSwatches(p);
 }

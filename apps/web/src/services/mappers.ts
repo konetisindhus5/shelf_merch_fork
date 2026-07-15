@@ -1,5 +1,5 @@
 import type { AuthUser } from "./auth-store";
-import { isPlaceholderColorHex, resolveColorHex } from "../lib/colorMap";
+import { extractVariantColors } from "../lib/variantColors";
 import { normalizeMongoId } from "@/lib/mongoId";
 
 export type UiPrintArea = {
@@ -216,31 +216,6 @@ const GROUP_BY_CATEGORY: Record<string, string> = {
   "Health & Wellness": "pillow",
 };
 
-function extractVariantColors(
-  variants: Array<{ color?: string; colorHex?: string }> | undefined,
-): { colors: string[]; colorHexByName: Record<string, string> } {
-  if (!Array.isArray(variants)) return { colors: [], colorHexByName: {} };
-  const seen = new Set<string>();
-  const colors: string[] = [];
-  const colorHexByName: Record<string, string> = {};
-  for (const v of variants) {
-    const colorName = (v.color || "").trim();
-    const storedHex =
-      v.colorHex && !isPlaceholderColorHex(v.colorHex) ? v.colorHex : undefined;
-    const label =
-      colorName ||
-      (storedHex && !isPlaceholderColorHex(storedHex) ? storedHex : "");
-    if (!label) continue;
-    const key = label.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    colors.push(label);
-    const hex = resolveColorHex(colorName || undefined, storedHex);
-    if (!isPlaceholderColorHex(hex)) colorHexByName[label] = hex;
-  }
-  return { colors, colorHexByName };
-}
-
 export function mapCatalogProduct(p: ApiProduct): UiProduct {
   const { colors: variantColors, colorHexByName } = extractVariantColors(p.variants);
   const photoUrl = resolveMediaUrl(p.primaryImageUrl || p.imageUrls?.[0]);
@@ -286,6 +261,9 @@ export function mergeCatalogProductDetails(
     description: product.description || fromCatalog.description,
     keyFeatures: product.keyFeatures || fromCatalog.keyFeatures,
     sizeGuide: product.sizeGuide || fromCatalog.sizeGuide,
+    colors: product.colors?.length ? product.colors : fromCatalog.colors,
+    colorHexByName: product.colorHexByName ?? fromCatalog.colorHexByName,
+    variants: product.variants?.length ? product.variants : fromCatalog.variants,
   };
 }
 
@@ -312,6 +290,7 @@ export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProdu
     sw: fromCatalog?.sw ?? 4,
     colors: fromCatalog?.colors,
     colorHexByName: fromCatalog?.colorHexByName,
+    variants: fromCatalog?.variants,
     photoUrl: photoUrl || fromCatalog?.photoUrl,
     baseImageUrl,
     imgUrl,

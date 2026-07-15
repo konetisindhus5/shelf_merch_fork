@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useTenantAccess } from "@/hooks/useTenantAccess";
+import { mergeCatalogProductDetails } from "@/services/mappers";
 import type { UiCollection, UiProduct } from "../model";
 import type { DesignTarget } from "../ProductDetailDialog";
 import type { AddToShopTarget } from "../AddToShopDialog";
@@ -51,7 +52,17 @@ export function useSwagController(): SwagVm {
   );
   const active = collections.filter((c) => c.status !== "archived");
   const archived = collections.filter((c) => c.status === "archived");
-  const shown = tab === "Archived" ? archived : active;
+  const catalogProducts = workspace?.catalogProducts ?? [];
+
+  const enrichCollection = (col: UiCollection): UiCollection => ({
+    ...col,
+    products: col.products.map((p) => mergeCatalogProductDetails(p, catalogProducts)),
+  });
+
+  const shown = useMemo(
+    () => (tab === "Archived" ? archived : active).map(enrichCollection),
+    [tab, archived, active, catalogProducts],
+  );
 
   const designEntries = useMemo<DesignEntry[]>(() => {
     const seen = new Set<string>();
