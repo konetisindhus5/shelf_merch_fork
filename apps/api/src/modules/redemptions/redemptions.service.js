@@ -256,10 +256,10 @@ export async function getRedemptionPortal(token) {
 
   const availableCredit = await resolveRecipientCreditAmount(recipient, campaign);
 
-  if (
-    availableCredit <= 0 &&
-    ['redeemed', 'order_created'].includes(recipient.redemptionStatus)
-  ) {
+  // Terminal states: never try to re-verify (order_created -> verified is illegal).
+  // Non-points shop/kit orders keep creditAmount > 0 after checkout, so status alone
+  // must gate this — not remaining credit.
+  if (['redeemed', 'order_created'].includes(recipient.redemptionStatus)) {
     const order = await Order.findOne({ recipientId: recipient._id, tenantId: recipient.tenantId });
     throw new ApiError(409, 'Already redeemed', 'ALREADY_REDEEMED', {
       orderNumber: order?.orderNumber,
@@ -268,10 +268,8 @@ export async function getRedemptionPortal(token) {
   }
 
   // Bypass OTP verification: the unique redemption link in the email is itself the
-  // identity proof. Auto-verify recipients on first click for all campaign types so
-  // they land directly on the redemption page without an intermediate OTP screen.
-  const needsVerification = recipient.redemptionStatus !== 'verified';
-  if (needsVerification) {
+  // identity proof. Auto-verify only from statuses that can legally reach verified.
+  if (recipient.redemptionStatus === 'invited' || recipient.redemptionStatus === 'opened') {
     if (recipient.redemptionStatus === 'invited') {
       transitionRedemption(recipient, 'opened');
     }
@@ -384,6 +382,14 @@ export async function verifyOtp(token, { code }) {
 
   if (recipient.redemptionStatus === 'verified') {
     return { sessionToken: signRedemptionSession(recipient) };
+  }
+
+  if (['redeemed', 'order_created'].includes(recipient.redemptionStatus)) {
+    const order = await Order.findOne({ recipientId: recipient._id, tenantId: recipient.tenantId });
+    throw new ApiError(409, 'Already redeemed', 'ALREADY_REDEEMED', {
+      orderNumber: order?.orderNumber,
+      trackUrl: order ? `/api/v1/redemptions/${token}/track` : null,
+    });
   }
 
   if (!recipient.otpHash || !recipient.otpExpiresAt || recipient.otpExpiresAt < new Date()) {
