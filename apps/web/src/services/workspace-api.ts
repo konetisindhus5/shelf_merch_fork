@@ -575,7 +575,7 @@ export async function fetchWorkspaceSnapshot(sessionUser?: AuthUser | null): Pro
 
 export async function createShopApi(payload: {
   name: string;
-  currencyMode: "points" | "inr" | "priceless";
+  currencyMode: "points" | "inr";
   categories: string[];
   logoUrl?: string;
   bannerConfig?: Record<string, unknown>;
@@ -596,7 +596,7 @@ export async function updateShopApi(
   shopId: string,
   payload: {
     name?: string;
-    currencyMode?: "points" | "inr" | "priceless";
+    currencyMode?: "points" | "inr";
     pointsConversionEnabled?: boolean;
     logoUrl?: string;
     bannerConfig?: Record<string, unknown>;
@@ -616,10 +616,8 @@ export async function archiveShopApi(shopId: string) {
   return apiFetch<{ ok: boolean }>(`/shops/${shopId}`, { method: "DELETE" });
 }
 
-function shopCurrencyMode(currency: string): "points" | "inr" | "priceless" {
-  if (currency === "INR") return "inr";
-  if (currency === "Priceless") return "priceless";
-  return "points";
+function shopCurrencyMode(currency: string): "points" | "inr" {
+  return currency === "INR" ? "inr" : "points";
 }
 
 export async function duplicateShopApi(shop: UiShop) {

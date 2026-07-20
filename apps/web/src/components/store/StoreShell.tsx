@@ -8,7 +8,18 @@ import { DesignedProductThumb,
   storeProductAsUi,
 } from "@/features/swag/DesignedProductThumb";
 import { ShelfMerchLogo } from "@/components/brand/ShelfMerchLogo";
-import { POINT_VALUE } from "@/features/send/money";
+import {
+  appliedLabel,
+  formatStoreAmount,
+  formatStoreBalance,
+  formatStoreCardPrice,
+  formatStorePrice,
+  inrToPoints,
+  myWalletLabel,
+  rewardWalletLabel,
+  type ShopCurrencyMode,
+  unitLabel,
+} from "@/lib/storeCurrency";
 import { createRedemptionRazorpayOrder, type StoreSupportTicket } from "@/services/api-bridge";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import walletIconImg from "../../../assets/wallet-icon.svg";
@@ -474,6 +485,16 @@ function LockIcon() {
   );
 }
 
+function WalletMiniIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 8h15a3 3 0 013 3v7a3 3 0 01-3 3H6a3 3 0 01-3-3V8z" />
+      <path d="M3 8V6a2 2 0 012-2h12" />
+      <circle cx="17" cy="14.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function ShieldCheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -496,6 +517,15 @@ function formatOrderDate(iso?: string) {
   });
 }
 
+function formatOrderTime(iso?: string) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 function orderStatusDisplay(order: StoreOrderSummary) {
   const status = order.status.toLowerCase();
   const historyDate =
@@ -505,15 +535,31 @@ function orderStatusDisplay(order: StoreOrderSummary) {
   const date = formatOrderDate(historyDate);
 
   if (status === "delivered") {
-    return { tone: "success" as const, title: `Delivered on ${date}`, message: "Your item has been delivered" };
+    return {
+      tone: "delivered" as const,
+      title: "Delivered",
+      message: date ? `Delivered on ${date}` : "Your item has been delivered",
+    };
   }
   if (status === "cancelled") {
-    return { tone: "danger" as const, title: `Cancelled on ${date}`, message: "Your order was cancelled" };
+    return {
+      tone: "danger" as const,
+      title: "Cancelled",
+      message: date ? `Cancelled on ${date}` : "Your order was cancelled",
+    };
   }
   if (["shipped", "packed", "in_production", "qc_pending"].includes(status)) {
-    return { tone: "info" as const, title: "Shipped", message: "Your order is on the way" };
+    return {
+      tone: "shipped" as const,
+      title: "Shipped",
+      message: "Your order is on the way",
+    };
   }
-  return { tone: "success" as const, title: `Order placed on ${date}`, message: "Your order has been confirmed" };
+  return {
+    tone: "placed" as const,
+    title: "Order placed",
+    message: "Your order has been confirmed",
+  };
 }
 
 function orderItemImage(url?: string) {
@@ -668,7 +714,7 @@ export default function StoreShell({
   shop: StoreShop;
   products: StoreProduct[];
   mode: Mode;
-  currency?: "points" | "inr" | "priceless";
+  currency?: ShopCurrencyMode;
   creditInr?: number;
   recipientName?: string;
   recipientEmail?: string;
@@ -731,7 +777,6 @@ export default function StoreShell({
     country: initialShippingAddress?.country || "IN",
   }));
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All Products");
   const [scrolled, setScrolled] = useState(false);
   const [checkoutFirst, setCheckoutFirst] = useState(() => {
     const full = (initialShippingAddress?.name || recipientName || "").trim();
@@ -836,7 +881,9 @@ export default function StoreShell({
   const active = products.find((p) => p._id === activeId) || null;
   const cartCount = cart.reduce((n, l) => n + l.qty, 0);
   const cartTotalInr = cart.reduce((n, l) => n + l.priceInr * l.qty, 0);
-  const usesPointsDisplay = currency === "points" || (mode === "redeem" && currency !== "priceless");
+  const storeCurrency: ShopCurrencyMode = currency ?? "points";
+  const usesPointsDisplay = storeCurrency === "points";
+  const creditUnit = unitLabel(storeCurrency);
   const pointsAvailable = balanceInr ?? 0;
   const pointsApplied = useRewardPoints ? Math.min(pointsAvailable, cartTotalInr) : 0;
   const upiDueInr = useRewardPoints ? Math.max(0, cartTotalInr - pointsApplied) : cartTotalInr;
@@ -864,44 +911,30 @@ export default function StoreShell({
     address.pincode,
   ]);
 
-  const storeCategories = useMemo(() => {
-    const unique = Array.from(new Set(products.map((p) => (p.category || "").trim()).filter(Boolean)));
-    unique.sort((a, b) => a.localeCompare(b));
-    return ["All Products", ...unique];
-  }, [products]);
-
   const selectedOrder = useMemo(
     () => (selectedOrderNumber ? orders.find((o) => o.orderNumber === selectedOrderNumber) : undefined),
     [orders, selectedOrderNumber],
   );
 
-  function inrToPoints(inr: number) {
-    return Math.round(inr / POINT_VALUE);
-  }
-
   function fmt(inr: number) {
-    if (currency === "priceless") return "Gift";
-    if (usesPointsDisplay) return `${inrToPoints(inr).toLocaleString("en-IN")} pts`;
-    return `₹${inr.toLocaleString("en-IN")}`;
+    return formatStorePrice(inr, storeCurrency);
   }
 
   /** Stadium-style product price — bold "Pts" or ₹ on cards. */
   function fmtCardPrice(inr: number) {
-    if (currency === "priceless") return "Gift";
-    if (usesPointsDisplay) return `${inrToPoints(inr).toLocaleString("en-IN")} Pts`;
-    return `₹${inr.toLocaleString("en-IN")}`;
+    return formatStoreCardPrice(inr, storeCurrency);
   }
 
   function navBalanceLabel() {
-    if (currency === "priceless") return "Your gift";
-    if (usesPointsDisplay) return "Points";
-    return mode === "redeem" ? "Points" : "You pay";
+    return storeCurrency === "inr" ? "Credits" : "Points";
   }
 
   function navBalanceValue(inr: number) {
-    if (currency === "priceless") return "Gift";
-    if (usesPointsDisplay) return `${inrToPoints(inr).toLocaleString("en-IN")} Pts`;
-    return `₹${inr.toLocaleString("en-IN")}`;
+    return formatStoreBalance(inr, storeCurrency);
+  }
+
+  function fmtApplied(inr: number) {
+    return storeCurrency === "inr" ? formatStoreAmount(inr, storeCurrency) : fmtCardPrice(inr);
   }
 
   function fmtUpiAmount(inr: number) {
@@ -1300,7 +1333,9 @@ export default function StoreShell({
                 <button
                   type="button"
                   className="topbar-wallet sf-topbar-wallet"
-                  aria-label={currency === "points" || (mode === "redeem" && currency === "inr") ? "Your points balance" : "Available balance"}
+                  aria-label={
+                    storeCurrency === "inr" ? "Your credits balance" : "Your points balance"
+                  }
                   onClick={() => setPage("home")}
                 >
                   <span className="topbar-wallet-icon">
@@ -1357,23 +1392,24 @@ export default function StoreShell({
 
         <div className="sf-topbar-row sf-topbar-row--categories">
           <div className="sf-topbar-inner sf-topbar-inner--categories">
-            <nav
-              className={`sf-nav sf-nav--stadium${storeCategories.length <= 6 ? " sf-nav--stadium-compact" : ""}`}
-              aria-label="Categories"
-            >
-              {storeCategories.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`sf-nav-link${selectedCategory === c ? " active" : ""}`}
-                  onClick={() => {
-                    setSelectedCategory(c);
-                    setPage("products");
-                  }}
-                >
-                  {c}
-                </button>
-              ))}
+            <nav className="sf-nav sf-nav--stadium sf-nav--stadium-compact" aria-label="Store sections">
+              <button
+                type="button"
+                className={`sf-nav-link${page === "products" || page === "product" ? " active" : ""}`}
+                onClick={() => setPage("products")}
+              >
+                Products
+              </button>
+              <button
+                type="button"
+                className={`sf-nav-link${page === "orders" || page === "order-detail" ? " active" : ""}`}
+                onClick={() => {
+                  setPage("orders");
+                  if (mode === "redeem") void refreshOrders();
+                }}
+              >
+                Orders
+              </button>
             </nav>
           </div>
         </div>
@@ -1517,17 +1553,26 @@ export default function StoreShell({
 
       {/* ────── PRODUCTS ────── */}
       {page === "products" && (
-        <div className="sf-content" style={{ paddingTop: 8 }}>
-          <div className="sf-section-header sf-section-header--stadium" style={{ paddingTop: 20 }}>
-            <h1 className="sf-section-title sf-section-title--stadium">All Products</h1>
-          </div>
+        <div className="sf-content sf-plp">
           <ProductsPageWithFilters
             products={products}
             searchQuery={searchQuery}
             onOpen={openProduct}
+            onAddToBag={(p) => {
+              const colors = productColorOptions(p);
+              const sizes = distinct(p.variants?.map((v) => v.size) ?? []);
+              addToCart(
+                p,
+                {
+                  size: sizes[0],
+                  color: colors[0]?.name,
+                },
+                1,
+              );
+            }}
             priceLabel={fmtCardPrice}
             shopBrand={shop.name}
-            selectedCategory={selectedCategory}
+            currencyMode={storeCurrency}
           />
         </div>
       )}
@@ -1565,40 +1610,58 @@ export default function StoreShell({
 
       {page === "cart" && cart.length > 0 && (
         <div className="sf-content sf-bag-page">
-          <button type="button" className="sf-bag-back" onClick={() => setPage("home")}>
-            ← CONTINUE SHOPPING
+          <button type="button" className="sf-bag-back" onClick={() => setPage("products")}>
+            ← Continue shopping
           </button>
 
           <div className="sf-bag-layout">
             <div className="sf-bag-main">
-              <h1 className="sf-bag-title">My Bag ({cartCount})</h1>
+              <div className="sf-bag-heading">
+                <h1 className="sf-bag-title">My Bag ({cartCount})</h1>
+                <p className="sf-bag-lead">
+                  Review your items and redeem your{" "}
+                  {storeCurrency === "inr" ? "credits" : "points"}.
+                </p>
+              </div>
 
               {mode === "redeem" && balanceInr != null ? (
-                <div className={`sf-bag-funds${useRewardPoints ? "" : " sf-bag-funds--off"}`}>
-                  <div className="sf-bag-funds-label">My Reward Points</div>
-                  <label className="sf-bag-funds-wallet">
-                    <input
-                      type="checkbox"
-                      checked={useRewardPoints}
-                      onChange={(e) => setUseRewardPoints(e.target.checked)}
-                    />
-                    <span>
-                      {recipientName ? `${recipientName}'s ` : ""}
-                      {shop.name} Wallet
-                    </span>
-                  </label>
-                  <div className="sf-bag-funds-balance">
-                    Available: <b>{navBalanceValue(balanceInr)}</b>
+                <div className={`sf-bag-funds sf-bag-funds--v2${useRewardPoints ? "" : " sf-bag-funds--off"}`}>
+                  <div className="sf-bag-funds-copy">
+                    <div className="sf-bag-funds-label">
+                      <WalletMiniIcon />
+                      {myWalletLabel(storeCurrency)}
+                    </div>
+                    <label className="sf-bag-funds-wallet">
+                      <input
+                        type="checkbox"
+                        checked={useRewardPoints}
+                        onChange={(e) => setUseRewardPoints(e.target.checked)}
+                      />
+                      <span className="sf-bag-funds-check" aria-hidden="true" />
+                      <span>
+                        {storeCurrency === "inr"
+                          ? rewardWalletLabel(storeCurrency)
+                          : `${recipientName ? `${recipientName}'s ` : ""}${shop.name} Wallet`}
+                      </span>
+                    </label>
+                    <div className="sf-bag-funds-balance">
+                      Available: <b>{navBalanceValue(balanceInr)}</b>
+                    </div>
+                    {!useRewardPoints ? (
+                      <p className="sf-bag-funds-hint">Pay at checkout via UPI, cards, or net banking.</p>
+                    ) : !hasEnoughPoints ? (
+                      <p className="sf-bag-funds-warning">
+                        Insufficient {creditUnit.toLowerCase()} — remaining balance can be paid via UPI at
+                        checkout.
+                      </p>
+                    ) : (
+                      <p className="sf-bag-funds-hint">
+                        {storeCurrency === "inr"
+                          ? "Credits will be applied at checkout."
+                          : "Reward points will be applied at checkout."}
+                      </p>
+                    )}
                   </div>
-                  {!useRewardPoints ? (
-                    <p className="sf-bag-funds-hint">Pay at checkout via UPI, cards, or net banking.</p>
-                  ) : !hasEnoughPoints ? (
-                    <p className="sf-bag-funds-warning">
-                      Insufficient points — remaining balance can be paid via UPI at checkout.
-                    </p>
-                  ) : (
-                    <p className="sf-bag-funds-hint">Reward points will be applied at checkout.</p>
-                  )}
                 </div>
               ) : null}
 
@@ -1613,7 +1676,9 @@ export default function StoreShell({
                       <div className="sf-bag-item-body">
                         <div className="sf-bag-item-brand">{(l.brand || shop.name).toUpperCase()}</div>
                         <div className="sf-bag-item-name">{l.name}</div>
-                        {variantLabel ? <span className="sf-bag-item-tag">{variantLabel.toUpperCase()}</span> : null}
+                        {variantLabel ? (
+                          <span className="sf-bag-item-tag">{variantLabel.toUpperCase()}</span>
+                        ) : null}
                         <div className="sf-bag-item-price">{fmtCardPrice(l.priceInr * l.qty)}</div>
                         <div className="sf-bag-item-actions">
                           <div className="sf-bag-qty">
@@ -1659,6 +1724,7 @@ export default function StoreShell({
               </div>
 
               <button type="button" className="sf-bag-remove-all" onClick={clearCart}>
+                <TrashIcon />
                 Remove all items
               </button>
             </div>
@@ -1667,13 +1733,13 @@ export default function StoreShell({
               <div className="sf-bag-summary">
                 <h2 className="sf-bag-summary-title">Order Summary</h2>
                 <div className="sf-bag-summary-row">
-                  <span>Bag total</span>
+                  <span>Bag Total</span>
                   <b>{fmtCardPrice(cartTotalInr)}</b>
                 </div>
                 {mode === "redeem" && balanceInr != null && useRewardPoints && pointsApplied > 0 ? (
-                  <div className="sf-bag-summary-row sf-bag-summary-row--muted">
-                    <span>Points applied</span>
-                    <b>{fmtCardPrice(pointsApplied)}</b>
+                  <div className="sf-bag-summary-row sf-bag-summary-row--credit">
+                    <span>{appliedLabel(storeCurrency)}</span>
+                    <b>-{fmtApplied(pointsApplied)}</b>
                   </div>
                 ) : null}
                 {mode === "redeem" && paysWithUpi ? (
@@ -1682,14 +1748,29 @@ export default function StoreShell({
                     <b>{fmtUpiAmount(upiDueInr)}</b>
                   </div>
                 ) : null}
-                {mode === "redeem" && balanceInr != null && useRewardPoints && hasEnoughPoints ? (
+                {mode === "redeem" && balanceInr != null && useRewardPoints ? (
                   <div className="sf-bag-summary-row sf-bag-summary-row--muted">
-                    <span>Remaining after order</span>
-                    <b>{fmtCardPrice(Math.max(0, balanceInr - cartTotalInr))}</b>
+                    <span>Remaining After Order</span>
+                    <b>
+                      {fmtCardPrice(Math.max(0, balanceInr - (useRewardPoints ? pointsApplied : 0)))}
+                    </b>
                   </div>
                 ) : null}
+
+                {mode === "redeem" && useRewardPoints && !paysWithUpi ? (
+                  <div className="sf-bag-summary-note">
+                    <span className="sf-bag-summary-note-icon" aria-hidden="true">
+                      ✦
+                    </span>
+                    <span>
+                      You&apos;ll earn nothing extra. You&apos;re redeeming your{" "}
+                      {storeCurrency === "inr" ? "credits" : "points"}.
+                    </span>
+                  </div>
+                ) : null}
+
                 <div className="sf-bag-summary-total">
-                  <span>{paysWithUpi ? "You pay" : navBalanceLabel()}</span>
+                  <span>Total</span>
                   <b>
                     {paysWithUpi
                       ? fmtUpiAmount(upiDueInr)
@@ -1698,6 +1779,7 @@ export default function StoreShell({
                         : "—"}
                   </b>
                 </div>
+
                 {mode === "redeem" ? (
                   <>
                     <button
@@ -1706,8 +1788,13 @@ export default function StoreShell({
                       disabled={!canCheckout}
                       onClick={() => setPage("checkout")}
                     >
-                      Proceed to checkout
+                      Proceed to Checkout
+                      <ArrowRightIcon />
                     </button>
+                    <p className="sf-bag-secure-note">
+                      <LockIcon />
+                      Your {storeCurrency === "inr" ? "credits" : "points"} will be applied at checkout.
+                    </p>
                   </>
                 ) : (
                   <p className="sf-bag-preview-note">Open your invite link to check out.</p>
@@ -1715,6 +1802,37 @@ export default function StoreShell({
               </div>
             </aside>
           </div>
+
+          <section className="sf-plp-trust sf-bag-trust" aria-label="Store promises">
+            <div className="sf-plp-trust-item">
+              <span className="sf-plp-trust-icon"><ShieldCheckIcon /></span>
+              <div>
+                <div className="sf-plp-trust-title">Secure Checkout</div>
+                <div className="sf-plp-trust-desc">Your points are safe with us.</div>
+              </div>
+            </div>
+            <div className="sf-plp-trust-item">
+              <span className="sf-plp-trust-icon"><GiftIcon /></span>
+              <div>
+                <div className="sf-plp-trust-title">Hassle-free Gifting</div>
+                <div className="sf-plp-trust-desc">Send joy in just a few clicks.</div>
+              </div>
+            </div>
+            <div className="sf-plp-trust-item">
+              <span className="sf-plp-trust-icon"><HeadsetIcon /></span>
+              <div>
+                <div className="sf-plp-trust-title">Need Help?</div>
+                <div className="sf-plp-trust-desc">We&apos;re here for you.</div>
+              </div>
+            </div>
+            <div className="sf-plp-trust-item">
+              <span className="sf-plp-trust-icon"><RibbonIcon /></span>
+              <div>
+                <div className="sf-plp-trust-title">100% Satisfaction</div>
+                <div className="sf-plp-trust-desc">Quality you can trust.</div>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
@@ -1731,7 +1849,7 @@ export default function StoreShell({
               <p className="sf-checkout-lead">Review your details and complete your order.</p>
             </div>
             {/* <div className="sf-checkout-currency" aria-label="Currency">
-              {usesPointsDisplay ? "Pts" : "INR"}
+              {usesPointsDisplay ? "Pts" : "₹"}
               <ChevronDown className="sf-checkout-currency-chevron" />
             </div> */}
           </div>
@@ -1973,7 +2091,7 @@ export default function StoreShell({
                 </div>
                 {mode === "redeem" && balanceInr != null ? (
                   <div className={`sf-bag-funds sf-bag-funds--checkout${useRewardPoints ? "" : " sf-bag-funds--off"}`}>
-                    <div className="sf-bag-funds-label">My Reward Points</div>
+                    <div className="sf-bag-funds-label">{myWalletLabel(storeCurrency)}</div>
                     <label className="sf-bag-funds-wallet">
                       <input
                         type="checkbox"
@@ -1984,8 +2102,9 @@ export default function StoreShell({
                         <GiftIcon />
                       </span>
                       <span>
-                        {recipientName ? `${recipientName}'s ` : ""}
-                        {shop.name} Wallet
+                        {storeCurrency === "inr"
+                          ? rewardWalletLabel(storeCurrency)
+                          : `${recipientName ? `${recipientName}'s ` : ""}${shop.name} Wallet`}
                       </span>
                     </label>
                     <div className="sf-bag-funds-balance">
@@ -1995,10 +2114,14 @@ export default function StoreShell({
                       <p className="sf-bag-funds-hint">Pay at checkout via UPI, cards, or net banking.</p>
                     ) : !hasEnoughPoints ? (
                       <p className="sf-bag-funds-warning">
-                        Insufficient points — remaining balance can be paid via UPI at checkout.
+                        Insufficient {creditUnit.toLowerCase()} — remaining balance can be paid via UPI at checkout.
                       </p>
                     ) : (
-                      <p className="sf-bag-funds-hint">Reward points will be applied at checkout.</p>
+                      <p className="sf-bag-funds-hint">
+                        {storeCurrency === "inr"
+                          ? "Credits will be applied at checkout."
+                          : "Reward points will be applied at checkout."}
+                      </p>
                     )}
                   </div>
                 ) : null}
@@ -2008,8 +2131,8 @@ export default function StoreShell({
                 </div>
                 {mode === "redeem" && useRewardPoints && pointsApplied > 0 ? (
                   <div className="sf-checkout-summary-row sf-checkout-summary-row--credit">
-                    <span>Points applied</span>
-                    <b>-{fmtCardPrice(pointsApplied)}</b>
+                    <span>{appliedLabel(storeCurrency)}</span>
+                    <b>-{fmtApplied(pointsApplied)}</b>
                   </div>
                 ) : null}
                 {mode === "redeem" && paysWithUpi ? (
@@ -2162,57 +2285,43 @@ export default function StoreShell({
 
       {/* ────── ORDERS ────── */}
       {page === "orders" && (
-        <StorePageShell
-          className="sf-orders-page"
-          backLabel="← Back to store"
-          onBack={() => setPage("home")}
-          title="My orders"
-        >
+        <div className="sf-content sf-my-orders">
           {ordersLoading ? (
-            <div className="sf-orders-skeleton">
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="sf-order-card sf-order-card--skeleton" />
-              ))}
+            <div className="sf-my-orders-panel">
+              <div className="sf-orders-skeleton">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="sf-order-card sf-order-card--skeleton" />
+                ))}
+              </div>
             </div>
           ) : ordersError ? (
-            <StoreEmptyState
-              variant="orders"
-              title="Couldn't load orders"
-              description={ordersError}
-              action={
-                <button type="button" className="sf-btn-secondary" onClick={() => void refreshOrders()}>
-                  Try again
-                </button>
-              }
-            />
-          ) : orders.length === 0 ? (
-            <StoreEmptyState
-              variant="orders"
-              title="No orders yet"
-              description="When you redeem products from the store, your order history will appear here."
-              action={
-                <button type="button" className="sf-btn-secondary" onClick={() => setPage("products")}>
-                  Browse products
-                </button>
-              }
-            />
-          ) : (
-            <div className="sf-orders-list">
-              {orders.map((o) => (
-                <OrderRowCard
-                  key={o.orderNumber}
-                  order={o}
-                  products={products}
-                  priceLabel={fmt}
-                  onOpen={() => {
-                    setSelectedOrderNumber(o.orderNumber);
-                    setPage("order-detail");
-                  }}
-                />
-              ))}
+            <div className="sf-my-orders-panel">
+              <StoreEmptyState
+                variant="orders"
+                title="Couldn't load orders"
+                description={ordersError}
+                action={
+                  <button type="button" className="sf-btn-secondary" onClick={() => void refreshOrders()}>
+                    Try again
+                  </button>
+                }
+              />
             </div>
+          ) : orders.length === 0 ? (
+            <OrdersEmptyState onBrowse={() => setPage("products")} />
+          ) : (
+            <OrdersListView
+              orders={orders}
+              products={products}
+              priceLabel={fmtCardPrice}
+              currencyMode={storeCurrency}
+              onOpen={(orderNumber) => {
+                setSelectedOrderNumber(orderNumber);
+                setPage("order-detail");
+              }}
+            />
           )}
-        </StorePageShell>
+        </div>
       )}
 
       {page === "order-detail" && selectedOrderNumber ? (
@@ -2514,35 +2623,618 @@ export default function StoreShell({
    SUB-COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
 
+const GROUP_LABELS: Record<string, string> = {
+  tee: "T-Shirts",
+  tshirt: "T-Shirts",
+  "t-shirt": "T-Shirts",
+  hoodie: "Hoodies",
+  cap: "Caps",
+  jacket: "Jackets",
+  mug: "Mugs",
+  bottle: "Bottles",
+  tumbler: "Tumblers",
+  bag: "Bags",
+  note: "Notebooks",
+  power: "Power Banks",
+  pillow: "Pillows",
+  pack: "Kits",
+};
+
+const CATEGORY_GROUP_DEFAULTS: Record<string, string[]> = {
+  Apparel: ["T-Shirts", "Hoodies", "Caps", "Jackets"],
+  Drinkware: ["Tumblers", "Bottles", "Mugs"],
+  Accessories: ["Bags", "Caps"],
+  Stationery: ["Notebooks"],
+  Wellness: ["Pillows", "Bottles"],
+  "Work Essentials": ["Notebooks", "Power Banks"],
+  Merch: ["Bags", "Kits"],
+};
+
+const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "One Size"];
+
+function productGroupLabel(p: StoreProduct): string {
+  const g = (p.group || "").toLowerCase().trim();
+  if (GROUP_LABELS[g]) return GROUP_LABELS[g];
+  if (g) return g.charAt(0).toUpperCase() + g.slice(1);
+  return "Other";
+}
+
+function productCategoryLabel(p: StoreProduct): string {
+  return (p.category || "").trim() || "Other";
+}
+
+function sortSizes(sizes: string[]): string[] {
+  return [...sizes].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(a);
+    const ib = SIZE_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+function ChevronDownIcon({ open }: { open?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .18s ease" }}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function GridViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function ListViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+    </svg>
+  );
+}
+
+function HeadsetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 18v-6a9 9 0 0118 0v6" />
+      <path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z" />
+    </svg>
+  );
+}
+
+function RibbonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="8" r="6" />
+      <path d="M8.2 13.4L7 22l5-3 5 3-1.2-8.6" />
+    </svg>
+  );
+}
+
+type PlpSort = "featured" | "price-asc" | "price-desc" | "name";
+
 function ProductsPageWithFilters({
   products,
   searchQuery,
   onOpen,
+  onAddToBag,
   priceLabel,
   shopBrand,
-  selectedCategory,
+  currencyMode,
 }: {
   products: StoreProduct[];
   searchQuery: string;
   onOpen: (id: string) => void;
+  onAddToBag: (p: StoreProduct) => void;
   priceLabel: (inr: number) => string;
   shopBrand: string;
-  selectedCategory: string;
+  currencyMode: ShopCurrencyMode;
 }) {
-  const q = searchQuery.toLowerCase();
-  const filtered = products.filter((p) => {
-    const matchCat = selectedCategory === "All Products" || p.category === selectedCategory;
-    const matchSearch = !q || p.name.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q) || (p.brand || "").toLowerCase().includes(q);
-    return matchCat && matchSearch;
-  });
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [priceMin, setPriceMin] = useState(0);
+  const [priceMax, setPriceMax] = useState(0);
+  const [priceInitialized, setPriceInitialized] = useState(false);
+  const [sortBy, setSortBy] = useState<PlpSort>("featured");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const [openFilters, setOpenFilters] = useState({ size: true, color: true, range: true });
+
+  const priceExtent = useMemo(() => {
+    if (!products.length) return { min: 0, max: 0 };
+    const prices = products.map((p) => p.basePriceInr);
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }, [products]);
+
+  useEffect(() => {
+    if (!priceInitialized && products.length) {
+      setPriceMin(priceExtent.min);
+      setPriceMax(priceExtent.max);
+      setPriceInitialized(true);
+    }
+  }, [products.length, priceExtent.min, priceExtent.max, priceInitialized]);
+
+  const categoryTree = useMemo(() => {
+    const byCat = new Map<string, Map<string, number>>();
+    for (const p of products) {
+      const cat = productCategoryLabel(p);
+      const group = productGroupLabel(p);
+      if (!byCat.has(cat)) byCat.set(cat, new Map());
+      const groups = byCat.get(cat)!;
+      groups.set(group, (groups.get(group) || 0) + 1);
+    }
+
+    return Array.from(byCat.entries())
+      .map(([category, groups]) => {
+        const defaults = CATEGORY_GROUP_DEFAULTS[category] || [];
+        const present = Array.from(groups.entries()).map(([label, count]) => ({ label, count }));
+        const presentNames = new Set(present.map((g) => g.label));
+        const ordered: Array<{ label: string; count: number }> = [];
+        for (const label of defaults) {
+          if (presentNames.has(label)) {
+            ordered.push({ label, count: groups.get(label) || 0 });
+            presentNames.delete(label);
+          }
+        }
+        for (const g of present.sort((a, b) => a.label.localeCompare(b.label))) {
+          if (presentNames.has(g.label)) ordered.push(g);
+        }
+        const count = present.reduce((n, g) => n + g.count, 0);
+        return { category, count, groups: ordered };
+      })
+      .sort((a, b) => a.category.localeCompare(b.category));
+  }, [products]);
+
+  function groupKey(category: string, group: string) {
+    return `${category}::${group}`;
+  }
+
+  const scopedProducts = useMemo(() => {
+    if (selectedGroups.length) {
+      const keys = new Set(selectedGroups);
+      return products.filter((p) => keys.has(groupKey(productCategoryLabel(p), productGroupLabel(p))));
+    }
+    if (filterCategory) {
+      return products.filter((p) => productCategoryLabel(p) === filterCategory);
+    }
+    return products;
+  }, [products, filterCategory, selectedGroups]);
+
+  const sizeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of scopedProducts) {
+      for (const size of distinct(p.variants?.map((v) => v.size) ?? [])) {
+        counts.set(size, (counts.get(size) || 0) + 1);
+      }
+    }
+    return sortSizes(Array.from(counts.keys())).map((size) => ({
+      size,
+      count: counts.get(size) || 0,
+    }));
+  }, [scopedProducts]);
+
+  const colorOptions = useMemo(() => {
+    const byName = new Map<string, { name: string; hex: string; count: number }>();
+    for (const p of scopedProducts) {
+      for (const c of productColorOptions(p)) {
+        const prev = byName.get(c.name);
+        if (prev) prev.count += 1;
+        else byName.set(c.name, { name: c.name, hex: c.hex, count: 1 });
+      }
+    }
+    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [scopedProducts]);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    let list = scopedProducts.filter((p) => {
+      if (q) {
+        const hay = `${p.name} ${p.brand || ""} ${p.category || ""} ${p.group || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (selectedSizes.length) {
+        const sizes = distinct(p.variants?.map((v) => v.size) ?? []);
+        if (!selectedSizes.some((s) => sizes.includes(s))) return false;
+      }
+      if (selectedColors.length) {
+        const colors = productColorOptions(p).map((c) => c.name);
+        if (!selectedColors.some((c) => colors.includes(c))) return false;
+      }
+      if (priceInitialized && (p.basePriceInr < priceMin || p.basePriceInr > priceMax)) return false;
+      return true;
+    });
+
+    if (sortBy === "price-asc") list = [...list].sort((a, b) => a.basePriceInr - b.basePriceInr);
+    else if (sortBy === "price-desc") list = [...list].sort((a, b) => b.basePriceInr - a.basePriceInr);
+    else if (sortBy === "name") list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+
+    return list;
+  }, [
+    scopedProducts,
+    searchQuery,
+    selectedSizes,
+    selectedColors,
+    priceMin,
+    priceMax,
+    priceInitialized,
+    sortBy,
+  ]);
+
+  const rangeLabel = currencyMode === "inr" ? "Credits range" : "Points range";
+  const hasActiveFilters =
+    Boolean(filterCategory) ||
+    selectedGroups.length > 0 ||
+    selectedSizes.length > 0 ||
+    selectedColors.length > 0 ||
+    (priceInitialized && (priceMin > priceExtent.min || priceMax < priceExtent.max));
+
+  function clearFilters() {
+    setFilterCategory(null);
+    setSelectedGroups([]);
+    setSelectedSizes([]);
+    setSelectedColors([]);
+    setPriceMin(priceExtent.min);
+    setPriceMax(priceExtent.max);
+    setSortBy("featured");
+  }
+
+  function selectCategory(category: string) {
+    setFilterCategory(category);
+    setSelectedGroups([]);
+    setOpenCategories((prev) => ({ ...prev, [category]: true }));
+  }
+
+  function toggleGroup(category: string, group: string) {
+    const key = groupKey(category, group);
+    setFilterCategory(category);
+    setOpenCategories((prev) => ({ ...prev, [category]: true }));
+    setSelectedGroups((prev) => {
+      if (prev.includes(key)) {
+        const next = prev.filter((k) => k !== key);
+        return next;
+      }
+      return [...prev, key];
+    });
+  }
+
+  function toggleSize(size: string) {
+    setSelectedSizes((prev) =>
+      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size],
+    );
+  }
+
+  function toggleColor(color: string) {
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color],
+    );
+  }
 
   return (
-    <StadiumProductGrid
-      products={filtered}
-      shopBrand={shopBrand}
-      onOpen={onOpen}
-      priceLabel={priceLabel}
-    />
+    <div className="sf-plp-layout">
+      <section className="sf-plp-hero">
+        <div className="sf-plp-hero-copy">
+          <span className="sf-plp-hero-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
+            </svg>
+          </span>
+          <div>
+            <h1 className="sf-plp-hero-title">Products</h1>
+            <p className="sf-plp-hero-desc">
+              Browse the full shop. Filter by category, size, color, and{" "}
+              {currencyMode === "inr" ? "credits" : "points"}.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="sf-plp-body">
+        <aside className="sf-plp-sidebar" aria-label="Product filters">
+          <div className="sf-plp-sidebar-card">
+            <div className="sf-plp-filter-block">
+              <div className="sf-plp-filter-head-row">
+                <div className="sf-plp-filter-title">Categories</div>
+                {hasActiveFilters ? (
+                  <button type="button" className="sf-plp-clear" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                className={`sf-plp-cat-item${!filterCategory && !selectedGroups.length ? " is-active" : ""}`}
+                onClick={clearFilters}
+              >
+                <span>All Products</span>
+                <span className="sf-plp-cat-count">{products.length}</span>
+              </button>
+
+              <div className="sf-plp-cat-tree">
+                {categoryTree.map((node) => {
+                  const open =
+                    openCategories[node.category] ??
+                    (filterCategory === node.category ||
+                      selectedGroups.some((k) => k.startsWith(`${node.category}::`)));
+                  const catActive =
+                    filterCategory === node.category &&
+                    !selectedGroups.some((k) => k.startsWith(`${node.category}::`));
+                  return (
+                    <div key={node.category} className="sf-plp-cat-node">
+                      <div className="sf-plp-cat-node-row">
+                        <button
+                          type="button"
+                          className={`sf-plp-cat-item sf-plp-cat-item--parent${catActive ? " is-active" : ""}`}
+                          onClick={() => selectCategory(node.category)}
+                        >
+                          <span>{node.category}</span>
+                          <span className="sf-plp-cat-count">{node.count}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="sf-plp-cat-chevron"
+                          aria-label={`${open ? "Collapse" : "Expand"} ${node.category}`}
+                          aria-expanded={open}
+                          onClick={() =>
+                            setOpenCategories((prev) => ({
+                              ...prev,
+                              [node.category]: !open,
+                            }))
+                          }
+                        >
+                          <ChevronDownIcon open={open} />
+                        </button>
+                      </div>
+                      {open ? (
+                        <div className="sf-plp-cat-children">
+                          {node.groups.map((g) => {
+                            const key = groupKey(node.category, g.label);
+                            const checked = selectedGroups.includes(key);
+                            return (
+                              <label
+                                key={g.label}
+                                className={`sf-plp-cat-check${checked ? " is-active" : ""}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleGroup(node.category, g.label)}
+                                />
+                                <span className="sf-plp-check-box" aria-hidden="true" />
+                                <span className="sf-plp-cat-check-label">{g.label}</span>
+                                <span className="sf-plp-cat-count">{g.count}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {sizeOptions.length > 0 ? (
+              <div className="sf-plp-filter-block">
+                <button
+                  type="button"
+                  className="sf-plp-filter-toggle"
+                  aria-expanded={openFilters.size}
+                  onClick={() => setOpenFilters((f) => ({ ...f, size: !f.size }))}
+                >
+                  <span>Filter by</span>
+                  <span className="sf-plp-filter-toggle-right">
+                    Size <ChevronDownIcon open={openFilters.size} />
+                  </span>
+                </button>
+                {openFilters.size ? (
+                  <div className="sf-plp-check-list">
+                    {sizeOptions.map((opt) => (
+                      <label key={opt.size} className="sf-plp-check">
+                        <input
+                          type="checkbox"
+                          checked={selectedSizes.includes(opt.size)}
+                          onChange={() => toggleSize(opt.size)}
+                        />
+                        <span className="sf-plp-check-box" aria-hidden="true" />
+                        <span className="sf-plp-check-label">{opt.size}</span>
+                        <span className="sf-plp-check-count">{opt.count}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {colorOptions.length > 0 ? (
+              <div className="sf-plp-filter-block">
+                <button
+                  type="button"
+                  className="sf-plp-filter-toggle"
+                  aria-expanded={openFilters.color}
+                  onClick={() => setOpenFilters((f) => ({ ...f, color: !f.color }))}
+                >
+                  <span>Filter by</span>
+                  <span className="sf-plp-filter-toggle-right">
+                    Color <ChevronDownIcon open={openFilters.color} />
+                  </span>
+                </button>
+                {openFilters.color ? (
+                  <div className="sf-plp-color-list">
+                    {colorOptions.map((opt) => {
+                      const on = selectedColors.includes(opt.name);
+                      return (
+                        <button
+                          key={opt.name}
+                          type="button"
+                          className={`sf-plp-color${on ? " is-active" : ""}`}
+                          onClick={() => toggleColor(opt.name)}
+                          title={`${opt.name} (${opt.count})`}
+                          aria-pressed={on}
+                        >
+                          <span
+                            className="sf-plp-color-swatch"
+                            style={{ background: opt.hex }}
+                            aria-hidden="true"
+                          />
+                          <span className="sf-plp-color-name">{opt.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {priceExtent.max > priceExtent.min ? (
+              <div className="sf-plp-filter-block">
+                <button
+                  type="button"
+                  className="sf-plp-filter-toggle"
+                  aria-expanded={openFilters.range}
+                  onClick={() => setOpenFilters((f) => ({ ...f, range: !f.range }))}
+                >
+                  <span>Filter by</span>
+                  <span className="sf-plp-filter-toggle-right">
+                    {rangeLabel} <ChevronDownIcon open={openFilters.range} />
+                  </span>
+                </button>
+                {openFilters.range ? (
+                  <div className="sf-plp-range">
+                    <input
+                      type="range"
+                      min={priceExtent.min}
+                      max={priceExtent.max}
+                      value={priceMax}
+                      onChange={(e) => {
+                        const next = Number(e.target.value);
+                        setPriceMax(Math.max(next, priceMin));
+                      }}
+                      aria-label={`Maximum ${rangeLabel.toLowerCase()}`}
+                    />
+                    <div className="sf-plp-range-labels">
+                      <span>{priceLabel(priceMin)}</span>
+                      <span>{priceLabel(priceMax)}</span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </aside>
+
+        <div className="sf-plp-main">
+          <div className="sf-plp-toolbar">
+            <div className="sf-plp-count">
+              {filtered.length} {filtered.length === 1 ? "Product" : "Products"}
+            </div>
+            <div className="sf-plp-toolbar-right">
+              <label className="sf-plp-sort">
+                <span>Sort by:</span>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as PlpSort)}>
+                  <option value="featured">Featured</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="name">Name</option>
+                </select>
+              </label>
+              <div className="sf-plp-view-toggle" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  className={viewMode === "grid" ? "is-active" : ""}
+                  aria-label="Grid view"
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setViewMode("grid")}
+                >
+                  <GridViewIcon />
+                </button>
+                <button
+                  type="button"
+                  className={viewMode === "list" ? "is-active" : ""}
+                  aria-label="List view"
+                  aria-pressed={viewMode === "list"}
+                  onClick={() => setViewMode("list")}
+                >
+                  <ListViewIcon />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <StoreEmptyState
+              variant="search"
+              title="No products found"
+              description="Try clearing filters or adjusting your search."
+            />
+          ) : (
+            <div className={`sf-plp-grid${viewMode === "list" ? " sf-plp-grid--list" : ""}`}>
+              {filtered.map((p) => (
+                <StadiumProductCard
+                  key={p._id}
+                  product={p}
+                  brandLabel={(p.brand || shopBrand || "Rewards").toUpperCase()}
+                  price={priceLabel(p.basePriceInr)}
+                  listMode={viewMode === "list"}
+                  onOpen={() => onOpen(p._id)}
+                  onAddToBag={() => onAddToBag(p)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <section className="sf-plp-trust" aria-label="Store promises">
+        <div className="sf-plp-trust-item">
+          <span className="sf-plp-trust-icon"><ShieldCheckIcon /></span>
+          <div>
+            <div className="sf-plp-trust-title">Secure & Reliable</div>
+            <div className="sf-plp-trust-desc">Safe checkout, always.</div>
+          </div>
+        </div>
+        <div className="sf-plp-trust-item">
+          <span className="sf-plp-trust-icon"><GiftIcon /></span>
+          <div>
+            <div className="sf-plp-trust-title">Hassle-free Gifting</div>
+            <div className="sf-plp-trust-desc">Send joy in just a few clicks.</div>
+          </div>
+        </div>
+        <div className="sf-plp-trust-item">
+          <span className="sf-plp-trust-icon"><HeadsetIcon /></span>
+          <div>
+            <div className="sf-plp-trust-title">Need Help?</div>
+            <div className="sf-plp-trust-desc">We&apos;re here for you.</div>
+          </div>
+        </div>
+        <div className="sf-plp-trust-item">
+          <span className="sf-plp-trust-icon"><RibbonIcon /></span>
+          <div>
+            <div className="sf-plp-trust-title">100% Satisfaction</div>
+            <div className="sf-plp-trust-desc">Quality you can trust.</div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -2551,11 +3243,13 @@ function StadiumProductGrid({
   shopBrand,
   onOpen,
   priceLabel,
+  onAddToBag,
 }: {
   products: StoreProduct[];
   shopBrand: string;
   onOpen: (id: string) => void;
   priceLabel: (inr: number) => string;
+  onAddToBag?: (p: StoreProduct) => void;
 }) {
   if (products.length === 0) {
     return (
@@ -2575,6 +3269,7 @@ function StadiumProductGrid({
           brandLabel={(p.brand || shopBrand || "Rewards").toUpperCase()}
           price={priceLabel(p.basePriceInr)}
           onOpen={() => onOpen(p._id)}
+          onAddToBag={onAddToBag ? () => onAddToBag(p) : undefined}
         />
       ))}
     </div>
@@ -2586,23 +3281,44 @@ function StadiumProductCard({
   brandLabel,
   price,
   onOpen,
+  onAddToBag,
+  listMode = false,
 }: {
   product: StoreProduct;
   brandLabel: string;
   price: string;
   onOpen: () => void;
+  onAddToBag?: () => void;
+  listMode?: boolean;
 }) {
   return (
-    <button type="button" className="sf-pcard sf-pcard--stadium" onClick={onOpen}>
-      <div className="sf-pcard-img sf-pcard-img--stadium">
-        <ArtworkMockup product={product} />
-      </div>
+    <article className={`sf-pcard sf-pcard--stadium${listMode ? " sf-pcard--list" : ""}`}>
+      <button type="button" className="sf-pcard-media" onClick={onOpen} aria-label={product.name}>
+        <div className="sf-pcard-img sf-pcard-img--stadium">
+          <ArtworkMockup product={product} />
+        </div>
+      </button>
       <div className="sf-pcard-meta sf-pcard-meta--stadium">
-        <div className="sf-pcard-brand">{brandLabel}</div>
-        <div className="sf-pcard-name">{product.name}</div>
-        <div className="sf-pcard-price">{price}</div>
+        <button type="button" className="sf-pcard-text" onClick={onOpen}>
+          <div className="sf-pcard-brand">{brandLabel}</div>
+          <div className="sf-pcard-name">{product.name}</div>
+          <div className="sf-pcard-price">{price}</div>
+        </button>
+        {onAddToBag ? (
+          <button
+            type="button"
+            className="sf-pcard-add"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToBag();
+            }}
+          >
+            <ShoppingBagIcon />
+            Add to Bag
+          </button>
+        ) : null}
       </div>
-    </button>
+    </article>
   );
 }
 
@@ -2826,51 +3542,156 @@ function PdpSizeSelect({
   );
 }
 
+function OrdersEmptyState({ onBrowse }: { onBrowse: () => void }) {
+  return (
+    <div className="sf-orders-empty-panel">
+      <img
+        className="sf-orders-empty-icon"
+        src="/images/orders-empty-box.png"
+        alt=""
+        aria-hidden="true"
+      />
+      <h2 className="sf-orders-empty-title">No orders yet</h2>
+      <p className="sf-orders-empty-copy">
+        You haven&apos;t redeemed any products from the store yet. Your redeemed products will appear
+        here.
+      </p>
+      <button type="button" className="sf-orders-empty-cta" onClick={onBrowse}>
+        Browse products
+        <ArrowRightIcon />
+      </button>
+    </div>
+  );
+}
+
+type OrdersFilter = "all" | "placed" | "shipped" | "delivered" | "cancelled";
+
+function OrdersListView({
+  orders,
+  products,
+  priceLabel,
+  currencyMode,
+  onOpen,
+}: {
+  orders: StoreOrderSummary[];
+  products: StoreProduct[];
+  priceLabel: (inr: number) => string;
+  currencyMode: ShopCurrencyMode;
+  onOpen: (orderNumber: string) => void;
+}) {
+  const [filter, setFilter] = useState<OrdersFilter>("all");
+
+  const filteredOrders = useMemo(() => {
+    if (filter === "all") return orders;
+    return orders.filter((o) => {
+      const status = o.status.toLowerCase();
+      if (filter === "delivered") return status === "delivered";
+      if (filter === "cancelled") return status === "cancelled";
+      if (filter === "shipped") {
+        return ["shipped", "packed", "in_production", "qc_pending"].includes(status);
+      }
+      return !["delivered", "cancelled", "shipped", "packed", "in_production", "qc_pending"].includes(status);
+    });
+  }, [orders, filter]);
+
+  return (
+    <div className="sf-my-orders-panel">
+      <div className="sf-my-orders-head">
+        <div>
+          <h1 className="sf-my-orders-title">My orders</h1>
+          <p className="sf-my-orders-sub">Track and view your redeemed products.</p>
+        </div>
+        <label className="sf-my-orders-filter">
+          <span>Filter:</span>
+          <select value={filter} onChange={(e) => setFilter(e.target.value as OrdersFilter)}>
+            <option value="all">All Orders</option>
+            <option value="placed">Order placed</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="sf-my-orders-list">
+        {filteredOrders.map((o) => (
+          <OrderRowCard
+            key={o.orderNumber}
+            order={o}
+            products={products}
+            priceLabel={priceLabel}
+            currencyMode={currencyMode}
+            onOpen={() => onOpen(o.orderNumber)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OrderRowCard({
   order,
   products,
   priceLabel,
+  currencyMode,
   onOpen,
 }: {
   order: StoreOrderSummary;
   products: StoreProduct[];
   priceLabel: (inr: number) => string;
+  currencyMode: ShopCurrencyMode;
   onOpen: () => void;
 }) {
   const items = order.items ?? [];
+  const primary = items[0];
   const status = orderStatusDisplay(order);
+  const qty = items.reduce((n, item) => n + (item.qty || 1), 0) || order.itemCount || 1;
+  const totalInr = order.total ?? orderItemLinePrice(primary) ?? 0;
+  const secondaryPts =
+    currencyMode === "inr"
+      ? `${inrToPoints(totalInr).toLocaleString("en-IN")} Pts`
+      : null;
 
   return (
-    <button type="button" className="sf-order-row" onClick={onOpen}>
-      <div className="sf-order-row-items">
-        {items.length > 0 ? (
-          items.map((item, idx) => (
-            <OrderItemLine
-              key={orderItemKey(item, idx)}
-              item={item}
-              products={products}
-              priceLabel={priceLabel}
-              layout="row"
-            />
-          ))
+    <button type="button" className="sf-my-order-card" onClick={onOpen}>
+      <div className="sf-my-order-thumb">
+        {primary ? (
+          <OrderItemThumb item={primary} products={products} />
         ) : (
-          <div className="sf-order-row-item sf-order-row-item--fallback">
-            <div className="sf-order-row-main">
-              <div className="sf-order-row-title">Order #{order.orderNumber}</div>
-            </div>
-            <div className="sf-order-row-price">
-              {order.total != null ? priceLabel(order.total) : "—"}
-            </div>
-          </div>
+          <span className="sf-my-order-thumb-fallback" aria-hidden="true">
+            <PackageIcon />
+          </span>
         )}
       </div>
-      <div className={`sf-order-row-status sf-order-row-status--${status.tone}`}>
-        <div className="sf-order-row-status-head">
-          <span className="sf-order-row-dot" aria-hidden="true" />
-          <span className="sf-order-row-status-title">{status.title}</span>
-        </div>
-        <div className="sf-order-row-status-msg">{status.message}</div>
+
+      <div className="sf-my-order-info">
+        <div className="sf-my-order-name">{primary?.name || `Order #${order.orderNumber}`}</div>
+        <div className="sf-my-order-meta">Qty: {qty}</div>
+        <div className="sf-my-order-id">Order ID: #{order.orderNumber}</div>
       </div>
+
+      <div className="sf-my-order-date">
+        <div className="sf-my-order-date-label">Ordered on</div>
+        <div className="sf-my-order-date-value">{formatOrderDate(order.createdAt) || "—"}</div>
+        <div className="sf-my-order-date-time">{formatOrderTime(order.createdAt)}</div>
+      </div>
+
+      <div className="sf-my-order-price">
+        <div className="sf-my-order-price-main">{priceLabel(totalInr)}</div>
+        {secondaryPts ? <div className="sf-my-order-price-sub">({secondaryPts})</div> : null}
+      </div>
+
+      <div className={`sf-my-order-status sf-my-order-status--${status.tone}`}>
+        <div className="sf-my-order-status-pill">
+          <span className="sf-my-order-status-dot" aria-hidden="true" />
+          <span>{status.title}</span>
+        </div>
+        <div className="sf-my-order-status-msg">{status.message}</div>
+      </div>
+
+      <span className="sf-my-order-arrow" aria-hidden="true">
+        <ArrowRightIcon />
+      </span>
     </button>
   );
 }

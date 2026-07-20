@@ -22,6 +22,10 @@ export function GeneralSettingsTab({ shop }: { shop: UiShop }) {
   }, [shop]);
 
   const dirty = name.trim() !== shop.name;
+  const currencyDescription =
+    shop.currencyMode === "inr"
+      ? "Product prices in this store are shown in Indian Rupees (₹). Recipients see Credits."
+      : "Product prices in this store are shown in Points.";
 
   async function save() {
     const trimmed = name.trim();
@@ -88,8 +92,13 @@ export function GeneralSettingsTab({ shop }: { shop: UiShop }) {
           <input className="inp" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
 
+        <div className="field" style={{ marginTop: 18 }}>
+          <label className="lbl">Store currency</label>
+          <input className="inp" value={shop.currency} readOnly disabled />
+        </div>
+
         <div className="muted" style={{ fontSize: 12, margin: "2px 0 22px", lineHeight: 1.55 }}>
-          Product prices in this store are always shown in points.
+          {currencyDescription} Store currency is locked and cannot be changed after creation.
         </div>
 
         <button

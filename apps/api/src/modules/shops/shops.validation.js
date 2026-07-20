@@ -9,7 +9,7 @@ export const createShopSchema = z.object({
     .max(48)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, and hyphens')
     .optional(),
-  currencyMode: z.enum(['points', 'inr', 'priceless']).optional().default('points'),
+  currencyMode: z.enum(['points', 'inr']).optional().default('points'),
   pointsConversionEnabled: z.boolean().optional().default(false),
   logoUrl: z.string().optional().default(''),
   bannerConfig: z.record(z.any()).optional().default({}),
@@ -25,7 +25,6 @@ export const updateShopSchema = z
       .max(48)
       .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, and hyphens')
       .optional(),
-    currencyMode: z.enum(['points', 'inr', 'priceless']),
     pointsConversionEnabled: z.boolean(),
     logoUrl: z.string(),
     bannerConfig: z.record(z.any()),

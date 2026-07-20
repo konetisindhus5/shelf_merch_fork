@@ -1,5 +1,6 @@
 import { LoadingState } from "@/components/LoadingState";
 import StoreShell from "@/components/store/StoreShell";
+import { normalizeCurrencyMode } from "@/lib/storeCurrency";
 import type { StorefrontVm } from "../controllers/useStorefrontController";
 
 /** Public storefront view: loading/error states, then the store shell in preview mode. */
@@ -26,7 +27,7 @@ export function StorefrontView(vm: StorefrontVm & { shopId: string }) {
       shop={vm.data.shop}
       products={vm.data.products}
       mode="preview"
-      currency="points"
+      currency={normalizeCurrencyMode(vm.data.shop.currencyMode)}
       cartPersistId={vm.shopId}
     />
   );

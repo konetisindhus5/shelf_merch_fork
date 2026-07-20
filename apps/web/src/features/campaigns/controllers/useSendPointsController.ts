@@ -17,6 +17,7 @@ import {
   selectAllRecipientIds,
 } from "@/features/send/recipientSelection";
 import type { PointsSendTotals } from "@/features/send/money";
+import type { ShopCurrencyMode } from "@/lib/storeCurrency";
 import type { UiShop } from "@/services/mappers";
 import { useLaunchPointsCampaign, useSavePointsCampaignDraft } from "../model";
 import type { UiContact, UiWallet } from "../model";
@@ -46,6 +47,7 @@ export type SendPointsVm = {
   pickerContacts: UiContact[];
   shop: UiShop | undefined;
   shopCurrencyLabel: string;
+  currencyMode: ShopCurrencyMode;
   wallet: UiWallet | undefined;
   wallets: UiWallet[];
   selectedWalletId: string | undefined;
@@ -163,6 +165,7 @@ export function useSendPointsController(): SendPointsVm {
   const wallet =
     checkoutWallets.find((w) => w.id === selectedWalletId) ?? checkoutWallets[0];
   const shopCurrencyLabel = shop?.currency || "Points";
+  const currencyMode: ShopCurrencyMode = shop?.currencyMode ?? "points";
 
   function reportRecipientAddResult(result: {
     added: string[];
@@ -469,6 +472,7 @@ export function useSendPointsController(): SendPointsVm {
     pickerContacts,
     shop,
     shopCurrencyLabel,
+    currencyMode,
     wallet,
     wallets: checkoutWallets,
     selectedWalletId: selectedWalletId || checkoutWallets[0]?.id,

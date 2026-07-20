@@ -19,12 +19,15 @@ export function shopTabFromSearch(tab?: string): ShopTab | null {
 }
 
 export const SHOP_CURRENCIES = [
-  { key: "Points", title: "Points", desc: "₹2 = 1 Pt. Recipients redeem with points." },
-  { key: "INR", title: "Indian Rupee (₹)", desc: "Prices shown in rupees, GST inclusive." },
   {
-    key: "Priceless",
-    title: "Priceless",
-    desc: "Hide prices. Choose how many items recipients can redeem.",
+    key: "Points",
+    title: "Points",
+    desc: "Display product prices in Points. Conversion: ₹1 = 2 Points.",
+  },
+  {
+    key: "INR",
+    title: "INR",
+    desc: "Display product prices directly in Indian Rupees. ₹1 = 1 Credit.",
   },
 ] as const;
 

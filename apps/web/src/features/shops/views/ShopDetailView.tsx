@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { ArrowLeft, Coins } from "lucide-react";
 import { LoadingState } from "@/components/LoadingState";
+import { sendFlowTitle } from "@/lib/storeCurrency";
 import { ShopBanner } from "../banner";
 import { ShopWelcomeDialog } from "../ShopWelcomeDialog";
 import { BrandedSwagTab } from "../tabs/BrandedSwagTab";
@@ -103,7 +104,7 @@ export function ShopDetailView(vm: ShopDetailVm) {
         </div>
         {vm.canSendPoints ? (
           <button type="button" className="btn btn-brand shop-detail-head-action" onClick={() => vm.onSendPoints()}>
-            <Coins size={16} /> Send points
+            <Coins size={16} /> {sendFlowTitle(shop.currencyMode)}
           </button>
         ) : null}
       </div>

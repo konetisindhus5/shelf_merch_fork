@@ -50,7 +50,7 @@ export async function createShop({ tenantId, data }) {
 export async function updateShop({ tenantId, shopId, patch }) {
   const shop = await getShop({ tenantId, shopId });
   const before = shop.toObject();
-  const { status: _ignored, slug: slugPatch, ...rest } = patch; // publish endpoint owns status
+  const { status: _ignored, slug: slugPatch, currencyMode: _currencyIgnored, ...rest } = patch; // publish endpoint owns status; currency is permanent
   Object.assign(shop, rest);
   if (slugPatch != null && String(slugPatch).trim()) {
     shop.slug = await ensureUniqueShopSlug(Shop, slugPatch, shop._id);

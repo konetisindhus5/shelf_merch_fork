@@ -7,7 +7,7 @@ const shopSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     /** Public vanity URL — globally unique (e.g. salesforce → salesforce.store). */
     slug: { type: String, trim: true, lowercase: true },
-    currencyMode: { type: String, enum: ['points', 'inr', 'priceless'], default: 'points' },
+    currencyMode: { type: String, enum: ['points', 'inr'], default: 'points' },
     pointsConversionEnabled: { type: Boolean, default: false },
     logoUrl: { type: String, default: '' },
     bannerConfig: { type: Object, default: () => ({}) },

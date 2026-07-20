@@ -306,7 +306,7 @@ const SHOP_HERO_IMAGE = "/images/shops/shop-preview-happy-summer.png";
 const SHOP_CALLOUTS = [
   { id: "branding", label: "ADD YOUR BRANDING", side: "left" as const, pos: "top" as const },
   { id: "swag", label: "CUSTOMIZABLE SWAG FROM TOP BRANDS", side: "left" as const, pos: "bottom" as const },
-  { id: "points", label: "POINTS, CURRENCY, OR PRICELESS", side: "right" as const, pos: "top" as const },
+  { id: "points", label: "POINTS OR INR", side: "right" as const, pos: "top" as const },
   { id: "catalog", label: "5K+ CATALOG OPTIONS", side: "right" as const, pos: "bottom" as const },
 ];
 

@@ -22,7 +22,7 @@ import type { CheckoutItem, CheckoutPayment, ShippingAddress, StoreProduct } fro
 
 export type RedemptionStep = "loading" | "portal" | "otp" | "shop" | "kit" | "track" | "error";
 
-type Shop = StoreShop & { currencyMode?: "points" | "inr" | "priceless" };
+type Shop = StoreShop & { currencyMode?: "points" | "inr" };
 
 export type PortalData = {
   campaign: {

@@ -1,6 +1,11 @@
 import type { AuthUser } from "./auth-store";
 import { extractVariantColors } from "../lib/variantColors";
 import { normalizeMongoId } from "@/lib/mongoId";
+import {
+  currencyKeyFromMode,
+  normalizeCurrencyMode,
+  type ShopCurrencyMode,
+} from "@/lib/storeCurrency";
 
 export type UiPrintArea = {
   key?: string;
@@ -49,7 +54,7 @@ export type UiShop = {
   name: string;
   slug?: string;
   currency: string;
-  currencyMode: "points" | "inr" | "priceless";
+  currencyMode: ShopCurrencyMode;
   pointsConversionEnabled: boolean;
   live: boolean;
   categories: string[];
@@ -308,14 +313,15 @@ export function mapProductRef(ref: ApiProduct, catalogById?: Map<string, UiProdu
 }
 
 export function mapShop(s: ApiProduct): UiShop {
+  const currencyMode = normalizeCurrencyMode(
+    (s as { currencyMode?: string }).currencyMode,
+  );
   return {
     id: String(s._id),
     name: s.name,
     slug: String((s as { slug?: string }).slug || ""),
-    // Store prices are always displayed in points — legacy inr/priceless
-    // shops normalize here so every consumer renders one way.
-    currency: "Points",
-    currencyMode: "points",
+    currency: currencyKeyFromMode(currencyMode),
+    currencyMode,
     pointsConversionEnabled: Boolean(s.pointsConversionEnabled),
     live: s.status === "live",
     categories: s.categories || [],

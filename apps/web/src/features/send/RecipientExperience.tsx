@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { ShopBanner } from "@/features/shops/banner";
+import {
+  unitLabelLower,
+  type ShopCurrencyMode,
+} from "@/lib/storeCurrency";
 import type { SendMode, ScheduleDraft, WhenMode } from "./types";
 
 const LOGO_DECO = (
@@ -70,6 +74,7 @@ export function RecipientExperience({
   shopName = "Rubix",
   shopBrand,
   pointsScope = "shop",
+  currencyMode = "points" as ShopCurrencyMode,
   mode = "redeem",
   itemCount = 3,
   pointsAmount = 0,
@@ -91,6 +96,7 @@ export function RecipientExperience({
   shopName?: string;
   shopBrand?: PreviewShopBrand;
   pointsScope?: "stadium" | "shop";
+  currencyMode?: ShopCurrencyMode;
   mode?: SendMode;
   itemCount?: number;
   pointsAmount?: number;
@@ -109,6 +115,14 @@ export function RecipientExperience({
   extraLeft?: ReactNode;
 }) {
   const isPoints = kind === "points";
+  const usesCredits = currencyMode === "inr";
+  const unitLower = unitLabelLower(currencyMode);
+  const amountLabel =
+    isPoints && pointsAmount > 0
+      ? usesCredits
+        ? `₹${pointsAmount.toLocaleString("en-IN")} Credits`
+        : `${pointsAmount.toLocaleString("en-IN")} Pts`
+      : "";
   const previewFrom = from.trim() || fromPlaceholder || "";
   const previewMessage = message.trim() || messagePlaceholder || "";
   // surprise / single-location item sends ship directly; points always redeem
@@ -126,22 +140,22 @@ export function RecipientExperience({
 
   const headline = isPoints
     ? useAnywhere
-      ? `You've been gifted ${pointsAmount} Pts from ${shopName}!`
-      : `You've been gifted ${pointsAmount} Pts to ${shopName}!`
+      ? `You've been gifted ${amountLabel} from ${shopName}!`
+      : `You've been gifted ${amountLabel} to ${shopName}!`
     : shipMode
       ? `Your gift from ${previewFrom} is on its way!`
       : `${previewFrom} sent you a gift!`;
   const cta = isPoints
     ? useAnywhere
-      ? "Use your points"
-      : "Redeem your points"
+      ? `Use your ${unitLower}`
+      : `Redeem your ${unitLower}`
     : shipMode
       ? "Track your shipment"
       : "Choose your gift";
   const pointsScopeCaption = isPoints
     ? useAnywhere
-      ? "These points can be used in this shop or any connected points store."
-      : "These points can only be redeemed in this shop."
+      ? `These ${unitLower} can be used in this shop or any connected ${unitLower} store.`
+      : `These ${unitLower} can only be redeemed in this shop.`
     : "";
   const tab1 = shipMode ? "Tracking page" : "Landing page";
   const tab2 = shipMode ? "Shipping email" : "Invitation email";

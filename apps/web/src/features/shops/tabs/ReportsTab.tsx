@@ -9,7 +9,11 @@ import {
   YAxis,
 } from "recharts";
 import { LoadingState } from "@/components/LoadingState";
-import { POINT_VALUE } from "@/features/send/money";
+import {
+  formatStorePrice,
+  inrToCredits,
+  inrToPoints,
+} from "@/lib/storeCurrency";
 import { useShopReport, type ShopReport, type UiShop } from "../model";
 
 /* ── formatting ─────────────────────────────────────────────────────────── */
@@ -114,12 +118,15 @@ export function ReportsTab({ shop }: { shop: UiShop }) {
   }
 
   const { totals, funnel, weekly, topProducts } = data as ShopReport;
-  // Store prices are always displayed in points.
-  const usesPoints = true;
-  const points = (inr: number) => Math.round(inr / POINT_VALUE);
+  const usesPoints = shop.currencyMode === "points";
   const valueLabel = (inr: number) =>
-    usesPoints ? `${points(inr).toLocaleString("en-IN")} pts` : inrLabel(inr);
-  const valueCompact = (inr: number) => (usesPoints ? `${compact(points(inr))} pts` : `₹${compact(inr)}`);
+    usesPoints
+      ? `${inrToPoints(inr).toLocaleString("en-IN")} pts`
+      : formatStorePrice(inr, "inr");
+  const valueCompact = (inr: number) =>
+    usesPoints
+      ? `${compact(inrToPoints(inr))} pts`
+      : `₹${compact(inrToCredits(inr))}`;
 
   const hasActivity = totals.recipients > 0 || totals.ordersCount > 0;
   if (!hasActivity) {
@@ -129,19 +136,22 @@ export function ReportsTab({ shop }: { shop: UiShop }) {
           <BarChart3 size={34} color="var(--ink-3)" />
         </div>
         <h3>No activity yet</h3>
-        <p>Send points from this shop and redemption analytics will build up here.</p>
+        <p>
+          {usesPoints ? "Send points" : "Send credits"} from this shop and redemption analytics will
+          build up here.
+        </p>
       </div>
     );
   }
 
   const stats: Array<{ k: string; v: string; sub?: string }> = [
     {
-      k: usesPoints ? "Points issued" : "Value issued",
+      k: usesPoints ? "Points issued" : "Credits issued",
       v: valueCompact(totals.pointsIssuedInr),
       sub: usesPoints ? inrLabel(totals.pointsIssuedInr) : undefined,
     },
     {
-      k: usesPoints ? "Points redeemed" : "Value redeemed",
+      k: usesPoints ? "Points redeemed" : "Credits redeemed",
       v: valueCompact(totals.pointsRedeemedInr),
       sub: usesPoints ? inrLabel(totals.pointsRedeemedInr) : undefined,
     },

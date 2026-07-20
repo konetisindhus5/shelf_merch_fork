@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { ArrowLeft, Upload } from "lucide-react";
 import { FullscreenOverlay } from "@/components/tenant/FullscreenOverlay";
 import { ShopBuilderStep } from "../ShopBuilderStep";
+import { SHOP_CURRENCIES } from "../types";
 import type { CreateShopVm } from "../controllers/useCreateShopController";
 
 /** Create-shop wizard shell: details/logo steps, then the builder step. */
@@ -64,12 +65,56 @@ export function CreateShopView(vm: CreateShopVm) {
                     onChange={(e) => dispatch({ type: "set", patch: { name: e.target.value } })}
                   />
                 </div>
+                <div className="field" style={{ marginTop: 18 }}>
+                  <label className="lbl">Store currency *</label>
+                  <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
+                    {SHOP_CURRENCIES.map((option) => {
+                      const selected = draft.currency === option.key;
+                      return (
+                        <label
+                          key={option.key}
+                          style={{
+                            display: "flex",
+                            gap: 12,
+                            alignItems: "flex-start",
+                            padding: "14px 16px",
+                            borderRadius: 12,
+                            border: selected ? "2px solid var(--brand)" : "1px solid var(--line)",
+                            background: selected ? "var(--brand-50)" : "var(--surface)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="shop-currency"
+                            checked={selected}
+                            onChange={() =>
+                              dispatch({ type: "set", patch: { currency: option.key } })
+                            }
+                            style={{ marginTop: 3 }}
+                          />
+                          <span>
+                            <span style={{ display: "block", fontWeight: 700, fontSize: 14 }}>
+                              {option.title}
+                            </span>
+                            <span
+                              className="muted"
+                              style={{ display: "block", fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }}
+                            >
+                              {option.desc}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
                 <p
                   className="mut3"
                   style={{ fontSize: 11.5, margin: "6px 0 16px", lineHeight: 1.5 }}
                 >
-                  Product prices in your shop are shown in points. The shop name can be edited
-                  later from your dashboard.
+                  The selected currency is permanent and cannot be changed after the shop is created.
+                  The shop name can be edited later from your dashboard.
                 </p>
                 <button type="button" className="btn btn-dark btn-block btn-lg" onClick={vm.onNext}>
                   Next

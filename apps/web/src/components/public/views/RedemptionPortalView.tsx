@@ -5,6 +5,7 @@ import KitAcceptPortal from "@/components/KitAcceptPortal";
 import { LoadingState } from "@/components/LoadingState";
 import { StoreBanner } from "@/components/StoreBanner";
 import StoreShell from "@/components/store/StoreShell";
+import { normalizeCurrencyMode } from "@/lib/storeCurrency";
 import { ShelfMerchLogo } from "@/components/brand/ShelfMerchLogo";
 import type { RedemptionVm } from "../controllers/useRedemptionController";
 
@@ -189,7 +190,7 @@ export function RedemptionPortalView(vm: RedemptionVm) {
         shop={vm.portal.campaign.shop || { name: vm.portal.campaign.name }}
         products={vm.products}
         mode="redeem"
-        currency="points"
+        currency={normalizeCurrencyMode(vm.portal.campaign.shop?.currencyMode)}
         creditInr={vm.portal.recipient.creditAmount}
         recipientName={vm.portal.recipient.name}
         recipientEmail={vm.portal.recipient.email}

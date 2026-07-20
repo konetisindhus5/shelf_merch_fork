@@ -2,7 +2,14 @@ import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { POINT_VALUE } from "@/features/send/money";
+import {
+  formatPointsQuantity,
+  formatUnitsFromInr,
+  POINTS_PER_RUPEE,
+  sendFlowTitle,
+  unitLabel,
+  unitLabelLower,
+} from "@/lib/storeCurrency";
 import { useCampaignRecipients, useDeleteCampaign } from "@/features/campaigns/model";
 import type { CampaignRecipientRow } from "@/services/mutations-api";
 import type { UiCampaign, UiShop } from "@/services/mappers";
@@ -104,9 +111,9 @@ function statusPill(campaign: UiCampaign) {
   );
 }
 
-function pointsPerRecipient(campaign: UiCampaign) {
+function pointsPerRecipient(campaign: UiCampaign, shop: UiShop) {
   if ((campaign.creditsPerRecipient ?? 0) <= 0) return "—";
-  return `${(campaign.creditsPerRecipient / POINT_VALUE).toFixed(2)} Pts`;
+  return formatPointsQuantity(campaign.creditsPerRecipient * POINTS_PER_RUPEE, shop.currencyMode);
 }
 
 function formatCampaignDate(createdAt?: string) {
@@ -124,15 +131,17 @@ function displayRecipientCount(campaign: UiCampaign) {
   return campaign.recipientCount;
 }
 
-function campaignSubtext(campaign: UiCampaign) {
+function campaignSubtext(campaign: UiCampaign, shop: UiShop) {
   if (isIncompleteCampaign(campaign)) return "Saved draft";
-  return campaign.type === "points" ? "Points send" : "Campaign";
+  return campaign.type === "points"
+    ? `${unitLabel(shop.currencyMode)} send`
+    : "Campaign";
 }
 
-function recipientAmount(creditAmount: number | undefined) {
+function recipientAmount(creditAmount: number | undefined, shop: UiShop) {
   const amount = creditAmount ?? 0;
   if (amount <= 0) return "—";
-  return `${(amount / POINT_VALUE).toFixed(2)} Pts`;
+  return formatUnitsFromInr(amount, shop.currencyMode);
 }
 
 function recipientStatusLabel(status?: string) {
@@ -213,7 +222,7 @@ function CampaignRecipientsPanel({
               <tr key={String(r._id ?? r.email)}>
                 <td style={{ fontWeight: 500 }}>{r.name || "—"}</td>
                 <td className="muted">{r.email || "—"}</td>
-                <td className="num">{recipientAmount(r.creditAmount)}</td>
+                <td className="num">{recipientAmount(r.creditAmount, shop)}</td>
                 <td className="muted" style={{ fontSize: 13 }}>
                   {recipientStatusLabel(r.redemptionStatus)}
                 </td>
@@ -332,14 +341,16 @@ export function SentGiftsTab({
                 <Fragment key={campaign.id}>
                   <tr>
                     <td className="data-list-cell">
-                      <div className="data-list-primary">{campaign.name || "Points campaign"}</div>
-                      <div className="data-list-secondary">{campaignSubtext(campaign)}</div>
+                      <div className="data-list-primary">
+                        {campaign.name || `${unitLabel(shop.currencyMode)} campaign`}
+                      </div>
+                      <div className="data-list-secondary">{campaignSubtext(campaign, shop)}</div>
                     </td>
                     <td className="data-list-cell">
                       <div className="data-list-primary">{campaign.senderName || "—"}</div>
                     </td>
                     <td className="num data-list-cell">
-                      <div className="data-list-primary">{pointsPerRecipient(campaign)}</div>
+                      <div className="data-list-primary">{pointsPerRecipient(campaign, shop)}</div>
                     </td>
                     <td className="data-list-cell" style={centerCellStyle}>
                       <div style={{ display: "flex", justifyContent: "center" }}>
@@ -439,9 +450,9 @@ export function SentGiftsTab({
     <div className="card sent-gifts-empty">
       <div className="sent-gifts-empty-inner">
         <img src={sentGiftsEmptyImg} alt="" className="sent-gifts-empty-art" />
-        <h3>You haven&apos;t sent any points</h3>
+        <h3>You haven&apos;t sent any {unitLabelLower(shop.currencyMode)}</h3>
         <p className="muted">
-          Send points so recipients can redeem in &lsquo;{shop.name}&rsquo;!
+          {sendFlowTitle(shop.currencyMode)} so recipients can redeem in &lsquo;{shop.name}&rsquo;!
         </p>
         <button
           type="button"
@@ -449,7 +460,7 @@ export function SentGiftsTab({
           onClick={() => onSendPoints()}
           disabled={!canSendPoints}
         >
-          Send points
+          {sendFlowTitle(shop.currencyMode)}
         </button>
       </div>
     </div>

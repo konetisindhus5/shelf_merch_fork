@@ -246,12 +246,7 @@ export async function createShopFlow(payload: {
   logoUrl?: string;
   bannerConfig?: Record<string, unknown>;
 }) {
-  const currencyMode =
-    payload.currency === "INR"
-      ? "inr"
-      : payload.currency === "Priceless"
-        ? "priceless"
-        : "points";
+  const currencyMode = payload.currency === "INR" ? "inr" : "points";
   const draft = await createShopApi({
     name: payload.name,
     currencyMode,
@@ -266,7 +261,7 @@ export async function updateShopFlow(
   shopId: string,
   payload: {
     name?: string;
-    currencyMode?: "points" | "inr" | "priceless";
+    currencyMode?: "points" | "inr";
     pointsConversionEnabled?: boolean;
     logoUrl?: string;
     bannerConfig?: Record<string, unknown>;

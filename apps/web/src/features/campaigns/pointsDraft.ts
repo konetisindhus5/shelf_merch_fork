@@ -85,7 +85,7 @@ export const SEND_POINTS_PLACEHOLDERS = {
   orderName: "Order R249681093",
   recips: "100",
   ppr: "1500",
-  points: "750.00",
+  points: "1500.00",
   from: "shelfmerch",
   msg: "Appreciate your turnaround completing the key project, which is critical to company revenue.",
 } as const;

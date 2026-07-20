@@ -6,7 +6,14 @@ import { WizardChrome } from "@/features/swag/wizard/WizardChrome";
 import { RecipientPicker } from "@/features/send/RecipientPicker";
 import { RecipientExperience } from "@/features/send/RecipientExperience";
 import { PaymentPanel } from "@/features/send/PaymentPanel";
-import { POINT_VALUE } from "@/features/send/money";
+import { POINTS_PER_RUPEE } from "@/lib/storeCurrency";
+import {
+  conversionBadge,
+  formatPointsQuantity,
+  sendFlowTitle,
+  unitLabel,
+  unitLabelLower,
+} from "@/lib/storeCurrency";
 import {
   budgetPerRecipientError,
   isValidBudgetPerRecipient,
@@ -27,6 +34,7 @@ export function SendPointsView({
   totals,
   shop,
   shopCurrencyLabel,
+  currencyMode,
   wallet,
   wallets,
   selectedWalletId,
@@ -45,6 +53,11 @@ export function SendPointsView({
   onImportRecipientCsv,
 }: SendPointsVm) {
   const [pprRaw, setPprRaw] = useState(draft.ppr > 0 ? String(draft.ppr) : "");
+  const usesCredits = currencyMode === "inr";
+  const unit = unitLabel(currencyMode);
+  const unitLower = unitLabelLower(currencyMode);
+  const flowTitle = sendFlowTitle(currencyMode);
+  const conversion = conversionBadge(currencyMode);
 
   useEffect(() => {
     setPprRaw(draft.ppr > 0 ? String(Math.trunc(draft.ppr)) : "");
@@ -57,7 +70,7 @@ export function SendPointsView({
     return <LoadingState message="Loading…" fullScreen={false} />;
   }
   if (isSending) {
-    return <LoadingState message="Sending points…" fullScreen={false} />;
+    return <LoadingState message={`Sending ${unitLower}…`} fullScreen={false} />;
   }
 
   const footer = (
@@ -95,7 +108,7 @@ export function SendPointsView({
 
   return (
     <WizardChrome
-      title="Send Points"
+      title={flowTitle}
       steps={STEPS}
       activeIndex={step}
       onExit={() => void onSaveAndExit()}
@@ -114,8 +127,10 @@ export function SendPointsView({
             style={{ justifyContent: "space-between", alignItems: "flex-start" }}
           >
             <div>
-              <h1 style={{ fontSize: 24 }}>Send Points</h1>
-              <p className="muted">Points let recipients redeem items from your shop.</p>
+              <h1 style={{ fontSize: 24 }}>{flowTitle}</h1>
+              <p className="muted">
+                {unit} let recipients redeem items from your shop.
+              </p>
               {shop ? (
                 <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
                   Sending from <b>{shop.name}</b>
@@ -147,7 +162,7 @@ export function SendPointsView({
               />
             </div>
           </div>
-          <label className="lbl">Budget per recipient (₹2 = 1 Pt)</label>
+          <label className="lbl">Budget per recipient ({conversion})</label>
           <div className="row" style={{ alignItems: "center", gap: 14 }}>
             <div className="inp-wrap" style={{ flex: 1 }}>
               <input
@@ -185,14 +200,16 @@ export function SendPointsView({
                 className="inp num"
                 value={
                   isValidBudgetPerRecipient(pprRaw)
-                    ? (Number(pprRaw) / POINT_VALUE).toFixed(2)
+                    ? usesCredits
+                      ? Number(pprRaw).toFixed(2)
+                      : (Number(pprRaw) * POINTS_PER_RUPEE).toFixed(2)
                     : ""
                 }
                 placeholder={SEND_POINTS_PLACEHOLDERS.points}
                 readOnly
                 style={{ background: "var(--surface-2)" }}
               />
-              <span className="inp-suffix">POINTS</span>
+              <span className="inp-suffix">{usesCredits ? "CREDITS" : "POINTS"}</span>
             </div>
           </div>
           {pprRaw && pprError ? (
@@ -214,15 +231,15 @@ export function SendPointsView({
               border: "1px solid var(--line)",
             }}
           >
-            <h3 style={{ fontSize: 16, marginBottom: 6 }}>Shop Points</h3>
+            <h3 style={{ fontSize: 16, marginBottom: 6 }}>Shop {unit}</h3>
             <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.55, margin: 0 }}>
               {shop ? (
                 <>
-                  These points belong to <b>{shop.name}</b>. They will be allocated to the recipients selected in the next step. They can only be redeemed in this shop and cannot be transferred or used in any other shop.
+                  These {unitLower} belong to <b>{shop.name}</b>. They will be allocated to the recipients selected in the next step. They can only be redeemed in this shop and cannot be transferred or used in any other shop.
                 </>
               ) : (
                 <>
-                  These points will be allocated to the recipients selected in the next step and can
+                  These {unitLower} will be allocated to the recipients selected in the next step and can
                   only be redeemed in this shop.
                 </>
               )}
@@ -255,8 +272,11 @@ export function SendPointsView({
               ? { name: shop.name, logoUrl: shop.logoUrl, bannerConfig: shop.bannerConfig }
               : undefined
           }
+          currencyMode={currencyMode}
           pointsScope={draft.pointsScope}
-          pointsAmount={Math.round(draft.ppr / POINT_VALUE)}
+          pointsAmount={
+            usesCredits ? Math.round(draft.ppr) : Math.round(draft.ppr * POINTS_PER_RUPEE)
+          }
           from={draft.from}
           message={draft.msg}
           fromPlaceholder={SEND_POINTS_PLACEHOLDERS.from}
@@ -291,19 +311,23 @@ export function SendPointsView({
                 style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}
               >
                 <h3 style={{ fontSize: 18 }}>Order summary</h3>
-                <span className="tag tag-ready">₹2 = 1 Pt</span>
+                <span className="tag tag-ready">{conversion}</span>
               </div>
               <SumRow
                 k="No. of recipients"
                 v={draft.recips ? String(draft.recips) : SEND_POINTS_PLACEHOLDERS.recips}
               />
               <SumRow
-                k={`${draft.pointsScope === "stadium" ? "Shelf Merch" : "Shop"} points per recipient`}
-                v={`${totals.pointsPerRecipient.toFixed(2)} Pts`}
+                k={`${draft.pointsScope === "stadium" ? "Shelf Merch" : "Shop"} ${unitLower} per recipient`}
+                v={formatPointsQuantity(totals.pointsPerRecipient, currencyMode)}
               />
               <SumRow
-                k={`Total ${draft.pointsScope === "stadium" ? "Shelf Merch" : "Shop"} points purchased`}
-                v={`${totals.totalPoints.toLocaleString("en-IN")} Pts (${inr(totals.sub)})`}
+                k={`Total ${draft.pointsScope === "stadium" ? "Shelf Merch" : "Shop"} ${unitLower} purchased`}
+                v={
+                  usesCredits
+                    ? `${formatPointsQuantity(totals.totalPoints, currencyMode)} (${inr(totals.sub)})`
+                    : `${totals.totalPoints.toLocaleString("en-IN")} Pts (${inr(totals.sub)})`
+                }
               />
               <SumRow k="Service fee (15%)" v={inr(totals.fee)} />
               <SumRow k="Estimated GST (18%)" v={inr(totals.tax)} />

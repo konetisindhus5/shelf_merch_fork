@@ -45,8 +45,7 @@ export function kitSendTotals(
   return { qty, unitPrice, sub, pkgCost, fee, ship, tax, total };
 }
 
-/** 1 point = ₹2. */
-export const POINT_VALUE = 2;
+import { POINTS_PER_RUPEE } from "@/lib/storeCurrency";
 const POINTS_SERVICE_FEE_RATE = 0.15;
 
 export type PointsSendTotals = {
@@ -59,8 +58,8 @@ export type PointsSendTotals = {
 };
 
 /**
- * Money math for a points send. Mirrors the legacy `sendPoints` checkout:
- * budget per recipient (INR) → points at ₹2/pt, 15% service fee, 18% GST.
+ * Money math for a points send: budget per recipient (INR) → points at ₹1 = 2 Pts,
+ * 15% service fee, 18% GST.
  */
 export function pointsSendTotals(
   budgetPerRecipient: number,
@@ -70,12 +69,16 @@ export function pointsSendTotals(
   const fee = sub * POINTS_SERVICE_FEE_RATE;
   const tax = (sub + fee) * GST_RATE;
   const total = sub + fee + tax;
+  const pointsPerRecipient = budgetPerRecipient * POINTS_PER_RUPEE;
   return {
-    pointsPerRecipient: budgetPerRecipient / POINT_VALUE,
-    totalPoints: (budgetPerRecipient / POINT_VALUE) * recipientCount,
+    pointsPerRecipient,
+    totalPoints: pointsPerRecipient * recipientCount,
     sub,
     fee,
     tax,
     total,
   };
 }
+
+/** @deprecated Use POINTS_PER_RUPEE from storeCurrency — ₹1 = 2 points. */
+export const POINT_VALUE = POINTS_PER_RUPEE;

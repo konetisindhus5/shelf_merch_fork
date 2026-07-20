@@ -80,17 +80,28 @@ export function buildRedemptionInviteEmail({
   const themeText = shopBannerTheme === 'light' ? '#1A1A1A' : '#FFFFFF';
   const isPoints = campaignType === 'points';
   const isUniversalPoints = isPoints && pointsScope === 'stadium';
+  const usesCredits = shopCurrencyMode === 'inr';
   const heroHeading = isPoints
-    ? `You've earned reward points!`
+    ? usesCredits
+      ? `You've earned credits!`
+      : `You've earned reward points!`
     : `${safeCompany} is sending<br>you something special.`;
-  const ctaLabel = isPoints ? 'Redeem your points →' : 'Claim your gift →';
+  const ctaLabel = isPoints
+    ? usesCredits
+      ? 'Redeem your credits →'
+      : 'Redeem your points →'
+    : 'Claim your gift →';
   const scopeCopy = isPoints
   ? isUniversalPoints
     ? ''
-    : `Redeem these points exclusively in the ${safeShopName}.`
+    : usesCredits
+      ? `Redeem these credits exclusively in the ${safeShopName}.`
+      : `Redeem these points exclusively in the ${safeShopName}.`
   : ''; 
   const subject = isPoints
-    ? `You've received reward points from ${senderName}`
+    ? usesCredits
+      ? `You've received credits from ${senderName}`
+      : `You've received reward points from ${senderName}`
     : `${senderName} sent you a gift`;
  
   const greeting = safeRecipient ? `Hi ${safeRecipient},` : 'Hi there,';
@@ -203,7 +214,9 @@ export function buildRedemptionInviteEmail({
     greeting,
     '',
     isPoints
-      ? `You've been gifted points to ${shopName || giftName}.`
+      ? usesCredits
+        ? `You've been gifted credits to ${shopName || giftName}.`
+        : `You've been gifted points to ${shopName || giftName}.`
       : `${companyName} is sending you something special.`,
     '',
     message ? `"${message}"` : '',
