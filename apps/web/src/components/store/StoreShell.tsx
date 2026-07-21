@@ -7,6 +7,7 @@ import { shopBannerPresetLabel, shopHeroBannerUrl } from "@/lib/shop-banners";
 import { DesignedProductThumb,
   storeProductAsUi,
 } from "@/features/swag/DesignedProductThumb";
+import { ensureWhiteSwatch, getMockupTintHex, defaultWhiteColorIndex } from "@/features/swag/colors";
 import { ShelfMerchLogo } from "@/components/brand/ShelfMerchLogo";
 import {
   appliedLabel,
@@ -66,12 +67,12 @@ function distinct(values: Array<string | undefined>) {
   return Array.from(new Set(values.filter((v): v is string => !!v)));
 }
 
-function primaryColorIndex(_colors: Array<{ name: string; hex: string }>) {
-  return 0;
+function primaryColorIndex(colors: Array<{ name: string; hex: string }>) {
+  return defaultWhiteColorIndex(colors);
 }
 
 function productColorOptions(p: StoreProduct): Array<{ name: string; hex: string }> {
-  return curatedColorSwatches(productVariantSwatches(p), p.preferredColors);
+  return ensureWhiteSwatch(curatedColorSwatches(productVariantSwatches(p), p.preferredColors));
 }
 
 function ArtworkMockup({
@@ -3838,22 +3839,25 @@ function ProductDetail({ product, mode, priceLabel, onBack, onAdd }: {
   const sizes = useMemo(() => distinct(variants.map((v) => v.size)), [variants]);
   const colorOptions = useMemo(() => productColorOptions(product), [product]);
   const [selColor, setSelColor] = useState(() => primaryColorIndex(colorOptions));
+  const [hasUserPickedColor, setHasUserPickedColor] = useState(false);
   const [size, setSize] = useState<string | undefined>(() => (sizes.length === 1 ? sizes[0] : undefined));
   const [qty, setQty] = useState(1);
   const [infoOpen, setInfoOpen] = useState(false);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const selectedColor = colorOptions[selColor];
+  const previewTintHex = getMockupTintHex(selectedColor?.hex, hasUserPickedColor);
   const hasProductInfo = !!(product.description?.trim() || product.keyFeatures?.trim() || product.sizeGuide?.trim());
   const sizeRequired = sizes.length > 1;
   const canAdd = !sizeRequired || !!size;
 
   useEffect(() => {
     setSelColor(primaryColorIndex(colorOptions));
+    setHasUserPickedColor(false);
     setSize(sizes.length === 1 ? sizes[0] : undefined);
     setQty(1);
     setInfoOpen(false);
     setSizeGuideOpen(false);
-  }, [product._id]);
+  }, [product._id, colorOptions]);
 
   const openSizeGuide = () => setSizeGuideOpen(true);
 
@@ -3868,7 +3872,7 @@ function ProductDetail({ product, mode, priceLabel, onBack, onAdd }: {
           <div className="sf-pdp-media">
             <ArtworkMockup
               product={product}
-              tintHex={selectedColor?.hex}
+              tintHex={previewTintHex}
               className="sf-pdp-main-image"
             />
             <button type="button" className="sf-pdp-zoom" aria-label="Zoom image">
@@ -3892,7 +3896,10 @@ function ProductDetail({ product, mode, priceLabel, onBack, onAdd }: {
               <ColorSwatches
                 colors={colorOptions}
                 selected={selColor}
-                onSelect={setSelColor}
+                onSelect={(index) => {
+                  setHasUserPickedColor(true);
+                  setSelColor(index);
+                }}
                 className="sf-pdp-color-swatches"
               />
             </div>

@@ -8,6 +8,7 @@ import {
   updateCollectionArtworkFlow,
 } from "@/services/api-bridge";
 import { useInvalidateWorkspace } from "@/hooks/useWorkspace";
+import type { MockupUploadItem } from "./mockup-bake";
 import type { UiCollection, UiProduct } from "@/services/mappers";
 
 // Ui types re-exported here so views/controllers never import services/ directly.
@@ -20,7 +21,7 @@ export type CreateCollectionInput = {
   catalog: UiProduct[];
   preferredColors?: string[];
   artwork?: { file?: File; preview?: string; name?: string };
-  mockups?: Array<{ catalogProductId: string; dataUrl: string }>;
+  mockups?: MockupUploadItem[];
 };
 
 export function useCreateCollection() {

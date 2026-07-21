@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { resolveMediaUrl } from "@/lib/mediaUrl";
 import { TintedGarment } from "@/components/store/TintedGarment";
 import type { UiProduct } from "@/services/mappers";
-import { DEFAULT_MOCKUP_TINT_HEX } from "./colors";
+import { DEFAULT_MOCKUP_TINT_HEX, isDefaultMockupTint } from "./colors";
 import {
   defaultPlacement,
   designImgUrl,
@@ -118,14 +118,17 @@ function MaskArtworkComposite({
 export function DesignedProductThumb({
   product,
   artworkUrl,
-  tintHex = DEFAULT_MOCKUP_TINT_HEX,
+  tintHex,
+  preferBakedMockup = true,
   className,
   style,
 }: {
   product: UiProduct;
   artworkUrl?: string;
-  /** Garment colour for mask-based previews (store colour picker). */
+  /** Garment colour for mask-based previews (store colour picker). Omit for baked default. */
   tintHex?: string;
+  /** When true, prefer the saved baked mockup unless a non-white tint is set. */
+  preferBakedMockup?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -141,12 +144,13 @@ export function DesignedProductThumb({
     productThumbUrl(product, false) ||
     productThumbUrl(product, true);
 
-  const isDefaultTint =
-    !tintHex || tintHex.toLowerCase() === DEFAULT_MOCKUP_TINT_HEX.toLowerCase();
+  const isDefaultTint = isDefaultMockupTint(tintHex);
+  const showBaked = Boolean(baked && isDefaultTint && preferBakedMockup);
   const savedPlacement = product.placement ?? null;
+  const liveTintHex = tintHex || DEFAULT_MOCKUP_TINT_HEX;
 
   const inner =
-    baked && isDefaultTint ? (
+    showBaked ? (
       <div className="img img-mockup">
         <img
           src={baked}
@@ -160,7 +164,7 @@ export function DesignedProductThumb({
         product={product}
         mask={resolvedMask}
         overlay={overlay}
-        tintHex={tintHex}
+        tintHex={liveTintHex}
         savedPlacement={savedPlacement}
       />
     ) : overlay && maskStage ? (

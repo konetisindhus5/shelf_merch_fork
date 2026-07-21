@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { refreshCatalogProducts } from "@/services/api-bridge";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { bakeMockup } from "../mockup-bake";
+import { bakeMockupsForProducts } from "../mockup-bake";
 import { buildPreviousUploads, type PreviousArtwork } from "../wizard/artworkHistory";
 import { useCreateCollection } from "../model";
 import type { UiProduct } from "../model";
@@ -76,28 +76,12 @@ export function useSwagWizardController(): SwagWizardVm {
     if (!draft.art) return;
     setGenerating(true);
     try {
-      const artUrl = draft.art.preview;
-      const baked = await Promise.all(
-        draft.picked.map((i, idx) => {
-          const cp = catalog[i];
-          const key = cp?.id || `idx${idx}`;
-          return bakeMockup(cp, artUrl, draft.placements[key] ?? null);
-        }),
+      const mockups = await bakeMockupsForProducts(
+        draft.picked,
+        catalog,
+        draft.art.preview,
+        draft.placements,
       );
-      const mockups = draft.picked
-        .map((i, idx) => {
-          const cp = catalog[i];
-          if (!cp?.id || !baked[idx]) return null;
-          // Persist the Konva placement so live colour-tinted previews match
-          // the baked mockup exactly.
-          const placement = draft.placements[cp.id || `idx${idx}`];
-          return {
-            catalogProductId: cp.id,
-            dataUrl: baked[idx],
-            ...(placement ? { placement } : {}),
-          };
-        })
-        .filter((m): m is { catalogProductId: string; dataUrl: string } => m !== null);
 
       if (!mockups.length) {
         throw new Error("Failed to generate designs — try again");

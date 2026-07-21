@@ -1,6 +1,6 @@
 import type { UiCollection, UiProduct } from "@/services/mappers";
 import { resolveColorHex } from "@/lib/colorMap";
-import { curatedColorSwatches, productVariantSwatches } from "@/lib/variantColors";
+import { curatedColorSwatches, productVariantSwatches, sortWhiteFirstSwatches, type ColorSwatch } from "@/lib/variantColors";
 
 const SWAG_COLORS: [string, string][] = [
   ["Black", "#1c1c1c"],
@@ -46,6 +46,52 @@ export function swagColorHex(name: string): string {
 /** Default garment tint for swag mockups — always white, never a catalog variant hex. */
 export const DEFAULT_MOCKUP_TINT_HEX = SWAG_COLOR_HEX.White;
 
+export function isDefaultMockupTint(hex?: string): boolean {
+  return !hex || hex.toLowerCase() === DEFAULT_MOCKUP_TINT_HEX.toLowerCase();
+}
+
+/**
+ * Tint for live colour previews. Returns undefined until the user picks a
+ * swatch so the baked white mockup is shown on first paint.
+ */
+export function getMockupTintHex(
+  colorHex: string | undefined,
+  hasUserPickedColor: boolean,
+): string | undefined {
+  if (!hasUserPickedColor) return undefined;
+  if (isDefaultMockupTint(colorHex)) return undefined;
+  return colorHex;
+}
+
+function isWhiteColorName(name: string): boolean {
+  return name.toLowerCase().trim() === "white";
+}
+
+/** Default swatch index — White when present in the options, otherwise first. */
+export function defaultWhiteColorIndex(
+  colors: Array<{ name: string }> | string[],
+): number {
+  if (!colors.length) return 0;
+  const idx = colors.findIndex((c) =>
+    isWhiteColorName(typeof c === "string" ? c : c.name),
+  );
+  return idx >= 0 ? idx : 0;
+}
+
+/** Ensure White is always a selectable swatch (prepended when not a catalog variant). */
+export function ensureWhiteSwatch(swatches: ColorSwatch[]): ColorSwatch[] {
+  const withWhite = swatches.some((c) => isWhiteColorName(c.name))
+    ? swatches
+    : [{ name: "White", hex: DEFAULT_MOCKUP_TINT_HEX }, ...swatches];
+  return sortWhiteFirstSwatches(withWhite);
+}
+
+export function collectionProductColorSwatches(col: UiCollection, p: UiProduct): ColorSwatch[] {
+  return ensureWhiteSwatch(
+    curatedColorSwatches(productVariantSwatches(p), col?.preferredColors),
+  );
+}
+
 export function productColorHex(p: UiProduct, name: string): string {
   if (p?.colorHexByName?.[name]) return p.colorHexByName[name];
   const fromVariant = p?.variants?.find((v) => v.color === name)?.colorHex;
@@ -59,7 +105,7 @@ export function productColorNames(p: UiProduct): string[] {
 }
 
 export function collectionProductColorNames(col: UiCollection, p: UiProduct): string[] {
-  return curatedColorSwatches(productVariantSwatches(p), col?.preferredColors).map((c) => c.name);
+  return collectionProductColorSwatches(col, p).map((c) => c.name);
 }
 
 export function productDescription(p: UiProduct): string {

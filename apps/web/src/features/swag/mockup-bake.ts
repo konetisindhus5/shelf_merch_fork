@@ -4,6 +4,12 @@ import type { UiProduct } from "@/services/mappers";
 /** Per-product artwork placement, stored as % of the square stage. */
 export type Placement = { xPct: number; yPct: number; wPct: number; rot: number };
 
+export type MockupUploadItem = {
+  catalogProductId: string;
+  dataUrl: string;
+  placement: Placement;
+};
+
 export const DEFAULT_BOX = { xPct: 33, yPct: 30, widthPct: 34, heightPct: 38 };
 
 export function placementKey(prod: UiProduct, idx: number): string {
@@ -197,6 +203,36 @@ export function buildRealisticArtwork(
   } catch {
     return artImg;
   }
+}
+
+/** Resolve Konva placement for bake/upload — draft value or catalog default. */
+export function resolvePlacementForBake(
+  product: UiProduct,
+  placements: Record<string, Placement>,
+  idx: number,
+): Placement {
+  const key = placementKey(product, idx);
+  return placements[key] ?? defaultPlacement(product);
+}
+
+/** Bake white default mockups for a picked product list (wizard generate flow). */
+export async function bakeMockupsForProducts(
+  pickedIndices: number[],
+  catalog: UiProduct[],
+  artUrl: string,
+  placements: Record<string, Placement>,
+): Promise<MockupUploadItem[]> {
+  const baked = await Promise.all(
+    pickedIndices.map(async (catalogIndex, idx) => {
+      const product = catalog[catalogIndex];
+      if (!product?.id) return null;
+      const placement = resolvePlacementForBake(product, placements, idx);
+      const dataUrl = await bakeMockup(product, artUrl, placement);
+      if (!dataUrl) return null;
+      return { catalogProductId: product.id, dataUrl, placement };
+    }),
+  );
+  return baked.filter((m): m is MockupUploadItem => m !== null);
 }
 
 /** Flatten mask + placed artwork into one PNG data URL. */

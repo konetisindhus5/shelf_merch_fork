@@ -8,6 +8,7 @@ import {
   type PlatformKitTemplate,
 } from "@/services/api-bridge";
 import { useInvalidateWorkspace } from "@/hooks/useWorkspace";
+import type { MockupUploadItem } from "@/features/swag/mockup-bake";
 import type { UiProduct } from "@/services/mappers";
 
 // Ui + service types re-exported here so views/controllers never import services/ directly.
@@ -36,7 +37,7 @@ export type CreateKitInput = {
   designNotes?: string;
   kitPrice?: number;
   artwork?: KitArtworkInput;
-  mockups?: Array<{ catalogProductId: string; dataUrl: string }>;
+  mockups?: MockupUploadItem[];
 };
 
 export function useCreateKit() {

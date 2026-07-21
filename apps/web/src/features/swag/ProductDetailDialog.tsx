@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { ProductInfoTabs } from "@/features/catalog/views/ProductInfoTabs";
 import type { UiCollection, UiProduct } from "@/services/mappers";
-import { collectionProductColorNames, productColorHex } from "./colors";
+import { collectionProductColorNames, defaultWhiteColorIndex, getMockupTintHex, productColorHex } from "./colors";
 import { DesignedProductThumb } from "./DesignedProductThumb";
 
 export type DesignTarget = { collection: UiCollection; product: UiProduct; pIdx: number };
@@ -27,8 +27,13 @@ export function ProductDetailDialog({
   canAddToShop?: boolean;
 }) {
   const [sel, setSel] = useState(0);
+  const [hasUserPickedColor, setHasUserPickedColor] = useState(false);
   useEffect(() => {
-    if (target) setSel(0);
+    if (target) {
+      const names = collectionProductColorNames(target.collection, target.product);
+      setSel(defaultWhiteColorIndex(names));
+      setHasUserPickedColor(false);
+    }
   }, [target]);
 
   return (
@@ -39,6 +44,8 @@ export function ProductDetailDialog({
             target={target}
             sel={sel}
             setSel={setSel}
+            hasUserPickedColor={hasUserPickedColor}
+            setHasUserPickedColor={setHasUserPickedColor}
             onAddToShop={onAddToShop}
             canAddToShop={canAddToShop}
           />
@@ -52,19 +59,26 @@ function Body({
   target,
   sel,
   setSel,
+  hasUserPickedColor,
+  setHasUserPickedColor,
   onAddToShop,
   canAddToShop,
 }: {
   target: DesignTarget;
   sel: number;
   setSel: (i: number) => void;
+  hasUserPickedColor: boolean;
+  setHasUserPickedColor: (picked: boolean) => void;
   onAddToShop: (target: DesignTarget) => void;
   canAddToShop: boolean;
 }) {
   const { collection, product } = target;
   const title = product.brand ? `${product.brand} ${product.nm}` : product.nm;
   const names = collectionProductColorNames(collection, product);
-  const tintHex = names[sel] ? productColorHex(product, names[sel]) : undefined;
+  const tintHex = getMockupTintHex(
+    names[sel] ? productColorHex(product, names[sel]) : undefined,
+    hasUserPickedColor,
+  );
 
   return (
     <div className="modal-pad">
@@ -104,7 +118,10 @@ function Body({
                     title={c}
                     aria-label={c}
                     aria-pressed={sel === i}
-                    onClick={() => setSel(i)}
+                    onClick={() => {
+                      setHasUserPickedColor(true);
+                      setSel(i);
+                    }}
                     className="sw"
                     style={{
                       width: 24,

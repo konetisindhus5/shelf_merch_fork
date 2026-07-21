@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { sumKitProductPrices } from "@/features/send/money";
-import { bakeMockup, placementKey } from "@/features/swag/mockup-bake";
+import { bakeMockupsForProducts } from "@/features/swag/mockup-bake";
 import { usePlatformKits, useCreateKit } from "../model";
 import type { UiProduct } from "../model";
 import { kitReducer, type KitAction, type KitDraft } from "../wizard/kitDraft";
@@ -106,25 +106,18 @@ export function useKitWizardController(): KitWizardVm {
     setPublishing(true);
     try {
       const kitPrice = sumKitProductPrices(pickedProducts);
-      let mockups: Array<{ catalogProductId: string; dataUrl: string }> | undefined;
+      let mockups: Awaited<ReturnType<typeof bakeMockupsForProducts>> | undefined;
 
       if (draft.art?.preview) {
-        const artUrl = draft.art.preview;
-        const baked = await Promise.all(
-          draft.picked.map((i, idx) => {
-            const cp = catalog[i];
-            if (!cp) return Promise.resolve("");
-            const key = placementKey(cp, idx);
-            return bakeMockup(cp, artUrl, draft.placements[key] ?? null);
-          }),
+        mockups = await bakeMockupsForProducts(
+          draft.picked,
+          catalog,
+          draft.art.preview,
+          draft.placements,
         );
-        mockups = draft.picked
-          .map((i, idx) => {
-            const cp = catalog[i];
-            if (!cp?.id || !baked[idx]) return null;
-            return { catalogProductId: cp.id, dataUrl: baked[idx] };
-          })
-          .filter((m): m is { catalogProductId: string; dataUrl: string } => m !== null);
+        if (mockups.length < draft.picked.length) {
+          throw new Error("Failed to generate mockups for all kit products — try again");
+        }
       }
 
       const created = await createKit.mutateAsync({

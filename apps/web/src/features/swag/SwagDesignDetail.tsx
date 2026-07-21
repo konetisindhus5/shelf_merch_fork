@@ -13,7 +13,7 @@ import type { UiCollection, UiProduct } from "@/services/mappers";
 import { ProductInfoTabs } from "@/features/catalog/views/ProductInfoTabs";
 import { productUniqueId } from "@/features/catalog/types";
 import { catalogCategoryLabel } from "@/features/shops/types";
-import { collectionProductColorNames, productColorHex, productDescription } from "./colors";
+import { collectionProductColorNames, defaultWhiteColorIndex, getMockupTintHex, productColorHex, productDescription } from "./colors";
 import { DesignedProductThumb } from "./DesignedProductThumb";
 import { useUpdateCollectionArtwork } from "./model";
 import { bakeMockup } from "./mockup-bake";
@@ -66,18 +66,23 @@ export function SwagDesignDetail({
   shopId,
   backLink,
 }: SwagDesignDetailProps) {
-  const [selColor, setSelColor] = useState(0);
+  const title = product.brand ? `${product.brand} ${product.nm}` : product.nm;
+  const colorNames = collectionProductColorNames(collection, product);
+  const [selColor, setSelColor] = useState(() => defaultWhiteColorIndex(colorNames));
+  const [hasUserPickedColor, setHasUserPickedColor] = useState(false);
   const [artDialogOpen, setArtDialogOpen] = useState(false);
   const [artworkDraft, setArtworkDraft] = useState<ArtworkDraft | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const updateArtwork = useUpdateCollectionArtwork();
 
   useEffect(() => {
-    setSelColor(0);
-  }, [collection.id, product.id, product.nm, productIndex]);
-
-  const title = product.brand ? `${product.brand} ${product.nm}` : product.nm;
-  const colorNames = collectionProductColorNames(collection, product);
+    setSelColor(defaultWhiteColorIndex(colorNames));
+    setHasUserPickedColor(false);
+  }, [collection.id, product.id, product.nm, productIndex, colorNames.join("|")]);
+  const previewTintHex = getMockupTintHex(
+    colorNames[selColor] ? productColorHex(product, colorNames[selColor]) : undefined,
+    hasUserPickedColor,
+  );
   const uniqueId = collection.code || productUniqueId(product, productIndex);
   const category = product.category || catalogCategoryLabel(product);
 
@@ -161,7 +166,11 @@ export function SwagDesignDetail({
         <div className="pd-gallery">
           <div className="pd-img" style={{ background: "var(--gray-100)" }}>
             <div className="pd-img-inner pd-img-mockup">
-              <DesignedProductThumb product={product} artworkUrl={collection.artworkUrl} tintHex={productColorHex(product, colorNames[selColor])} />
+              <DesignedProductThumb
+                product={product}
+                artworkUrl={collection.artworkUrl}
+                tintHex={previewTintHex}
+              />
             </div>
             <button type="button" className="pd-zoom" aria-label="Zoom preview" tabIndex={-1}>
               <ZoomIn size={17} />
@@ -186,7 +195,10 @@ export function SwagDesignDetail({
                           aria-pressed={selColor === i}
                           className={`pd-sw${selColor === i ? " on" : ""}`}
                           style={{ background: productColorHex(product, name) }}
-                          onClick={() => setSelColor(i)}
+                          onClick={() => {
+                            setHasUserPickedColor(true);
+                            setSelColor(i);
+                          }}
                         />
                       ))}
                     </div>
