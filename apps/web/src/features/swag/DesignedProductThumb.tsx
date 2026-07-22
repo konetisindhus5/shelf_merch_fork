@@ -196,10 +196,6 @@ export function DesignedProductThumb({
   const showBaked = Boolean(baked && isDefaultTint && preferBakedMockup);
   const savedPlacement = product.placement ?? null;
   const liveTintHex = tintHex || DEFAULT_MOCKUP_TINT_HEX;
-  // A non-white swatch is active — recolour the garment even if this design has
-  // no standalone artwork URL (only a baked mockup). The mask/base stage is what
-  // gets tinted; the artwork is overlaid on top only when we actually have it.
-  const wantsTint = !isDefaultTint && Boolean(maskStage);
 
   const inner =
     showBaked ? (
@@ -211,14 +207,6 @@ export function DesignedProductThumb({
           style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
         />
       </div>
-    ) : wantsTint ? (
-      <MaskArtworkComposite
-        product={product}
-        mask={resolvedMask || maskStage}
-        overlay={overlay}
-        tintHex={liveTintHex}
-        savedPlacement={savedPlacement}
-      />
     ) : overlay && resolvedMask ? (
       <MaskArtworkComposite
         product={product}

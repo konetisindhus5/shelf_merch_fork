@@ -365,8 +365,13 @@ type ArtworkInput = { file?: File; preview?: string; name?: string };
 
 async function artworkFileFromInput(art: ArtworkInput): Promise<File | null> {
   if (art.file instanceof File) return art.file;
-  if (art.preview?.startsWith("data:")) {
-    const res = await fetch(art.preview);
+  // Fetch data: and blob: previews back into a File so the standalone artwork
+  // is persisted (collection.artworkUrl). Without this, a blob: preview left
+  // artworkUrl empty even though the baked mockup captured the art — which
+  // broke live colour tinting (garment recoloured, artwork missing).
+  const src = art.preview;
+  if (src && (src.startsWith("data:") || src.startsWith("blob:"))) {
+    const res = await fetch(src);
     const blob = await res.blob();
     return new File([blob], art.name || "artwork.png", { type: blob.type || "image/png" });
   }
