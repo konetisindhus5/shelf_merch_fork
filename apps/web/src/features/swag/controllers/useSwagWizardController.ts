@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { refreshCatalogProducts } from "@/services/api-bridge";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { draftFromCollection } from "../draftFromCollection";
-import { bakeMockup } from "../mockup-bake";
+import { bakeMockup, resolvePlacementForBake, type MockupUploadItem } from "../mockup-bake";
 import { buildPreviousUploads, type PreviousArtwork } from "../wizard/artworkHistory";
 import { useCreateCollection, useSyncCollectionPublish, useUpdateCollection } from "../model";
 import type { UiProduct, UiShop } from "../model";
@@ -137,9 +137,13 @@ export function useSwagWizardController(): SwagWizardVm {
         .map((i, idx) => {
           const cp = catalog[i];
           if (!cp?.id || !baked[idx]) return null;
-          return { catalogProductId: cp.id, dataUrl: baked[idx] };
+          return {
+            catalogProductId: cp.id,
+            dataUrl: baked[idx],
+            placement: resolvePlacementForBake(cp, draft.placements, idx),
+          } satisfies MockupUploadItem;
         })
-        .filter((m): m is { catalogProductId: string; dataUrl: string } => m !== null);
+        .filter((m): m is MockupUploadItem => m !== null);
 
       if (!mockups.length) {
         throw new Error("Failed to generate designs — try again");
