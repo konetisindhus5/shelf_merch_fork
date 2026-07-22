@@ -15,7 +15,7 @@ import {
 import { LoadingState } from "@/components/LoadingState";
 import { PageHeader } from "@/components/tenant/PageHeader";
 import type { SwagTab, SwagVm } from "../controllers/useSwagController";
-import { swagEditDraftPath } from "../paths";
+import { swagEditDraftPath, swagProductPath } from "../paths";
 import { PublishCollectionDialog } from "../PublishCollectionDialog";
 import { SwagCollectionCard } from "../SwagCollectionCard";
 import { useArchiveCollection, useDeleteCollection, useRestoreCollection } from "../model";
@@ -180,6 +180,7 @@ export function SwagView(vm: SwagVm) {
                 onArchive={() => handleArchive(col.id, col.name)}
                 onDelete={() => setDeleteTarget(col)}
                 onEditDraft={() => navigate(swagEditDraftPath(col.id))}
+                onProductClick={(_product, pIdx) => navigate(swagProductPath(col.id, pIdx))}
               />
             );
           })}

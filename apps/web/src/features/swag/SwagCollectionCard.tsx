@@ -1,5 +1,5 @@
 import { Archive, Pencil, Store, Trash2 } from "lucide-react";
-import type { UiCollection } from "@/services/mappers";
+import type { UiCollection, UiProduct } from "@/services/mappers";
 import { CollectionInlineCard } from "./CollectionInlineCard";
 
 export function SwagCollectionCard({
@@ -14,6 +14,7 @@ export function SwagCollectionCard({
   onArchive,
   onDelete,
   onEditDraft,
+  onProductClick,
   busy,
 }: {
   collection: UiCollection;
@@ -27,6 +28,7 @@ export function SwagCollectionCard({
   onArchive: () => void;
   onDelete: () => void;
   onEditDraft: () => void;
+  onProductClick?: (product: UiProduct, pIdx: number) => void;
   busy?: boolean;
 }) {
   const isPublished = !archived && shopNames.length > 0;
@@ -35,6 +37,7 @@ export function SwagCollectionCard({
   return (
     <CollectionInlineCard
       collection={collection}
+      onProductClick={onProductClick}
       actions={
         <>
           <span className={`tag ${archived || isDraft ? "tag-warn" : isPublished ? "tag-live" : "tag-warn"}`}>

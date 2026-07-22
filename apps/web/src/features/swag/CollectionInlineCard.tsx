@@ -25,10 +25,13 @@ export function CollectionInlineCard({
   collection,
   actions,
   subtitle,
+  onProductClick,
 }: {
   collection: UiCollection;
   actions?: ReactNode;
   subtitle?: string;
+  /** Opens product detail when a product card is clicked. */
+  onProductClick?: (product: UiProduct, pIdx: number) => void;
 }) {
   const defaultSub = `${collection.code ? `${collection.code} · ` : ""}${collection.products.length} ${
     collection.products.length === 1 ? "item" : "items"
@@ -47,8 +50,8 @@ export function CollectionInlineCard({
       <div className="swag-col-card-products">
         {collection.products.map((p, i) => {
           const swatches = colorSwatches(p);
-          return (
-            <div key={`${p.id ?? p.nm}-${i}`} className="swag-col-pcard">
+          const body = (
+            <>
               <div className="swag-col-pcard-img">
                 <DesignedProductThumb product={p} artworkUrl={collection.artworkUrl} />
               </div>
@@ -68,6 +71,25 @@ export function CollectionInlineCard({
                 <div className="swag-col-pcard-name">{p.nm}</div>
                 {p.price ? <div className="swag-col-pcard-price">{p.price}</div> : null}
               </div>
+            </>
+          );
+
+          if (onProductClick) {
+            return (
+              <button
+                key={`${p.id ?? p.nm}-${i}`}
+                type="button"
+                className="swag-col-pcard swag-col-pcard--clickable"
+                onClick={() => onProductClick(p, i)}
+              >
+                {body}
+              </button>
+            );
+          }
+
+          return (
+            <div key={`${p.id ?? p.nm}-${i}`} className="swag-col-pcard">
+              {body}
             </div>
           );
         })}

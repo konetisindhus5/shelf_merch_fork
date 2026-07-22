@@ -1,8 +1,10 @@
 import { Plus, Shirt, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { CollectionInlineCard } from "@/features/swag/CollectionInlineCard";
-import type { UiCollection, UiShop } from "@/services/mappers";
+import type { UiCollection, UiProduct, UiShop } from "@/services/mappers";
 import { useUnpublishCollectionFromShop } from "../model";
+import { shopDesignPath } from "../paths";
 import { collectionPublishedAt } from "../shopListings";
 
 export function BrandedSwagTab({
@@ -16,6 +18,7 @@ export function BrandedSwagTab({
   canDesignSwag: boolean;
   onStartDesigning: () => void;
 }) {
+  const navigate = useNavigate();
   const unpublish = useUnpublishCollectionFromShop();
   const published = collections.filter((c) => c.status !== "archived");
 
@@ -60,6 +63,9 @@ export function BrandedSwagTab({
               shop={shop}
               collection={col}
               busy={unpublish.isPending}
+              onProductClick={(_product, pIdx) =>
+                navigate(shopDesignPath(shop.id, col.id, pIdx))
+              }
               onRemove={async () => {
                 try {
                   await unpublish.mutateAsync({ collectionId: col.id, shopId: shop.id });
@@ -81,11 +87,13 @@ function ShopCollectionCard({
   collection,
   busy,
   onRemove,
+  onProductClick,
 }: {
   shop: UiShop;
   collection: UiCollection;
   busy: boolean;
   onRemove: () => void;
+  onProductClick: (product: UiProduct, pIdx: number) => void;
 }) {
   const publishedAt = collectionPublishedAt(collection, shop.id);
   const publishedLabel = publishedAt
@@ -99,6 +107,7 @@ function ShopCollectionCard({
   return (
     <CollectionInlineCard
       collection={collection}
+      onProductClick={onProductClick}
       actions={
         <>
           <span className="tag tag-live">
